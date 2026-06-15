@@ -1566,6 +1566,7 @@ function guardarNotasEnBD(tbodyId, grupo) {
   }
   let pendientes = g.estudiantes.length * 4;
   let errores = 0;
+  let primerError = null;
   g.estudiantes.forEach(function(est) {
     if (!est.inscripcionId) { pendientes -= 4; return; }
     const comps = [
@@ -1581,9 +1582,13 @@ function guardarNotasEnBD(tbodyId, grupo) {
       fetch(CTX+'/notas', {method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params})
         .then(r=>r.json())
-        .then(d=>{ pendientes--; if (!d.ok) errores++; if (pendientes===0) {
+        .then(d=>{ pendientes--; if (!d.ok) { errores++; if (!primerError) primerError = d.error; } if (pendientes===0) {
           document.getElementById('saveToast').classList.remove('show');
-          showToast(errores===0 ? 'Calificaciones guardadas correctamente.' : 'Algunas notas no se pudieron guardar.', errores===0 ? 'success' : 'error');
+          if (errores===0) {
+            showToast('Calificaciones guardadas correctamente.', 'success');
+          } else {
+            showToast((primerError ? primerError : 'Algunas notas no se pudieron guardar.') + (errores > 1 ? ' (' + errores + ' notas afectadas)' : ''), 'error');
+          }
         }}).catch(()=>{ pendientes--; errores++; });
     });
   });

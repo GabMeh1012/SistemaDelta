@@ -63,6 +63,9 @@ public class AdminServlet extends HttpServlet {
                 case "materias":
                     out.print(listToJson(dao.listarMaterias()));
                     break;
+                case "profesoresSimple":
+                    out.print(listToJson(dao.listarProfesoresSimple()));
+                    break;
                 case "avisos":
                     out.print(listToJson(dao.listarAvisosAdmin()));
                     break;
@@ -84,6 +87,45 @@ public class AdminServlet extends HttpServlet {
                     dao.actualizarCapacidad(Integer.parseInt(req.getParameter("grupoId")),
                             Integer.parseInt(req.getParameter("capacidad")));
                     out.print("{\"ok\":true}");
+                    break;
+                case "reasignarProfesor":
+                    dao.reasignarProfesor(Integer.parseInt(req.getParameter("grupoId")),
+                            Integer.parseInt(req.getParameter("profesorId")));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "supervisionCalificaciones":
+                    out.print(listToJson(dao.listarSupervisionCalificaciones()));
+                    break;
+                case "historialNota":
+                    out.print(listToJson(dao.historialNota(
+                            Integer.parseInt(req.getParameter("inscripcionId")),
+                            req.getParameter("componente"))));
+                    break;
+                case "autorizarModificacion": {
+                    HttpSession s = req.getSession(false);
+                    int adminUsuarioId = (Integer) s.getAttribute("usuarioId");
+                    int cantidad = req.getParameter("cantidad") != null
+                            ? Integer.parseInt(req.getParameter("cantidad")) : 1;
+                    dao.autorizarModificacionNota(
+                            Integer.parseInt(req.getParameter("inscripcionId")),
+                            req.getParameter("componente"), cantidad, adminUsuarioId);
+                    out.print("{\"ok\":true}");
+                    break;
+                }
+                case "supervisionAsistencia": {
+                    Integer grupoId = parseIntOrNull(req.getParameter("grupoId"));
+                    Integer estudianteId = parseIntOrNull(req.getParameter("estudianteId"));
+                    Integer materiaId = parseIntOrNull(req.getParameter("materiaId"));
+                    out.print(listToJson(dao.listarSupervisionAsistencia(grupoId, estudianteId, materiaId, req.getParameter("fecha"))));
+                    break;
+                }
+                case "corregirAsistencia":
+                    dao.corregirAsistencia(Integer.parseInt(req.getParameter("inscripcionId")),
+                            req.getParameter("fecha"), req.getParameter("estado"), req.getParameter("observacion"));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "reporteAsistenciaPorcentaje":
+                    out.print(listToJson(dao.reporteAsistenciaPorcentaje(req.getParameter("agrupar"))));
                     break;
                 case "desactivarAviso":
                     dao.desactivarAviso(Integer.parseInt(req.getParameter("id")));
@@ -109,6 +151,11 @@ public class AdminServlet extends HttpServlet {
     private boolean esAdmin(HttpServletRequest req) {
         HttpSession s = req.getSession(false);
         return s != null && "admin".equals(s.getAttribute("usuarioRol"));
+    }
+
+    private Integer parseIntOrNull(String s) {
+        if (s == null || s.trim().isEmpty()) return null;
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
     }
 
     private String mapToJson(Map<String, Object> map) {

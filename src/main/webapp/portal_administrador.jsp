@@ -125,9 +125,42 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
   border-radius:8px; font-family:inherit; font-weight:700; cursor:pointer; font-size:13px; }
 .sub-nav button.active { border-color:var(--purple); background:var(--purple-light); color:var(--purple); }
 @media(max-width:900px) { .stats-4 { grid-template-columns:1fr 1fr; } .main-content { padding:20px; } }
+
+/* TOASTS Y MODAL DE CONFIRMACION */
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12);border-left:5px solid var(--purple);font-size:14px;color:var(--text);animation:toast-in 0.25s ease-out;line-height:1.4;}
+.toast.toast-success{border-left-color:var(--green);}
+.toast.toast-error{border-left-color:var(--red);}
+.toast.toast-info{border-left-color:var(--purple);}
+.toast-icon{font-size:18px;flex-shrink:0;line-height:1.4;}
+.toast-msg{flex:1;white-space:pre-line;}
+.toast-close{cursor:pointer;color:var(--text-soft);font-size:16px;line-height:1;flex-shrink:0;background:none;border:none;padding:0;}
+.toast-close:hover{color:var(--text);}
+.toast.toast-out{animation:toast-out 0.2s ease-in forwards;}
+@keyframes toast-in{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(30px);}}
+.modal-overlay{position:fixed;inset:0;background:rgba(30,42,59,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.hidden{display:none;}
+.modal-box{background:#fff;border-radius:10px;max-width:420px;width:100%;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.2);}
+.modal-box p{font-size:15px;color:var(--text);line-height:1.5;margin-bottom:20px;white-space:pre-line;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;}
+.edit-input{width:70px;text-align:center;padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
+.edit-select{padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
 </style>
 </head>
 <body>
+
+<!-- TOASTS Y MODAL DE CONFIRMACION -->
+<div class="toast-container" id="toastContainer"></div>
+<div class="modal-overlay hidden" id="confirmOverlay">
+  <div class="modal-box">
+    <p id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="confirmCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="confirmOkBtn">Aceptar</button>
+    </div>
+  </div>
+</div>
 
 <!-- LOGIN -->
 <div id="page-login" class="<%= adm_hayBD ? "hidden" : "" %>">
@@ -180,6 +213,10 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('profesores',this)"><span class="nav-icon">&#128104;&#8205;&#127979;</span> Gestion de Profesores</button>
       <button class="nav-item" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
       <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
+      <div class="nav-label">Supervision</div>
+      <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
+      <button class="nav-item" onclick="irTab('sup-asistencia',this)"><span class="nav-icon">&#9989;</span> Asistencia</button>
+      <div class="nav-label">Comunicacion</div>
       <button class="nav-item" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
       <button class="nav-item" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
       <button class="nav-item" onclick="cerrarSesion()"><span class="nav-icon">&#128682;</span> Cerrar Sesion</button>
@@ -238,6 +275,34 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSolicitudes"></table></div></div>
     </div>
 
+    <!-- SUPERVISION DE CALIFICACIONES -->
+    <div id="tab-sup-calificaciones" class="tab-panel">
+      <div class="topbar">
+        <h2 class="page-title">Supervision de Calificaciones</h2>
+        <div class="page-subtitle">Notas que han sido modificadas al menos una vez, con su limite de cambios permitidos</div>
+      </div>
+      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupCalificaciones"></table></div></div>
+      <div class="card" id="historialCard" style="display:none;">
+        <div class="card-title">Historial de cambios <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historialCard').style.display='none';" style="margin-left:auto;">Cerrar</button></div>
+        <div style="overflow-x:auto;"><table class="delta-table" id="tblHistorialNota"></table></div>
+      </div>
+    </div>
+
+    <!-- SUPERVISION DE ASISTENCIA -->
+    <div id="tab-sup-asistencia" class="tab-panel">
+      <div class="topbar">
+        <h2 class="page-title">Supervision de Asistencia</h2>
+        <div class="page-subtitle">Asistencia registrada por los profesores, con opcion de correccion</div>
+      </div>
+      <div class="filter-row">
+        <select id="fAsistGrupo"><option value="">Todos los grupos</option></select>
+        <select id="fAsistMateria"><option value="">Todas las materias</option></select>
+        <input id="fAsistFecha" type="date">
+        <button class="btn btn-primary btn-sm" onclick="cargarSupervisionAsistencia()">Filtrar</button>
+      </div>
+      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupAsistencia"></table></div></div>
+    </div>
+
     <!-- AVISOS -->
     <div id="tab-avisos" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Avisos</h2></div>
@@ -261,6 +326,40 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 <script>
 var CTX = document.querySelector('meta[name="ctx"]').content;
 var HAY_BD = <%= adm_hayBD %>;
+
+function showToast(mensaje, tipo) {
+  tipo = tipo || 'info';
+  var iconos = { success: '✅', error: '❌', info: 'ℹ️' };
+  var container = document.getElementById('toastContainer');
+  if (!container) { window.alert(mensaje); return; }
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + tipo;
+  toast.innerHTML =
+    '<span class="toast-icon">' + (iconos[tipo] || iconos.info) + '</span>' +
+    '<span class="toast-msg"></span>' +
+    '<button class="toast-close" aria-label="Cerrar">&times;</button>';
+  toast.querySelector('.toast-msg').textContent = mensaje;
+  var quitar = function() {
+    toast.classList.add('toast-out');
+    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 200);
+  };
+  toast.querySelector('.toast-close').addEventListener('click', quitar);
+  container.appendChild(toast);
+  setTimeout(quitar, 4000);
+}
+
+function showConfirm(mensaje, onConfirm) {
+  var overlay = document.getElementById('confirmOverlay');
+  var msgEl   = document.getElementById('confirmMsg');
+  var okBtn   = document.getElementById('confirmOkBtn');
+  var cancelBtn = document.getElementById('confirmCancelBtn');
+  if (!overlay) { if (window.confirm(mensaje)) onConfirm(); return; }
+  msgEl.textContent = mensaje;
+  overlay.classList.remove('hidden');
+  function cerrar() { overlay.classList.add('hidden'); okBtn.onclick = null; cancelBtn.onclick = null; }
+  okBtn.onclick = function(){ cerrar(); onConfirm(); };
+  cancelBtn.onclick = cerrar;
+}
 
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
@@ -289,6 +388,8 @@ function irTab(id, btn) {
   if (id==='profesores') cargarProfesores();
   if (id==='materias') cargarMaterias();
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
+  if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
+  if (id==='sup-asistencia') cargarSupervisionAsistencia();
   if (id==='avisos') cargarAvisos();
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
@@ -334,22 +435,87 @@ function cargarProfesores() {
     + '&departamento=' + encodeURIComponent(document.getElementById('fProfDepto').value)
     + '&materia=' + encodeURIComponent(document.getElementById('fProfMateria').value);
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    renderTable('tblProfesores', ['Cedula','Nombre','Departamento','Grupos','Creditos'],
-      rows, function(r){ return [r.cedula,r.nombre,r.departamento,r.grupos,r.creditos]; });
+    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Grupos Asignados','Creditos (Carga Academica)','Horas Semanales'],
+      rows, function(r){ return [r.codigo,r.nombre,r.departamento,r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
   });
 }
 
+var profesoresParaSelect = [];
+
 function cargarMaterias() {
-  fetch(CTX+'/admin?accion=materias').then(function(r){ return r.json(); }).then(function(rows) {
+  // Cargar lista de profesores (para el selector de reasignacion) y luego las materias
+  fetch(CTX+'/admin?accion=profesoresSimple').then(function(r){ return r.json(); }).then(function(profs) {
+    profesoresParaSelect = profs;
+    return fetch(CTX+'/admin?accion=materias');
+  }).then(function(r){ return r.json(); }).then(function(rows) {
     var tbl = document.getElementById('tblMaterias');
-    var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Capacidad</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th></tr></thead><tbody>';
-    rows.forEach(function(r) {
+    var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Cupos</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody>';
+    rows.forEach(function(r, idx) {
+      var creditosInput = '<input class="edit-input" type="number" min="1" max="10" id="mCred_'+idx+'" value="'+r.creditos+'">';
+      var capacidadCell, profesorCell, accionesCell;
+      if (r.grupoId != null) {
+        capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'">';
+        var profOptions = '<option value="">— Sin asignar —</option>';
+        profesoresParaSelect.forEach(function(p) {
+          var sel = (r.profesorId != null && p.id === r.profesorId) ? ' selected' : '';
+          profOptions += '<option value="'+p.id+'"'+sel+'>'+esc(p.nombre)+'</option>';
+        });
+        profesorCell = '<select class="edit-select" id="mProf_'+idx+'">'+profOptions+'</select>';
+        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.id+','+r.grupoId+')">Guardar</button>';
+      } else {
+        capacidadCell = '<span style="color:var(--text-soft);">-</span>';
+        profesorCell = '<span style="color:var(--text-soft);">Sin grupo</span>';
+        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.id+',null)">Guardar Creditos</button>';
+      }
       html += '<tr><td>'+esc(r.codigo)+'</td><td><strong>'+esc(r.nombre)+'</strong></td>'
-        + '<td>'+r.creditos+'</td><td>'+r.capacidad+'</td><td>'+r.inscritos+'</td>'
-        + '<td>'+esc(r.profesor||'-')+'</td><td>'+esc(r.grupo||'-')+'</td></tr>';
+        + '<td>'+creditosInput+'</td><td>'+capacidadCell+'</td><td>'+r.inscritos+'</td>'
+        + '<td>'+profesorCell+'</td><td>'+esc(r.grupo||'-')+'</td>'
+        + '<td>'+accionesCell+'</td></tr>';
     });
     tbl.innerHTML = html + '</tbody>';
-  });
+  }).catch(function(){ showToast('Error al cargar materias.', 'error'); });
+}
+
+function guardarMateria(idx, materiaId, grupoId) {
+  var creditos = parseInt(document.getElementById('mCred_'+idx).value, 10);
+  if (isNaN(creditos) || creditos < 1) {
+    showToast('Los creditos deben ser un numero mayor o igual a 1.', 'error');
+    return;
+  }
+  var peticiones = [
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=actualizarCreditos&materiaId='+materiaId+'&creditos='+creditos})
+  ];
+
+  if (grupoId != null) {
+    var capacidad = parseInt(document.getElementById('mCap_'+idx).value, 10);
+    if (isNaN(capacidad) || capacidad < 0) {
+      showToast('Los cupos deben ser un numero mayor o igual a 0.', 'error');
+      return;
+    }
+    var inscritosActuales = parseInt(document.getElementById('tblMaterias').rows[idx+1].cells[4].textContent, 10) || 0;
+    if (capacidad < inscritosActuales) {
+      showToast('Aviso: el cupo (' + capacidad + ') es menor a los inscritos actuales (' + inscritosActuales + '). No se retirara a nadie automaticamente.', 'info');
+    }
+    peticiones.push(fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=actualizarCapacidad&grupoId='+grupoId+'&capacidad='+capacidad}));
+
+    var profesorId = document.getElementById('mProf_'+idx).value;
+    if (profesorId) {
+      peticiones.push(fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:'accion=reasignarProfesor&grupoId='+grupoId+'&profesorId='+profesorId}));
+    }
+  }
+
+  Promise.all(peticiones)
+    .then(function(responses){ return Promise.all(responses.map(function(r){ return r.json(); })); })
+    .then(function(results) {
+      var error = results.find(function(d){ return !d.ok; });
+      if (error) { showToast('Error: ' + (error.error || 'No se pudo guardar.'), 'error'); return; }
+      showToast('Cambios guardados correctamente.', 'success');
+      cargarMaterias();
+    })
+    .catch(function(){ showToast('Error de conexion al guardar los cambios.', 'error'); });
 }
 
 var tipoSolicitudActual = 'inscripcion';
@@ -378,16 +544,23 @@ function cargarSolicitudes(tipo, btn) {
 }
 
 function resolverSolicitud(id, accion) {
-  var msg = accion === 'aprobar' ? 'Aprobar esta solicitud?' : 'Rechazar esta solicitud?';
-  if (!confirm(msg)) return;
-  var body = 'accion='+accion+'&id='+id;
-  if (accion === 'rechazar') body += '&motivo=' + encodeURIComponent('Rechazada por administracion');
-  fetch(CTX+'/matricula', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (d.ok) { cargarSolicitudes(tipoSolicitudActual, null); cargarDashboard(); }
-      else alert('Error: ' + (d.error || 'No se pudo procesar'));
-    });
+  var msg = accion === 'aprobar' ? '¿Aprobar esta solicitud?' : '¿Rechazar esta solicitud?';
+  showConfirm(msg, function() {
+    var body = 'accion='+accion+'&id='+id;
+    if (accion === 'rechazar') body += '&motivo=' + encodeURIComponent('Rechazada por administracion');
+    fetch(CTX+'/matricula', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) {
+          cargarSolicitudes(tipoSolicitudActual, null);
+          cargarDashboard();
+          showToast(accion === 'aprobar' ? 'Solicitud aprobada.' : 'Solicitud rechazada.', 'success');
+        } else {
+          showToast('Error: ' + (d.error || 'No se pudo procesar'), 'error');
+        }
+      })
+      .catch(function(){ showToast('Error de conexion al procesar la solicitud.', 'error'); });
+  });
 }
 
 function cargarAvisos() {
@@ -406,15 +579,170 @@ function cargarAvisos() {
 }
 
 function desactivarAviso(id) {
-  if (!confirm('Desactivar este aviso?')) return;
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=desactivarAviso&id='+id})
-    .then(function(){ cargarAvisos(); });
+  showConfirm('¿Desactivar este aviso?', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=desactivarAviso&id='+id})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { cargarAvisos(); showToast('Aviso desactivado.', 'success'); }
+        else showToast('Error: ' + (d.error || 'No se pudo desactivar el aviso.'), 'error');
+      })
+      .catch(function(){ showToast('Error de conexion al desactivar el aviso.', 'error'); });
+  });
 }
 
 function eliminarAviso(id) {
-  if (!confirm('Eliminar permanentemente este aviso?')) return;
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=eliminarAviso&id='+id})
-    .then(function(){ cargarAvisos(); });
+  showConfirm('¿Eliminar permanentemente este aviso? Esta accion no se puede deshacer.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=eliminarAviso&id='+id})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { cargarAvisos(); showToast('Aviso eliminado.', 'success'); }
+        else showToast('Error: ' + (d.error || 'No se pudo eliminar el aviso.'), 'error');
+      })
+      .catch(function(){ showToast('Error de conexion al eliminar el aviso.', 'error'); });
+  });
+}
+
+// ============================================================
+// SUPERVISION DE CALIFICACIONES
+// ============================================================
+var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Proyecto', examen_final:'Examen Final'};
+
+function cargarSupervisionCalificaciones() {
+  fetch(CTX+'/admin?accion=supervisionCalificaciones').then(function(r){ return r.json(); }).then(function(rows) {
+    var tbl = document.getElementById('tblSupCalificaciones');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay notas modificadas registradas todavia.</td></tr></tbody>';
+      return;
+    }
+    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Componente</th><th>Nota Actual</th><th>Modificaciones</th><th>Acciones</th></tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var notaTxt = (r.notaActual != null) ? r.notaActual : '-';
+      var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
+      var modTag = r.enLimite
+        ? '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>'
+        : '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
+      html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td><td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
+        + '<td>'+esc(r.grupo||'-')+'</td><td>'+esc(compLabel)+'</td><td>'+notaTxt+'</td>'
+        + '<td>'+modTag+'</td><td>'
+        + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button> ';
+      if (r.enLimite) {
+        html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
+      }
+      html += '</td></tr>';
+    });
+    tbl.innerHTML = html + '</tbody>';
+  }).catch(function(){ showToast('Error al cargar supervision de calificaciones.', 'error'); });
+}
+
+function verHistorialNota(inscripcionId, componente) {
+  fetch(CTX+'/admin?accion=historialNota&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente))
+    .then(function(r){ return r.json(); })
+    .then(function(rows) {
+      var card = document.getElementById('historialCard');
+      var tbl = document.getElementById('tblHistorialNota');
+      var html = '<thead><tr><th>Fecha</th><th>Nota Anterior</th><th>Nota Nueva</th></tr></thead><tbody>';
+      if (!rows.length) {
+        html += '<tr><td colspan="3" style="text-align:center;color:var(--text-soft);">Sin historial.</td></tr>';
+      } else {
+        rows.forEach(function(h) {
+          html += '<tr><td>'+esc(h.fecha)+'</td><td>'+(h.notaAnterior!=null?h.notaAnterior:'-')+'</td><td>'+h.notaNueva+'</td></tr>';
+        });
+      }
+      tbl.innerHTML = html + '</tbody>';
+      card.style.display = '';
+      card.scrollIntoView({behavior:'smooth', block:'nearest'});
+    })
+    .catch(function(){ showToast('Error al cargar el historial.', 'error'); });
+}
+
+function autorizarModificacion(inscripcionId, componente) {
+  showConfirm('¿Autorizar una modificacion adicional para esta nota? El profesor podra cambiarla una vez mas.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=autorizarModificacion&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente)+'&cantidad=1'})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { showToast('Modificacion adicional autorizada.', 'success'); cargarSupervisionCalificaciones(); }
+        else showToast('Error: ' + (d.error || 'No se pudo autorizar.'), 'error');
+      })
+      .catch(function(){ showToast('Error de conexion al autorizar.', 'error'); });
+  });
+}
+
+// ============================================================
+// SUPERVISION DE ASISTENCIA
+// ============================================================
+var ESTADO_ASISTENCIA_LABEL = {present:'Presente', late:'Tardanza', absent:'Ausente'};
+var filtrosAsistenciaListos = false;
+
+function poblarFiltrosAsistencia() {
+  if (filtrosAsistenciaListos) return;
+  fetch(CTX+'/admin?accion=materias').then(function(r){ return r.json(); }).then(function(rows) {
+    var gruposVistos = {}, materiasVistas = {};
+    var selGrupo = document.getElementById('fAsistGrupo');
+    var selMateria = document.getElementById('fAsistMateria');
+    rows.forEach(function(r) {
+      if (r.grupoId != null && !gruposVistos[r.grupoId]) {
+        gruposVistos[r.grupoId] = true;
+        var opt = document.createElement('option');
+        opt.value = r.grupoId;
+        opt.textContent = r.grupo + ' - ' + r.nombre;
+        selGrupo.appendChild(opt);
+      }
+      if (!materiasVistas[r.id]) {
+        materiasVistas[r.id] = true;
+        var opt2 = document.createElement('option');
+        opt2.value = r.id;
+        opt2.textContent = r.codigo + ' - ' + r.nombre;
+        selMateria.appendChild(opt2);
+      }
+    });
+    filtrosAsistenciaListos = true;
+  }).catch(function(){});
+}
+
+function cargarSupervisionAsistencia() {
+  poblarFiltrosAsistencia();
+  var grupoId = document.getElementById('fAsistGrupo').value;
+  var materiaId = document.getElementById('fAsistMateria').value;
+  var fecha = document.getElementById('fAsistFecha').value;
+  var q = 'accion=supervisionAsistencia';
+  if (grupoId) q += '&grupoId=' + grupoId;
+  if (materiaId) q += '&materiaId=' + materiaId;
+  if (fecha) q += '&fecha=' + fecha;
+
+  fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
+    var tbl = document.getElementById('tblSupAsistencia');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay registros de asistencia para estos filtros.</td></tr></tbody>';
+      return;
+    }
+    var html = '<thead><tr><th>Fecha</th><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Estado</th><th>Observacion</th><th>Corregir</th></tr></thead><tbody>';
+    rows.forEach(function(r, idx) {
+      var estadoOptions = ['present','late','absent'].map(function(e) {
+        var sel = (e === r.estado) ? ' selected' : '';
+        return '<option value="'+e+'"'+sel+'>'+ESTADO_ASISTENCIA_LABEL[e]+'</option>';
+      }).join('');
+      html += '<tr><td>'+esc(r.fecha)+'</td><td><strong>'+esc(r.estudiante)+'</strong></td>'
+        + '<td>'+esc(r.materia)+'</td><td>'+esc(r.grupo)+'</td>'
+        + '<td><select class="edit-select" id="asistEstado_'+idx+'">'+estadoOptions+'</select></td>'
+        + '<td><input class="edit-input" style="width:140px;" type="text" id="asistObs_'+idx+'" value="'+esc(r.observacion||'')+'"></td>'
+        + '<td><button class="btn btn-primary btn-sm" onclick="corregirAsistencia('+r.inscripcionId+',\''+r.fecha+'\','+idx+')">Guardar</button></td></tr>';
+    });
+    tbl.innerHTML = html + '</tbody>';
+  }).catch(function(){ showToast('Error al cargar supervision de asistencia.', 'error'); });
+}
+
+function corregirAsistencia(inscripcionId, fecha, idx) {
+  var estado = document.getElementById('asistEstado_'+idx).value;
+  var observacion = document.getElementById('asistObs_'+idx).value;
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'accion=corregirAsistencia&inscripcionId='+inscripcionId+'&fecha='+fecha+'&estado='+estado+'&observacion='+encodeURIComponent(observacion)})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) showToast('Registro de asistencia corregido.', 'success');
+      else showToast('Error: ' + (d.error || 'No se pudo corregir.'), 'error');
+    })
+    .catch(function(){ showToast('Error de conexion al corregir asistencia.', 'error'); });
 }
 
 function cargarReporte(accion, btn) {

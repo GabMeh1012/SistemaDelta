@@ -163,20 +163,106 @@ public class NotasServlet extends HttpServlet {
             String componente    = req.getParameter("componente");
             double nota          = Double.parseDouble(req.getParameter("nota"));
 
-            String sql = "INSERT INTO notas (inscripcion_id, componente, nota) VALUES (?,?,?) "
-                       + "ON DUPLICATE KEY UPDATE nota=VALUES(nota)";
-            try (Connection con = ConexionDB.obtenerConexion();
-                 PreparedStatement ps = con.prepareStatement(sql)) {
-                ps.setInt(1, inscripcionId);
-                ps.setString(2, componente);
-                ps.setDouble(3, nota);
-                ps.executeUpdate();
-            }
-            out.print("{\"ok\":true}");
+            guardarNota(inscripcionId, componente, nota, out);
         } catch (Exception e) {
             resp.setStatus(500);
             out.print("{\"error\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    /** Limite base de modificaciones permitidas por componente de nota, antes de requerir autorizacion. */
+    private static final int LIMITE_MODIFICACIONES = 3;
+
+    /**
+     * Guarda/actualiza una nota. Si ya existe un valor distinto (es decir, es una
+     * MODIFICACION y no el primer registro), valida el limite de modificaciones
+     * permitido (LIMITE_MODIFICACIONES + autorizaciones del administrador) y, si
+     * esta dentro del limite, registra el cambio en notas_historial.
+     */
+    private void guardarNota(int inscripcionId, String componente, double nota, PrintWriter out) throws SQLException, IOException {
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            con.setAutoCommit(false);
+            try {
+                Double notaAnterior = null;
+                try (PreparedStatement ps = con.prepareStatement(
+                        "SELECT nota FROM notas WHERE inscripcion_id=? AND componente=?")) {
+                    ps.setInt(1, inscripcionId);
+                    ps.setString(2, componente);
+                    try (ResultSet rs = ps.executeQuery()) {
+                        if (rs.next() && !rs.wasNull()) {
+                            double v = rs.getDouble(1);
+                            if (!rs.wasNull()) notaAnterior = v;
+                        }
+                    }
+                }
+
+                boolean esModificacion = notaAnterior != null && Math.abs(notaAnterior - nota) > 1e-9;
+
+                if (esModificacion) {
+                    int modificaciones = contarModificaciones(con, inscripcionId, componente);
+                    int autorizadas = contarAutorizaciones(con, inscripcionId, componente);
+                    int limite = LIMITE_MODIFICACIONES + autorizadas;
+                    if (modificaciones >= limite) {
+                        con.rollback();
+                        out.print("{\"error\":\"Ha alcanzado el limite de " + limite
+                                + " modificaciones para esta nota. Solicite autorizacion al administrador.\"}");
+                        return;
+                    }
+                }
+
+                try (PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO notas (inscripcion_id, componente, nota) VALUES (?,?,?) "
+                      + "ON DUPLICATE KEY UPDATE nota=VALUES(nota)")) {
+                    ps.setInt(1, inscripcionId);
+                    ps.setString(2, componente);
+                    ps.setDouble(3, nota);
+                    ps.executeUpdate();
+                }
+
+                if (esModificacion) {
+                    try (PreparedStatement ps = con.prepareStatement(
+                            "INSERT INTO notas_historial (inscripcion_id, componente, nota_anterior, nota_nueva) VALUES (?,?,?,?)")) {
+                        ps.setInt(1, inscripcionId);
+                        ps.setString(2, componente);
+                        ps.setDouble(3, notaAnterior);
+                        ps.setDouble(4, nota);
+                        ps.executeUpdate();
+                    }
+                }
+
+                con.commit();
+                out.print("{\"ok\":true}");
+            } catch (SQLException ex) {
+                con.rollback();
+                throw ex;
+            } finally {
+                con.setAutoCommit(true);
+            }
+        }
+    }
+
+    private int contarModificaciones(Connection con, int inscripcionId, String componente) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT COUNT(*) FROM notas_historial WHERE inscripcion_id=? AND componente=?")) {
+            ps.setInt(1, inscripcionId);
+            ps.setString(2, componente);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    private int contarAutorizaciones(Connection con, int inscripcionId, String componente) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT COALESCE(SUM(cantidad),0) FROM notas_autorizaciones WHERE inscripcion_id=? AND componente=?")) {
+            ps.setInt(1, inscripcionId);
+            ps.setString(2, componente);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return 0;
     }
 
     /**
