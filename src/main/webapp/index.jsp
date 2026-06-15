@@ -55,6 +55,9 @@
       <div class="card-sub">Portal Docente</div>
     </a>
   </div>
+  <div style="margin-top:28px;font-size:13px;">
+    <a href="portal_administrador.jsp" style="color:#9ca3af;text-decoration:none;">Acceso administrativo</a>
+  </div>
 </div>
 </body>
 </html>

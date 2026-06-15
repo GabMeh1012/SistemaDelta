@@ -7,15 +7,6 @@
   String  profNombre_pg = (String)  session.getAttribute("profesorNombre");
   String  rolPg         = (String)  session.getAttribute("usuarioRol");
   boolean hayBD = (usuarioId_pg != null && "profesor".equals(rolPg));
-  // Si la sesión activa es de estudiante o admin, redirigir a su portal
-  if (usuarioId_pg != null && "estudiante".equals(rolPg)) {
-    response.sendRedirect(request.getContextPath() + "/portal_estudiante.jsp");
-    return;
-  }
-  if (usuarioId_pg != null && "admin".equals(rolPg)) {
-    response.sendRedirect(request.getContextPath() + "/portal_administrador.jsp");
-    return;
-  }
   // Si hay error de login, mostrar mensaje
   boolean loginError = "1".equals(request.getParameter("error"));
 
@@ -682,8 +673,6 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       <!-- ASISTENCIA DEL DÍA -->
       <div class="card" style="margin-bottom:22px;">
         <div class="card-title" id="attDayTitle">📅 Asistencia del Día — 27 Mayo 2026</div>
-        <div id="attNoClassMsg" style="display:none;color:var(--text-soft);font-size:14px;padding:18px 0;text-align:center;">Este grupo no tiene clase hoy.</div>
-        <div id="attDayContent">
         <div style="display:flex;align-items:center;gap:20px;margin-bottom:20px;flex-wrap:wrap;padding:14px;background:var(--bg2);border-radius:var(--radius-sm);">
           <div style="font-size:15px;font-weight:800;color:var(--text-mid);">Leyenda:</div>
           <div style="display:flex;align-items:center;gap:8px;font-size:16px;font-weight:700;"><button class="att-btn present" style="pointer-events:none;">✓</button> Presente</div>
@@ -697,19 +686,18 @@ h1,h2,h3{font-family:'Merriweather',serif;}
           <div id="attSummary" style="font-size:15px;color:var(--text-mid);font-weight:600;"></div>
           <button class="btn btn-primary" style="margin-left:auto;" onclick="saveAttendance()">💾 Guardar Asistencia</button>
         </div>
-        </div>
       </div>
 
-      <!-- ASISTENCIA DE LA SEMANA -->
+      <!-- ASISTENCIA DEL SEMESTRE -->
       <div class="card">
         <div class="card-title">
-          📊 Asistencia de la Semana
+          📊 Asistencia del Semestre — I Semestre 2026
           <span style="font-size:13px;font-family:'Nunito',sans-serif;color:var(--text-soft);font-weight:600;" id="attSemGrupoLabel">Grupo 1SF133 · Martes y Jueves</span>
         </div>
         <div style="display:flex;gap:18px;margin-bottom:22px;flex-wrap:wrap;">
           <div style="background:var(--green-bg);border:1.5px solid #86efac;border-radius:var(--radius-sm);padding:14px 20px;flex:1;min-width:110px;text-align:center;">
             <div style="font-size:28px;font-weight:800;font-family:'Merriweather',serif;color:var(--green);" id="semPresente">--</div>
-            <div style="font-size:13px;color:var(--green);font-weight:700;margin-top:2px;">Clases Esta Semana</div>
+            <div style="font-size:13px;color:var(--green);font-weight:700;margin-top:2px;">Clases Totales</div>
           </div>
           <div style="background:var(--red-bg);border:1.5px solid #fca5a5;border-radius:var(--radius-sm);padding:14px 20px;flex:1;min-width:110px;text-align:center;">
             <div style="font-size:28px;font-weight:800;font-family:'Merriweather',serif;color:var(--red);" id="semAusente">--</div>
@@ -724,13 +712,13 @@ h1,h2,h3{font-family:'Merriweather',serif;}
             <div style="font-size:13px;color:var(--blue);font-weight:700;margin-top:2px;">% Asistencia</div>
           </div>
         </div>
-        <!-- WEEKLY LIST: one row per class-day, students as columns -->
+        <!-- SEMESTER LIST: one row per class-day, students as columns -->
         <div id="semAttList"></div>
-        <div style="display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;align-items:center;">
+        <div style="display:flex;gap:14px;margin-top:14px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;"><span style="display:inline-block;width:22px;height:22px;border-radius:5px;background:var(--green-bg);border:1.5px solid #86efac;text-align:center;line-height:22px;font-size:13px;">✓</span> Presente</div>
           <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;"><span style="display:inline-block;width:22px;height:22px;border-radius:5px;background:var(--red-bg);border:1.5px solid #fca5a5;text-align:center;line-height:22px;font-size:13px;">✗</span> Ausente</div>
           <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;"><span style="display:inline-block;width:22px;height:22px;border-radius:5px;background:var(--amber-bg);border:1.5px solid #fcd34d;text-align:center;line-height:22px;font-size:13px;">⏱</span> Tardanza</div>
-          <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="exportarAsistenciaExcel()">📥 Exportar a Excel</button>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;font-weight:700;"><span style="display:inline-block;width:22px;height:22px;border-radius:5px;background:var(--bg2);border:1.5px dashed var(--border);text-align:center;line-height:22px;font-size:13px;">·</span> Pendiente</div>
         </div>
       </div>
     </div>
@@ -912,8 +900,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
         <div class="report-row">
           <div class="report-icon">✅</div>
-          <div><div class="report-name">Asistencia Semanal — 1SF133</div><div class="report-desc">Registro de asistencia de la semana actual</div></div>
-          <button class="btn btn-primary btn-sm report-btn" onclick="exportarAsistenciaExcel('1SF133')">📊 Exportar a Excel</button>
+          <div><div class="report-name">Asistencia Mensual — Mayo 2026</div><div class="report-desc">Historial completo de asistencia del mes</div></div>
+          <button class="btn btn-primary btn-sm report-btn" onclick="showToast('No hay datos de asistencia registrados todavia.', 'info')">📥 Descargar PDF</button>
         </div>
         <div class="report-row">
           <div class="report-icon">⚠️</div>
@@ -986,7 +974,6 @@ function showInfoModal(titulo, mensaje) {
 // CONFIGURACIÓN DINÁMICA (generada por JSP)
 // ============================================================
 const CTX = '<%= request.getContextPath() %>';
-const ATT_HAY_BD = '<%= hayBD %>' === 'true';
 // ID del grupo IS-401 desde BD para cargar notas reales
 window._grupoIS401Id = (function(){
   try {
@@ -1426,52 +1413,6 @@ function exportarRiesgoExcel() {
   showToast('Archivo de estudiantes en riesgo descargado.', 'success');
 }
 
-function exportarAsistenciaExcel(grupoParam) {
-  const grupo = grupoParam || document.getElementById('attGrupoSelect')?.value || '1SF133';
-  const g = gruposData[grupo];
-  if (!g) { showToast('No hay datos de asistencia para exportar.', 'error'); return; }
-  initAttSemStates(grupo);
-
-  const dates = buildWeekDates(grupo);
-  if (!dates.length) { showToast('Este grupo no tiene clases programadas esta semana.', 'info'); return; }
-
-  const dayNames = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
-  const stateLabel = {present:'Presente', absent:'Ausente', late:'Tardanza'};
-
-  const encabezados = ['Fecha','Dia','Estudiante','Cedula','Estado'];
-  const filas = [encabezados];
-
-  dates.forEach(function(d) {
-    const key = d.toISOString().slice(0,10);
-    g.estudiantes.forEach(function(s, si) {
-      const st = attSemStates[grupo][key]?.[si] || 'present';
-      filas.push([key, dayNames[d.getDay()], s.name, s.id, stateLabel[st]]);
-    });
-  });
-
-  const csv = filas.map(function(fila) {
-    return fila.map(function(celda) {
-      var val = String(celda).replace(/"/g, '""');
-      if (val.indexOf(',') !== -1 || val.indexOf('"') !== -1 || val.indexOf('\n') !== -1) {
-        val = '"' + val + '"';
-      }
-      return val;
-    }).join(',');
-  }).join('\r\n');
-
-  const blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = 'Asistencia_Semana_' + grupo + '.csv';
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-
-  showToast('Archivo de asistencia descargado.', 'success');
-}
-
 function getNotaTag(nota) {
   const cls = nota >= 71 ? 'tag-green' : nota >= 61 ? 'tag-amber' : 'tag-red';
   return `<span class="tag ${cls}" style="font-size:15px;padding:5px 12px;">${nota}</span>`;
@@ -1698,24 +1639,18 @@ const attSemStates = {};
 const cycle = ['present','late','absent'];
 const symbols = {present:'✓', late:'⏱', absent:'✗'};
 
-// Build this week's class dates (Mon-Sun) for a group, based on real "today"
-function buildWeekDates(grupo) {
+// Build semester class dates for a group
+function buildSemDates(grupo) {
   const cfg = gruposAttConfig[grupo];
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  // Find Monday of current week
-  const dow = today.getDay(); // 0=Sun..6=Sat
-  const diffToMonday = (dow === 0) ? -6 : (1 - dow);
-  const monday = new Date(today);
-  monday.setDate(today.getDate() + diffToMonday);
-
+  const today = new Date(2026, 4, 27);
   const result = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+  let d = new Date(cfg.startDate);
+  const endSem = new Date(2026, 6, 31);
+  while (d <= endSem && result.length < 32) {
     if (cfg.classDays.includes(d.getDay())) {
-      result.push(d);
+      result.push(new Date(d));
     }
+    d.setDate(d.getDate() + 1);
   }
   return result;
 }
@@ -1745,25 +1680,18 @@ const semInitPatterns = {
 function initAttSemStates(grupo) {
   if (attSemStates[grupo]) return;
   attSemStates[grupo] = {};
-  const dates = buildWeekDates(grupo);
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const dates = buildSemDates(grupo);
+  const today = new Date(2026, 4, 27);
   const students = gruposData[grupo].estudiantes;
   dates.forEach((d, di) => {
     const key = d.toISOString().slice(0,10);
     attSemStates[grupo][key] = {};
     students.forEach((s, si) => {
       const pattern = semInitPatterns[grupo]?.[si] || [];
-      const isPast = d < today;
-      // Si ya pasó y hay un patron de demo, usarlo; si no, o si es hoy/futuro, "presente" por defecto
-      attSemStates[grupo][key][si] = isPast && pattern[di] ? pattern[di] : 'present';
+      const isPast = d <= today;
+      attSemStates[grupo][key][si] = isPast ? (pattern[di] || 'present') : 'future';
     });
   });
-
-  // Si es un grupo vinculado a BD, cargar la asistencia real (sobrescribe lo anterior al llegar)
-  if (ATT_HAY_BD && obtenerGrupoIdBD(grupo) !== null) {
-    cargarAsistenciaBD(grupo);
-  }
 }
 
 function initAttDayStates(grupo) {
@@ -1780,82 +1708,13 @@ function initAttDayStates(grupo) {
   }
 }
 
-// ==================== ASISTENCIA EN BASE DE DATOS (1SF133 / GRP-IS-401) ====================
-
-// Carga la asistencia real de la semana desde el servidor y actualiza
-// attSemStates / attDayStates para el grupo indicado, luego re-renderiza.
-function cargarAsistenciaBD(grupo) {
-  const grupoId = obtenerGrupoIdBD(grupo);
-  if (grupoId === null) return;
-
-  const dates = buildWeekDates(grupo);
-  if (!dates.length) return;
-  const desde = dates[0].toISOString().slice(0,10);
-  const hasta = dates[dates.length-1].toISOString().slice(0,10);
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  const todayKey = today.toISOString().slice(0,10);
-
-  fetch(CTX + '/asistencia?grupoId=' + grupoId + '&desde=' + desde + '&hasta=' + hasta)
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (!d || !d.estudiantes) return;
-      const students = gruposData[grupo].estudiantes;
-      // Mapear inscripcionId -> indice del estudiante en gruposData
-      const idxPorInscripcion = {};
-      students.forEach(function(s, si){ if (s.inscripcionId) idxPorInscripcion[s.inscripcionId] = si; });
-
-      dates.forEach(function(dt){
-        const key = dt.toISOString().slice(0,10);
-        if (!attSemStates[grupo][key]) attSemStates[grupo][key] = {};
-        students.forEach(function(s, si){
-          attSemStates[grupo][key][si] = 'present'; // valor por defecto
-        });
-      });
-
-      Object.keys(d.asistencia || {}).forEach(function(k){
-        // k = "inscripcionId-yyyy-MM-dd"
-        const sepIdx = k.indexOf('-');
-        const inscripcionId = parseInt(k.substring(0, sepIdx), 10);
-        const fecha = k.substring(sepIdx+1);
-        const si = idxPorInscripcion[inscripcionId];
-        if (si === undefined) return;
-        if (!attSemStates[grupo][fecha]) attSemStates[grupo][fecha] = {};
-        attSemStates[grupo][fecha][si] = d.asistencia[k].estado;
-      });
-
-      // Sincronizar attDayStates (vista de hoy) con lo cargado de BD
-      if (attSemStates[grupo][todayKey]) {
-        students.forEach(function(s, si){
-          attDayStates[grupo][si] = attSemStates[grupo][todayKey][si] || 'present';
-        });
-      }
-
-      renderAttendance();
-    })
-    .catch(function(){ /* si falla, se mantiene la vista en memoria */ });
-}
-
-// Guarda en BD la asistencia de un estudiante en una fecha (1SF133 / GRP-IS-401)
-function guardarAsistenciaBD(grupo, inscripcionId, fechaKey, estadoFrontend) {
-  if (!ATT_HAY_BD || obtenerGrupoIdBD(grupo) === null || !inscripcionId) return Promise.resolve();
-  const params = 'inscripcionId=' + encodeURIComponent(inscripcionId)
-    + '&fecha=' + encodeURIComponent(fechaKey)
-    + '&estado=' + encodeURIComponent(estadoFrontend);
-  return fetch(CTX + '/asistencia', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: params
-  }).then(function(r){ return r.json(); });
-}
-
 function renderAttendance() {
   const grupo = document.getElementById('attGrupoSelect')?.value || '1SF133';
   const cfg = gruposAttConfig[grupo];
   const g = gruposData[grupo];
-  const today = new Date();
-  const dayNames = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
-  const monthNames = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const today = new Date(2026, 4, 27);
+  const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio'];
 
   initAttDayStates(grupo);
   initAttSemStates(grupo);
@@ -1864,23 +1723,9 @@ function renderAttendance() {
   const subtitleEl = document.getElementById('attSubtitle');
   if (subtitleEl) subtitleEl.textContent = `${g.nombre} — ${cfg.label}`;
   const dayTitleEl = document.getElementById('attDayTitle');
-  if (dayTitleEl) dayTitleEl.textContent = `📅 Asistencia del Día — ${dayNames[today.getDay()]} ${today.getDate()} de ${monthNames[today.getMonth()]} ${today.getFullYear()} · ${g.nombre}`;
+  if (dayTitleEl) dayTitleEl.textContent = `📅 Asistencia del Día — ${dayNames[today.getDay()]} ${today.getDate()} de Mayo 2026 · ${g.nombre}`;
   const semLabelEl = document.getElementById('attSemGrupoLabel');
   if (semLabelEl) semLabelEl.textContent = cfg.label;
-
-  // ---- ¿Hay clase hoy para este grupo? ----
-  const hayClaseHoy = cfg.classDays.includes(today.getDay());
-  const noClassMsg = document.getElementById('attNoClassMsg');
-  const dayContent = document.getElementById('attDayContent');
-  if (noClassMsg && dayContent) {
-    if (hayClaseHoy) {
-      noClassMsg.style.display = 'none';
-      dayContent.style.display = '';
-    } else {
-      noClassMsg.style.display = 'block';
-      dayContent.style.display = 'none';
-    }
-  }
 
   // ---- DAY LIST ----
   const dayList = document.getElementById('attDayList');
@@ -1904,7 +1749,7 @@ function renderAttendance() {
   });
   updateAttSummary(grupo);
 
-  // ---- WEEKLY LIST ----
+  // ---- SEMESTER LIST ----
   renderSemesterList(grupo);
 }
 
@@ -1921,8 +1766,8 @@ function cycleAttDay(grupo, i) {
   const idx = (cycle.indexOf(cur) + 1) % 3;
   attDayStates[grupo][i] = cycle[idx];
   const newState = attDayStates[grupo][i];
-  // Reflejar el cambio del dia de hoy en la tabla semanal
-  const todayKey = new Date().toISOString().slice(0,10);
+  // Reflejar el cambio del dia de hoy en la tabla del semestre
+  const todayKey = '2026-05-27';
   if (attSemStates[grupo] && attSemStates[grupo][todayKey] !== undefined) {
     attSemStates[grupo][todayKey][i] = newState;
     renderSemesterList(grupo);
@@ -1948,32 +1793,34 @@ function renderSemesterList(grupo) {
   container.innerHTML = '';
 
   const g = gruposData[grupo];
-  const dates = buildWeekDates(grupo);
-  const today = new Date();
-  today.setHours(0,0,0,0);
+  const dates = buildSemDates(grupo);
+  const today = new Date(2026, 4, 27);
   const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const monthNames = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio'];
 
-  // Compute totals (toda la semana, incluyendo dias futuros que por defecto son "presente")
-  let totalClases = dates.length, totalAusencias = 0, totalTardanzas = 0;
+  // Compute totals
+  let totalClases = 0, totalAusencias = 0, totalTardanzas = 0;
   dates.forEach(d => {
     const key = d.toISOString().slice(0,10);
-    g.estudiantes.forEach((s, si) => {
-      const st = attSemStates[grupo][key]?.[si];
-      if (st === 'absent') totalAusencias++;
-      if (st === 'late') totalTardanzas++;
-    });
+    if (d <= today) {
+      totalClases++;
+      g.estudiantes.forEach((s, si) => {
+        const st = attSemStates[grupo][key]?.[si];
+        if (st === 'absent') totalAusencias++;
+        if (st === 'late') totalTardanzas++;
+      });
+    }
   });
   const pct = totalClases > 0 && g.estudiantes.length > 0
     ? Math.round(((totalClases * g.estudiantes.length - totalAusencias - totalTardanzas * 0.5) / (totalClases * g.estudiantes.length)) * 100)
-    : 100;
+    : 0;
 
   document.getElementById('semPresente').textContent = totalClases;
   document.getElementById('semAusente').textContent = totalAusencias;
   document.getElementById('semTardanza').textContent = totalTardanzas;
   document.getElementById('semPorcentaje').textContent = pct + '%';
 
-  // Build table: rows = class dates (esta semana), columns = students
+  // Build table: rows = class dates, columns = students
   const table = document.createElement('table');
   table.className = 'delta-table';
   table.style.cssText = 'font-size:13px;';
@@ -1991,25 +1838,21 @@ function renderSemesterList(grupo) {
   const stateStyle = {
     present: 'background:var(--green-bg);color:var(--green);border:1.5px solid #86efac;',
     absent:  'background:var(--red-bg);color:var(--red);border:1.5px solid #fca5a5;',
-    late:    'background:var(--amber-bg);color:var(--amber);border:1.5px solid #fcd34d;'
+    late:    'background:var(--amber-bg);color:var(--amber);border:1.5px solid #fcd34d;',
+    future:  'background:var(--bg2);color:var(--text-soft);border:1.5px dashed var(--border);'
   };
-  const stateSymbol = {present:'✓', absent:'✗', late:'⏱'};
-  const stateLabel  = {present:'Presente', absent:'Ausente', late:'Tardanza'};
+  const stateSymbol = {present:'✓', absent:'✗', late:'⏱', future:'·'};
+  const stateLabel  = {present:'Presente', absent:'Ausente', late:'Tardanza', future:'Pendiente'};
 
-  if (dates.length === 0) {
-    container.innerHTML = '<div style="color:var(--text-soft);font-size:14px;padding:12px 0;">Este grupo no tiene clases programadas esta semana.</div>';
-    return;
-  }
-
-  dates.forEach((d) => {
+  dates.forEach((d, di) => {
     const key = d.toISOString().slice(0,10);
-    const esHoy = d.getTime() === today.getTime();
+    const isPast = d <= today;
     const tr = document.createElement('tr');
     const dateStr = `${d.getDate()} ${monthNames[d.getMonth()]}`;
     let tdHTML = `<td style="font-weight:700;white-space:nowrap;">${dateStr}</td>`;
     tdHTML += `<td style="color:var(--text-soft);font-size:12px;">${dayNames[d.getDay()]}</td>`;
     g.estudiantes.forEach((s, si) => {
-      const st = attSemStates[grupo][key]?.[si] || 'present';
+      const st = attSemStates[grupo][key]?.[si] || (isPast ? 'present' : 'future');
       tdHTML += `<td style="text-align:center;padding:8px;">
         <span style="display:inline-block;width:68px;padding:4px 6px;border-radius:7px;font-size:12px;font-weight:700;${stateStyle[st]}" title="${s.name} — ${stateLabel[st]}">
           ${stateSymbol[st]} ${stateLabel[st]}
@@ -2017,7 +1860,7 @@ function renderSemesterList(grupo) {
       </td>`;
     });
     tr.innerHTML = tdHTML;
-    if (esHoy) tr.style.background = 'var(--bg2)';
+    if (!isPast) tr.style.opacity = '0.55';
     tbody.appendChild(tr);
   });
   table.appendChild(tbody);
@@ -2025,31 +1868,7 @@ function renderSemesterList(grupo) {
 }
 
 function saveAttendance() {
-  const grupo = document.getElementById('attGrupoSelect')?.value || '1SF133';
-  const todayKey = new Date().toISOString().slice(0,10);
-  const g = gruposData[grupo];
-
-  if (attSemStates[grupo] && attSemStates[grupo][todayKey]) {
-    g.estudiantes.forEach((s, i) => {
-      attSemStates[grupo][todayKey][i] = attDayStates[grupo][i];
-    });
-    renderSemesterList(grupo);
-  }
-
-  // Persistir en BD si es un grupo vinculado (1SF133 / GRP-IS-401)
-  if (ATT_HAY_BD && obtenerGrupoIdBD(grupo) !== null) {
-    const promesas = [];
-    g.estudiantes.forEach(function(s, i){
-      if (s.inscripcionId) {
-        promesas.push(guardarAsistenciaBD(grupo, s.inscripcionId, todayKey, attDayStates[grupo][i]));
-      }
-    });
-    Promise.all(promesas)
-      .then(function(){ showToast('Asistencia guardada correctamente.', 'success'); })
-      .catch(function(){ showToast('Error al guardar algunos registros de asistencia.', 'error'); });
-  } else {
-    showToast('Asistencia guardada correctamente.', 'success');
-  }
+  showToast('Asistencia guardada correctamente.', 'success');
 }
 
 // ==================== SEMESTER ATTENDANCE (legacy stub — replaced by renderAttendance) ====================
@@ -2286,17 +2105,6 @@ const misGruposBD = (function(){
     return JSON.parse(json || '[]');
   } catch(e) { return []; }
 })();
-
-// Mapa de codigo de grupo (frontend) -> codigo_grupo real en BD, para Asistencia
-const ATT_CODIGO_BD = { '1SF133': 'GRP-IS-401' };
-
-// Devuelve el grupoId real de BD para un codigo de grupo del frontend, o null
-function obtenerGrupoIdBD(grupo) {
-  const codigoBD = ATT_CODIGO_BD[grupo];
-  if (!codigoBD) return null;
-  const match = misGruposBD.find(function(g){ return g.codigo === codigoBD; });
-  return match ? match.grupoId : null;
-}
 
 function poblarSelectGruposAviso() {
   var sel = document.getElementById('avisoGrupo');

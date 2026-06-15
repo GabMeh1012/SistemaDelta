@@ -5,9 +5,13 @@
   String  est_rol       = (String)  session.getAttribute("usuarioRol");
   boolean est_hayBD     = (est_usuarioId != null && "estudiante".equals(est_rol));
   boolean est_loginError = "1".equals(request.getParameter("error"));
-  // Si la sesión activa es de profesor, redirigir a su portal
+  // Si la sesión activa es de profesor o admin, redirigir a su portal
   if (est_usuarioId != null && "profesor".equals(est_rol)) {
     response.sendRedirect(request.getContextPath() + "/portal_profesor.jsp");
+    return;
+  }
+  if (est_usuarioId != null && "admin".equals(est_rol)) {
+    response.sendRedirect(request.getContextPath() + "/portal_administrador.jsp");
     return;
   }
 
@@ -40,61 +44,190 @@
 
   // Cargar materias inscritas del estudiante
   StringBuilder est_materiasJsonSb = new StringBuilder("[");
+  StringBuilder est_disponiblesJsonSb = new StringBuilder("[");
   if (est_hayBD) {
-    try (Connection _con2 = ConexionDB.obtenerConexion();
-         PreparedStatement _ps2 = _con2.prepareStatement(
-           "SELECT m.codigo, m.nombre, " +
-           "CONCAT(p.nombre,' ',p.apellido) AS docente, " +
-           "g.aula, " +
-           "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, " +
-           "MAX(CASE WHEN n.componente='parcial2'     THEN n.nota END) AS p2, " +
-           "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, " +
-           "MAX(CASE WHEN n.componente='examen_final' THEN n.nota END) AS ef " +
-           "FROM inscripciones i " +
-           "JOIN estudiantes e ON e.usuario_id = ? " +
-           "JOIN grupos g ON g.id = i.grupo_id " +
-           "JOIN materias m ON m.id = g.materia_id " +
-           "LEFT JOIN profesores p ON p.id = g.profesor_id " +
-           "LEFT JOIN notas n ON n.inscripcion_id = i.id " +
-           "WHERE i.estudiante_id = e.id AND i.estado = 'activo' " +
-           "GROUP BY m.id, m.codigo, m.nombre, p.nombre, p.apellido, g.aula")) {
-      _ps2.setInt(1, est_usuarioId);
-      try (ResultSet _rs2 = _ps2.executeQuery()) {
-        boolean _first = true;
-        while (_rs2.next()) {
-          if (!_first) est_materiasJsonSb.append(",");
-          _first = false;
-          double _p1   = _rs2.getDouble("p1");   boolean _np1   = _rs2.wasNull();
-          double _p2   = _rs2.getDouble("p2");   boolean _np2   = _rs2.wasNull();
-          double _proy = _rs2.getDouble("proy");  boolean _nproy = _rs2.wasNull();
-          double _ef   = _rs2.getDouble("ef");   boolean _nef   = _rs2.wasNull();
-          double _nota = Math.round(((_np1?0:_p1)*0.25 + (_np2?0:_p2)*0.25 + (_nproy?0:_proy)*0.20 + (_nef?0:_ef)*0.30)*10.0)/10.0;
-          String _docente = _rs2.getString("docente") != null ? _rs2.getString("docente").replace('"', ' ') : "";
-          String _aula    = _rs2.getString("aula")    != null ? _rs2.getString("aula").replace('"', ' ')    : "";
-          String _codigo  = _rs2.getString("codigo")  != null ? _rs2.getString("codigo").replace('"', ' ')  : "";
-          String _mnombre = _rs2.getString("nombre")  != null ? _rs2.getString("nombre").replace('"', ' ')  : "";
-          est_materiasJsonSb.append("{")
-            .append("\"codigo\":\"").append(_codigo).append("\",")
-            .append("\"nombre\":\"").append(_mnombre).append("\",")
-            .append("\"creditos\":3,")
-            .append("\"horario\":\"\",")
-            .append("\"docente\":\"").append(_docente).append("\",")
-            .append("\"color\":\"#1a56a0\",")
-            .append("\"colorBg\":\"#eff6ff\",")
-            .append("\"dias\":{},")
-            .append("\"aula\":\"").append(_aula).append("\",")
-            .append("\"p1\":").append(_np1?0:_p1).append(",")
-            .append("\"p2\":").append(_np2?0:_p2).append(",")
-            .append("\"proj\":").append(_nproy?0:_proy).append(",")
-            .append("\"exFinal\":").append(_nef?0:_ef).append(",")
-            .append("\"nota\":").append(_nota)
-            .append("}");
+    try (Connection _con2 = ConexionDB.obtenerConexion()) {
+
+      // Paleta de colores para diferenciar materias en el horario
+      String[][] _paleta = {
+        {"#1a56a0","#dbeafe"}, {"#0e7490","#cffafe"}, {"#15803d","#dcfce7"},
+        {"#7c3aed","#ede9fe"}, {"#b45309","#fef3c7"}, {"#dc2626","#fee2e2"},
+        {"#0f766e","#ccfbf1"}, {"#9333ea","#f3e8ff"}
+      };
+      java.util.Map<String,String> _diaMap = new java.util.HashMap<>();
+      _diaMap.put("lunes","lun");     _diaMap.put("martes","mar");
+      _diaMap.put("miercoles","mie"); _diaMap.put("jueves","jue");
+      _diaMap.put("viernes","vie");   _diaMap.put("sabado","sab");
+
+      // Precargar TODOS los horarios agrupados por grupo_id (una sola consulta,
+      // evita abrir varios ResultSet anidados sobre la misma conexión)
+      java.util.Map<Integer, java.util.List<String[]>> _horariosPorGrupo = new java.util.HashMap<>();
+      try (PreparedStatement _psH = _con2.prepareStatement(
+             "SELECT grupo_id, dia_semana, hora_inicio FROM horarios ORDER BY grupo_id, hora_inicio");
+           ResultSet _rsH = _psH.executeQuery()) {
+        while (_rsH.next()) {
+          int _gid = _rsH.getInt("grupo_id");
+          java.time.LocalTime _lt = _rsH.getTime("hora_inicio").toLocalTime();
+          String _horaFmt = _lt.format(java.time.format.DateTimeFormatter.ofPattern("h:mm a", java.util.Locale.US));
+          String _diaEnum = _rsH.getString("dia_semana");
+          _horariosPorGrupo.computeIfAbsent(_gid, k -> new java.util.ArrayList<>())
+                           .add(new String[]{ _diaEnum, _horaFmt });
         }
       }
-    } catch (Exception _e2) { /* usar demo */ }
+
+      // Conjunto de codigos de materia en los que el estudiante ya esta inscrito (activo)
+      java.util.Set<String> _codigosInscritos = new java.util.HashSet<>();
+      try (PreparedStatement _psC = _con2.prepareStatement(
+             "SELECT m.codigo FROM inscripciones i " +
+             "JOIN estudiantes e ON e.id = i.estudiante_id " +
+             "JOIN grupos g ON g.id = i.grupo_id " +
+             "JOIN materias m ON m.id = g.materia_id " +
+             "WHERE e.usuario_id = ? AND i.estado = 'activo'")) {
+        _psC.setInt(1, est_usuarioId);
+        try (ResultSet _rsC = _psC.executeQuery()) {
+          while (_rsC.next()) _codigosInscritos.add(_rsC.getString("codigo"));
+        }
+      }
+
+      try (PreparedStatement _ps2 = _con2.prepareStatement(
+             "SELECT g.id AS grupo_id, m.codigo, m.nombre, " +
+             "CONCAT(p.nombre,' ',p.apellido) AS docente, " +
+             "g.aula, " +
+             "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, " +
+             "MAX(CASE WHEN n.componente='parcial2'     THEN n.nota END) AS p2, " +
+             "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, " +
+             "MAX(CASE WHEN n.componente='examen_final' THEN n.nota END) AS ef " +
+             "FROM inscripciones i " +
+             "JOIN estudiantes e ON e.id = i.estudiante_id " +
+             "JOIN grupos g ON g.id = i.grupo_id " +
+             "JOIN materias m ON m.id = g.materia_id " +
+             "LEFT JOIN profesores p ON p.id = g.profesor_id " +
+             "LEFT JOIN notas n ON n.inscripcion_id = i.id " +
+             "WHERE e.usuario_id = ? AND i.estado = 'activo' " +
+             "GROUP BY g.id, m.id, m.codigo, m.nombre, p.nombre, p.apellido, g.aula")) {
+        _ps2.setInt(1, est_usuarioId);
+        try (ResultSet _rs2 = _ps2.executeQuery()) {
+          boolean _first = true;
+          int _colorIdx = 0;
+          while (_rs2.next()) {
+            if (!_first) est_materiasJsonSb.append(",");
+            _first = false;
+            double _p1   = _rs2.getDouble("p1");   boolean _np1   = _rs2.wasNull();
+            double _p2   = _rs2.getDouble("p2");   boolean _np2   = _rs2.wasNull();
+            double _proy = _rs2.getDouble("proy");  boolean _nproy = _rs2.wasNull();
+            double _ef   = _rs2.getDouble("ef");   boolean _nef   = _rs2.wasNull();
+            double _nota = Math.round(((_np1?0:_p1)*0.25 + (_np2?0:_p2)*0.25 + (_nproy?0:_proy)*0.20 + (_nef?0:_ef)*0.30)*10.0)/10.0;
+            String _docente = _rs2.getString("docente") != null ? _rs2.getString("docente").replace('"', ' ') : "";
+            String _aula    = _rs2.getString("aula")    != null ? _rs2.getString("aula").replace('"', ' ')    : "";
+            String _codigo  = _rs2.getString("codigo")  != null ? _rs2.getString("codigo").replace('"', ' ')  : "";
+            String _mnombre = _rs2.getString("nombre")  != null ? _rs2.getString("nombre").replace('"', ' ')  : "";
+            int    _grupoId = _rs2.getInt("grupo_id");
+
+            // Construir "dias" y "horario" a partir del mapa precargado
+            StringBuilder _diasSb = new StringBuilder("{");
+            StringBuilder _diasAbrev = new StringBuilder();
+            String _horaInicioTexto = "";
+            java.util.List<String[]> _bloques = _horariosPorGrupo.get(_grupoId);
+            if (_bloques != null) {
+              boolean _firstDia = true;
+              for (String[] _bloque : _bloques) {
+                String _diaEnum = _bloque[0];
+                String _horaFmt = _bloque[1];
+                String _diaKey  = _diaMap.getOrDefault(_diaEnum, "lun");
+
+                if (!_firstDia) { _diasSb.append(","); _diasAbrev.append("/"); }
+                _firstDia = false;
+                _diasSb.append("\"").append(_diaKey).append("\":\"").append(_horaFmt).append("\"");
+                _diasAbrev.append(_diaKey.substring(0,1).toUpperCase()).append(_diaKey.substring(1));
+                if (_horaInicioTexto.isEmpty()) _horaInicioTexto = _horaFmt;
+              }
+            }
+            _diasSb.append("}");
+            String _horarioTexto = (_diasAbrev.length() > 0) ? (_diasAbrev + " " + _horaInicioTexto) : "";
+
+            String _color   = _paleta[_colorIdx % _paleta.length][0];
+            String _colorBg = _paleta[_colorIdx % _paleta.length][1];
+            _colorIdx++;
+
+            est_materiasJsonSb.append("{")
+              .append("\"codigo\":\"").append(_codigo).append("\",")
+              .append("\"nombre\":\"").append(_mnombre).append("\",")
+              .append("\"creditos\":3,")
+              .append("\"horario\":\"").append(_horarioTexto).append("\",")
+              .append("\"docente\":\"").append(_docente).append("\",")
+              .append("\"color\":\"").append(_color).append("\",")
+              .append("\"colorBg\":\"").append(_colorBg).append("\",")
+              .append("\"dias\":").append(_diasSb.toString()).append(",")
+              .append("\"aula\":\"").append(_aula).append("\",")
+              .append("\"p1\":").append(_np1?0:_p1).append(",")
+              .append("\"p2\":").append(_np2?0:_p2).append(",")
+              .append("\"proj\":").append(_nproy?0:_proy).append(",")
+              .append("\"exFinal\":").append(_nef?0:_ef).append(",")
+              .append("\"nota\":").append(_nota)
+              .append("}");
+          }
+        }
+      }
+
+      // Materias del catalogo en las que el estudiante NO esta inscrito (disponibles para agregar)
+      try (PreparedStatement _ps3 = _con2.prepareStatement(
+             "SELECT g.id AS grupo_id, m.codigo, m.nombre, g.aula, g.capacidad, " +
+             "(SELECT COUNT(*) FROM inscripciones i2 WHERE i2.grupo_id = g.id AND i2.estado='activo') AS ocupados " +
+             "FROM grupos g JOIN materias m ON m.id = g.materia_id")) {
+        try (ResultSet _rs3 = _ps3.executeQuery()) {
+          boolean _firstD = true;
+          while (_rs3.next()) {
+            String _codigo = _rs3.getString("codigo");
+            if (_codigosInscritos.contains(_codigo)) continue; // ya inscrito, no es "disponible"
+
+            int _grupoId    = _rs3.getInt("grupo_id");
+            String _mnombre = _rs3.getString("nombre")  != null ? _rs3.getString("nombre").replace('"', ' ')  : "";
+            String _aula    = _rs3.getString("aula")    != null ? _rs3.getString("aula").replace('"', ' ')    : "";
+            int _capacidad  = _rs3.getInt("capacidad");
+            int _ocupados   = _rs3.getInt("ocupados");
+
+            StringBuilder _diasAbrev = new StringBuilder();
+            String _horaInicioTexto = "";
+            java.util.List<String[]> _bloques = _horariosPorGrupo.get(_grupoId);
+            if (_bloques != null) {
+              boolean _firstDia = true;
+              for (String[] _bloque : _bloques) {
+                String _diaEnum = _bloque[0];
+                String _horaFmt = _bloque[1];
+                String _diaKey  = _diaMap.getOrDefault(_diaEnum, "lun");
+                if (!_firstDia) _diasAbrev.append("/");
+                _firstDia = false;
+                _diasAbrev.append(_diaKey.substring(0,1).toUpperCase()).append(_diaKey.substring(1));
+                if (_horaInicioTexto.isEmpty()) _horaInicioTexto = _horaFmt;
+              }
+            }
+            String _horarioTexto = (_diasAbrev.length() > 0) ? (_diasAbrev + " " + _horaInicioTexto) : "";
+
+            if (!_firstD) est_disponiblesJsonSb.append(",");
+            _firstD = false;
+            est_disponiblesJsonSb.append("{")
+              .append("\"codigo\":\"").append(_codigo.replace('"',' ')).append("\",")
+              .append("\"nombre\":\"").append(_mnombre).append("\",")
+              .append("\"creditos\":3,")
+              .append("\"horario\":\"").append(_horarioTexto).append("\",")
+              .append("\"aula\":\"").append(_aula).append("\",")
+              .append("\"cupos\":\"").append(_ocupados).append("/").append(_capacidad).append("\"")
+              .append("}");
+          }
+        }
+      }
+
+    } catch (Exception _e2) {
+      // Si algo falla a mitad de la construcción, descartar lo parcial
+      // para no generar JSON inválido (coma colgante).
+      est_materiasJsonSb = new StringBuilder("[");
+      est_disponiblesJsonSb = new StringBuilder("[");
+    }
   }
   est_materiasJsonSb.append("]");
-  String est_materiasJson = est_materiasJsonSb.toString();
+  est_disponiblesJsonSb.append("]");
+  String est_materiasJson    = est_materiasJsonSb.toString();
+  String est_disponiblesJson = est_disponiblesJsonSb.toString();
 %>
 <!DOCTYPE html>
 <html lang="es">
@@ -197,6 +330,14 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
   font-size: 16px; color: var(--text); background: var(--bg); transition: border-color 0.2s;
 }
 .form-group input:focus { outline: none; border-color: var(--blue); background: #fff; }
+.password-wrap { position: relative; }
+.password-wrap input { padding-right: 46px; }
+.password-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  background: none; border: none; cursor: pointer; font-size: 18px;
+  color: var(--text-soft); padding: 6px 8px; line-height: 1;
+}
+.password-toggle:hover { color: var(--blue); }
 .login-error {
   background: var(--red-bg); color: var(--red); padding: 12px 16px;
   border-radius: var(--radius-sm); font-size: 14px; font-weight: 600;
@@ -402,12 +543,67 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
 /* ===== HORARIO GRID ===== */
 .horario-cell-clase { padding: 8px; border-radius: 8px; font-size: 14px; font-weight: 700; }
 
+/* ===== TOASTS Y MODAL DE CONFIRMACION ===== */
+.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+.toast {
+  display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px;
+  border-radius: var(--radius-sm); background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  border-left: 5px solid var(--blue); font-size: 14px; color: var(--text);
+  animation: toast-in 0.25s ease-out; line-height: 1.4;
+}
+.toast.toast-success { border-left-color: var(--green); }
+.toast.toast-error   { border-left-color: var(--red); }
+.toast.toast-info    { border-left-color: var(--blue); }
+.toast-icon { font-size: 18px; flex-shrink: 0; line-height: 1.4; }
+.toast-msg  { flex: 1; white-space: pre-line; }
+.toast-close { cursor: pointer; color: var(--text-soft); font-size: 16px; line-height: 1; flex-shrink: 0; background:none; border:none; padding:0; }
+.toast-close:hover { color: var(--text); }
+.toast.toast-out { animation: toast-out 0.2s ease-in forwards; }
+@keyframes toast-in  { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(30px); } }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(30,42,59,.45); z-index: 10000;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: modal-fade-in 0.15s ease-out;
+}
+.modal-overlay.hidden { display: none; }
+.modal-box {
+  background: #fff; border-radius: var(--radius-sm); max-width: 420px; width: 100%;
+  padding: 24px; box-shadow: 0 12px 40px rgba(0,0,0,.2);
+}
+.modal-box p { font-size: 15px; color: var(--text); line-height: 1.5; margin-bottom: 20px; white-space: pre-line; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+@keyframes modal-fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+
 /* ===== RESPONSIVE ===== */
 @media(max-width: 1100px) { .stats-4 { grid-template-columns: 1fr 1fr; } .grid-2, .grid-21 { grid-template-columns: 1fr; } }
 @media(max-width: 760px) { .sidebar { width: 220px; } .main-content { margin-left: 220px; padding: 20px; } .stats-4, .stats-3 { grid-template-columns: 1fr 1fr; } }
 </style>
 </head>
 <body>
+
+<!-- ==================== TOASTS Y MODAL DE CONFIRMACION ==================== -->
+<div class="toast-container" id="toastContainer"></div>
+<div class="modal-overlay hidden" id="confirmOverlay">
+  <div class="modal-box">
+    <p id="confirmMsg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="confirmCancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="confirmOkBtn">Aceptar</button>
+    </div>
+  </div>
+</div>
+<div class="modal-overlay hidden" id="infoModalOverlay">
+  <div class="modal-box">
+    <div id="infoModalTitle" style="font-weight:800;font-size:17px;margin-bottom:8px;color:var(--text);"></div>
+    <p id="infoModalMsg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-primary" id="infoModalCloseBtn">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- ==================== LOGIN ==================== -->
 <div id="page-login">
@@ -424,9 +620,13 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
     </div>
     <div class="form-group">
       <label for="loginPass">Contrasena</label>
-      <input id="loginPass" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
+      <div class="password-wrap">
+        <input id="loginPass" type="password" placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;" autocomplete="current-password">
+        <button type="button" class="password-toggle" id="togglePass" onclick="togglePasswordVisibility()" aria-label="Mostrar contrasena" title="Mostrar contrasena">&#128065;</button>
+      </div>
     </div>
-    <div class="login-error" id="loginError">Usuario o contrasena incorrectos. Intente nuevamente.</div>
+    <div class="login-error" id="loginError">Usuario o contrase&ntilde;a incorrecto.</div>
+    <script>if(<%= est_loginError %>) document.getElementById("loginError").style.display="block";</script>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Demo: usuario <strong>estudiante</strong> &middot; clave <strong>1234</strong></div>
     <div class="login-switch">Es docente? <a href="index.jsp">Ir al Portal Docente &#8594;</a></div>
@@ -486,6 +686,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
       </button>
       <button class="nav-item" id="nav-avisos" onclick="irTab('avisos', this)">
         <span class="nav-icon">&#128226;</span> Avisos
+        <span class="nav-badge" id="badgeAvisosNav" style="display:none;">0</span>
       </button>
     </nav>
     <div class="sidebar-footer">
@@ -555,7 +756,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
             Horario de Hoy
             <button class="card-link" onclick="irTab('horario', document.getElementById('nav-horario'))">Ver semana &#8594;</button>
           </div>
-          <div style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
+          <div id="fechaHoy" style="font-size:13px;font-weight:700;color:var(--blue);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px;">
             Martes 27 de mayo
           </div>
           <div id="horarioHoy"></div>
@@ -588,20 +789,8 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
             Avisos Institucionales
             <button class="card-link" onclick="irTab('avisos', document.getElementById('nav-avisos'))">Ver todos &#8594;</button>
           </div>
-          <div class="ann-item">
-            <div class="ann-titulo">Matricula II Semestre 2026</div>
-            <div class="ann-cuerpo">El periodo de inscripcion inicia el 2 de junio. Revisa los requisitos.</div>
-            <div class="ann-fecha">26 mayo 2026</div>
-          </div>
-          <div class="ann-item ann-green">
-            <div class="ann-titulo">Semana de Ingenieria</div>
-            <div class="ann-cuerpo">Actividades del 9 al 13 de junio. Exposicion de proyectos finales.</div>
-            <div class="ann-fecha">24 mayo 2026</div>
-          </div>
-          <div class="ann-item ann-amber">
-            <div class="ann-titulo">Examen Parcial BD II</div>
-            <div class="ann-cuerpo">Jueves 29 de mayo a las 9:00 AM. Revisar temas de SQL avanzado.</div>
-            <div class="ann-fecha">23 mayo 2026</div>
+          <div id="avisosResumen">
+            <div style="color:var(--text-soft);font-size:14px;padding:12px 0;">Cargando avisos...</div>
           </div>
         </div>
       </div>
@@ -641,6 +830,19 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
           </div>
         </div>
       </div>
+      <div class="card" style="margin-bottom:22px;" id="cardSolicitudesPendientes">
+        <div class="card-title">Solicitudes Pendientes de Aprobacion</div>
+        <div style="overflow-x:auto;">
+          <table class="delta-table">
+            <thead>
+              <tr>
+                <th>Tipo</th><th>Materia</th><th>Codigo</th><th>Estado</th><th>Fecha</th>
+              </tr>
+            </thead>
+            <tbody id="tablaSolicitudes"></tbody>
+          </table>
+        </div>
+      </div>
       <div class="card" style="margin-bottom:22px;">
         <div class="card-title">Materias Actualmente Inscritas</div>
         <div style="overflow-x:auto;">
@@ -678,7 +880,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
           <h2 class="page-title">Mis Calificaciones</h2>
           <div class="page-subtitle">I Semestre 2026 &middot; Historial academico</div>
         </div>
-        <button class="btn btn-secondary" onclick="alert('Descargando reporte PDF...')">Descargar PDF</button>
+        <button class="btn btn-secondary" onclick="showToast('Descargando reporte PDF...', 'info')">Descargar PDF</button>
       </div>
       <div class="stats-row stats-3">
         <div class="stat-card">
@@ -731,7 +933,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
         </div>
       </div>
       <div class="card">
-        <div class="card-title">Semana del 27 al 31 de Mayo, 2026</div>
+        <div class="card-title">Horario Semanal - 2026</div>
         <div style="overflow-x:auto;">
           <table class="delta-table" style="min-width:700px;">
             <thead>
@@ -788,35 +990,70 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
           <div class="page-subtitle">Comunicados oficiales de la universidad</div>
         </div>
       </div>
-      <div class="card">
-        <div class="ann-item">
-          <div class="ann-titulo">Apertura de Matricula - II Semestre 2026</div>
-          <div class="ann-cuerpo">El periodo de inscripcion para el II Semestre 2026 iniciara el lunes 2 de junio. Asegurate de no tener deudas academicas o financieras pendientes.</div>
-          <div class="ann-fecha">26 mayo 2026 - Registraduria</div>
-        </div>
-        <div class="ann-item ann-green">
-          <div class="ann-titulo">Semana de Ingenieria UTP 2026</div>
-          <div class="ann-cuerpo">Del 9 al 13 de junio se realizara la Semana de Ingenieria. Los grupos de la Facultad de Sistemas presentaran sus proyectos finales en exposicion abierta al publico.</div>
-          <div class="ann-fecha">24 mayo 2026 - FISC</div>
-        </div>
-        <div class="ann-item ann-amber">
-          <div class="ann-titulo">Mantenimiento del Sistema Delta</div>
-          <div class="ann-cuerpo">El sabado 1 de junio de 1:00 AM a 5:00 AM el sistema estara en mantenimiento programado. No habra acceso durante ese periodo.</div>
-          <div class="ann-fecha">22 mayo 2026 - DTI</div>
-        </div>
-        <div class="ann-item">
-          <div class="ann-titulo">Actualizacion del Sistema Delta v1.2</div>
-          <div class="ann-cuerpo">Se ha implementado la version 1.2 del Portal Delta con mejoras de rendimiento, mayor seguridad y accesibilidad mejorada.</div>
-          <div class="ann-fecha">20 mayo 2026 - DTI</div>
-        </div>
+      <div class="card" id="avisosLista">
+        <div style="color:var(--text-soft);font-size:14px;padding:12px 0;">Cargando avisos...</div>
       </div>
     </div><!-- fin tab-avisos -->
 
   </main>
 </div><!-- fin portal -->
 
+<!-- Datos de materias inscritas, generados desde la BD (JSON puro, sin escapes) -->
+<script type="application/json" id="est-materias-json"><%= est_materiasJson %></script>
+<!-- Datos de materias disponibles para inscribir (catalogo - inscritas) -->
+<script type="application/json" id="est-disponibles-json"><%= est_disponiblesJson %></script>
+
 <!-- ==================== JAVASCRIPT ==================== -->
 <script type="text/javascript">
+
+// ============================================================
+// TOASTS Y MODALES (reemplazo de alert/confirm nativos)
+// ============================================================
+function showToast(mensaje, tipo) {
+  tipo = tipo || 'info';
+  var iconos = { success: '&#9989;', error: '&#10060;', info: '&#8505;&#65039;' };
+  var container = document.getElementById('toastContainer');
+  if (!container) { window.alert(mensaje); return; }
+  var toast = document.createElement('div');
+  toast.className = 'toast toast-' + tipo;
+  toast.innerHTML =
+    '<span class="toast-icon">' + (iconos[tipo] || iconos.info) + '</span>' +
+    '<span class="toast-msg"></span>' +
+    '<button class="toast-close" aria-label="Cerrar">&times;</button>';
+  toast.querySelector('.toast-msg').textContent = mensaje;
+  var quitar = function() {
+    toast.classList.add('toast-out');
+    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 200);
+  };
+  toast.querySelector('.toast-close').addEventListener('click', quitar);
+  container.appendChild(toast);
+  setTimeout(quitar, 4000);
+}
+
+function showConfirm(mensaje, onConfirm) {
+  var overlay = document.getElementById('confirmOverlay');
+  var msgEl   = document.getElementById('confirmMsg');
+  var okBtn   = document.getElementById('confirmOkBtn');
+  var cancelBtn = document.getElementById('confirmCancelBtn');
+  if (!overlay) { if (window.confirm(mensaje)) onConfirm(); return; }
+  msgEl.textContent = mensaje;
+  overlay.classList.remove('hidden');
+  function cerrar() { overlay.classList.add('hidden'); okBtn.onclick = null; cancelBtn.onclick = null; }
+  okBtn.onclick = function(){ cerrar(); onConfirm(); };
+  cancelBtn.onclick = cerrar;
+}
+
+function showInfoModal(titulo, mensaje) {
+  var overlay = document.getElementById('infoModalOverlay');
+  var titleEl = document.getElementById('infoModalTitle');
+  var msgEl   = document.getElementById('infoModalMsg');
+  var closeBtn = document.getElementById('infoModalCloseBtn');
+  if (!overlay) { window.alert(titulo + '\n\n' + mensaje); return; }
+  titleEl.textContent = titulo;
+  msgEl.textContent = mensaje;
+  overlay.classList.remove('hidden');
+  closeBtn.onclick = function(){ overlay.classList.add('hidden'); };
+}
 
 // ============================================================
 // DATOS CENTRALES
@@ -834,22 +1071,19 @@ var INFO_MATERIAS = {
   'EC-301': { creditos:2, horario:'Jue 3:00 PM',       color:'#9333ea', colorBg:'#f3e8ff', dias:{jue:'3:00 PM'},                 aula:'Aula 1A'         }
 };
 
-// Codigos de materias extras (disponibles para inscribir)
-var CODIGOS_EXTRAS = ['IA-401','EM-201','EC-301'];
-
 function enriquecerMateria(m) {
   var info = INFO_MATERIAS[m.codigo] || { creditos:3, horario:'', color:'#1a56a0', colorBg:'#eff6ff', dias:{}, aula:'' };
   return {
     codigo:   m.codigo,
     nombre:   m.nombre,
-    creditos: info.creditos,
-    horario:  info.horario,
-    color:    info.color,
-    colorBg:  info.colorBg,
-    dias:     info.dias,
-    aula:     info.aula,
+    creditos: (m.creditos != null) ? m.creditos : info.creditos,
+    horario:  (m.horario)  ? m.horario  : info.horario,
+    color:    (m.color)    ? m.color    : info.color,
+    colorBg:  (m.colorBg)  ? m.colorBg  : info.colorBg,
+    dias:     (m.dias && Object.keys(m.dias).length) ? m.dias : info.dias,
+    aula:     (m.aula)     ? m.aula     : info.aula,
     docente:  m.docente || 'Por asignar',
-    cupos:    '30/30',
+    cupos:    m.cupos || '30/30',
     p1:       m.p1   || 0,
     p2:       m.p2   || 0,
     proj:     m.proj || 0,
@@ -858,27 +1092,30 @@ function enriquecerMateria(m) {
   };
 }
 
-// Separar materias principales de extras desde BD
+// Materias inscritas (activas) y disponibles (catalogo - inscritas) desde BD
 var _todosBD = [];
+var _dispBD  = [];
 try {
-  var _jsonBD = '<%= est_materiasJson %>';
-  if (_jsonBD && _jsonBD !== '[]') _todosBD = JSON.parse(_jsonBD);
+  var _jsonTag = document.getElementById('est-materias-json');
+  var _jsonBD = _jsonTag ? _jsonTag.textContent : '[]';
+  if (_jsonBD && _jsonBD.trim() !== '[]') _todosBD = JSON.parse(_jsonBD);
+} catch(e) {}
+try {
+  var _jsonTagD = document.getElementById('est-disponibles-json');
+  var _jsonDisp = _jsonTagD ? _jsonTagD.textContent : '[]';
+  if (_jsonDisp && _jsonDisp.trim() !== '[]') _dispBD = JSON.parse(_jsonDisp);
 } catch(e) {}
 
 var materiasInscritas    = [];
+var solicitudesPendientes = [];
 var materiasDisponibles  = [];
 
-if (_todosBD.length) {
+if (_todosBD.length || _dispBD.length) {
   _todosBD.forEach(function(m) {
-    var em = enriquecerMateria(m);
-    if (CODIGOS_EXTRAS.indexOf(m.codigo) === -1) {
-      materiasInscritas.push(em);   // principales → inscritas
-    } else if (m.nota > 0) {
-      materiasInscritas.push(em);   // extra ya inscrita con nota
-    } else {
-      em.cupos = INFO_MATERIAS[m.codigo] ? '30/30' : '30/30';
-      materiasDisponibles.push(em); // extra sin nota → disponible
-    }
+    materiasInscritas.push(enriquecerMateria(m));
+  });
+  _dispBD.forEach(function(m) {
+    materiasDisponibles.push(enriquecerMateria(m));
   });
 } else {
   // Demo si no hay BD
@@ -926,12 +1163,29 @@ function irTab(id, boton) {
     var navBoton = document.getElementById('nav-' + id);
     if (navBoton) navBoton.classList.add('active');
   }
+  if (id === 'avisos') marcarAvisosVistos();
   window.scrollTo(0, 0);
 }
 
 // ============================================================
 // LOGIN / LOGOUT
 // ============================================================
+function togglePasswordVisibility() {
+  var input = document.getElementById('loginPass');
+  var btn   = document.getElementById('togglePass');
+  if (input.type === 'password') {
+    input.type = 'text';
+    btn.innerHTML = '&#128064;&#8203;'; // ojo "abierto" / tachado visualmente distinto
+    btn.title = 'Ocultar contrasena';
+    btn.setAttribute('aria-label', 'Ocultar contrasena');
+  } else {
+    input.type = 'password';
+    btn.innerHTML = '&#128065;';
+    btn.title = 'Mostrar contrasena';
+    btn.setAttribute('aria-label', 'Mostrar contrasena');
+  }
+}
+
 function doLogin() {
   var user = document.getElementById('loginUser').value.trim();
   var pass = document.getElementById('loginPass').value.trim();
@@ -956,13 +1210,13 @@ document.getElementById('loginPass').addEventListener('keydown', function(e) {
 });
 
 function cerrarSesion() {
-  if (confirm('Desea cerrar sesion?')) {
+  showConfirm('Desea cerrar sesion?', function() {
     document.getElementById('page-portal').classList.add('hidden');
     document.getElementById('page-login').classList.remove('hidden');
     document.getElementById('loginUser').value = '';
     document.getElementById('loginPass').value = '';
     cerrarNotifPanel();
-  }
+  });
 }
 
 // ============================================================
@@ -975,9 +1229,14 @@ function iniciarPortal() {
   renderCalDetalle();
   renderHorario();
   renderHorarioHoy();
+  renderFechaHoy();
   renderBandeja();
   renderMensajesResumen();
   actualizarBadges();
+  actualizarBadgeAvisos();
+  actualizarContadoresInscripcion();
+  cargarAvisos();
+  cargarSolicitudesPendientes();
 }
 
 // ============================================================
@@ -1127,6 +1386,35 @@ function actualizarBadges() {
       if (campanaNum) { campanaNum.textContent = noLeidos; campanaNum.style.display = noLeidos>0 ? 'flex' : 'none'; }
     }).catch(function(){});
 }
+
+function actualizarBadgeAvisos() {
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  fetch(ctx+'/mensajes?accion=notificaciones')
+    .then(function(r){ return r.json(); })
+    .then(function(lista){
+      var noLeidos = (lista || []).filter(function(n){ return n.tipo === 'aviso' && !n.leida; }).length;
+      var badge = document.getElementById('badgeAvisosNav');
+      if (badge) { badge.textContent = noLeidos; badge.style.display = noLeidos > 0 ? '' : 'none'; }
+    }).catch(function(){});
+}
+
+function marcarAvisosVistos() {
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  fetch(ctx+'/mensajes?accion=notificaciones')
+    .then(function(r){ return r.json(); })
+    .then(function(lista){
+      var pendientes = (lista || []).filter(function(n){ return n.tipo === 'aviso' && !n.leida; });
+      if (!pendientes.length) return;
+      var promesas = pendientes.map(function(n){
+        return fetch(ctx+'/mensajes?accion=marcarNotifLeida', {
+          method:'POST',
+          headers:{'Content-Type':'application/x-www-form-urlencoded'},
+          body:'id='+n.id
+        });
+      });
+      Promise.all(promesas).then(function(){ actualizarBadgeAvisos(); });
+    }).catch(function(){});
+}
 function actualizarBadges_legacy() {
   var noLeidos = 0;
   for (var i = 0; i < mensajesData.length; i++) {
@@ -1178,7 +1466,7 @@ function renderBandeja() {
             div.querySelector('.msg-dot-unread').style.display='none';
             div.querySelector('.msg-from').className='msg-from leido';
           }
-          alert('De: ' + (msg.remitente||'') + '\nAsunto: ' + (msg.asunto||'') + '\n\n' + (msg.cuerpo||''));
+          showInfoModal('De: ' + (msg.remitente||'') + ' — ' + (msg.asunto||''), msg.cuerpo||'');
         };
         cont.appendChild(div);
       });
@@ -1227,23 +1515,23 @@ function enviarMsg() {
   var para   = document.getElementById('msgPara').value.trim();
   var asunto = document.getElementById('msgAsunto').value.trim() || '(Sin asunto)';
   var cuerpo = document.getElementById('msgCuerpo').value.trim();
-  if (!para || !cuerpo) { alert('Complete el destinatario y el mensaje.'); return; }
+  if (!para || !cuerpo) { showToast('Complete el destinatario y el mensaje.', 'error'); return; }
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
   var params = 'accion=enviar&destinatario='+encodeURIComponent(para)+'&asunto='+encodeURIComponent(asunto)+'&cuerpo='+encodeURIComponent(cuerpo);
   fetch(ctx+'/mensajes', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params})
     .then(function(r){ return r.json(); })
     .then(function(d){
       if (d.ok) {
-        alert('Mensaje enviado a: ' + para);
+        showToast('Mensaje enviado a: ' + para, 'success');
         document.getElementById('msgPara').value   = 'María Mosquera';
         document.getElementById('msgAsunto').value = '';
         document.getElementById('msgCuerpo').value = '';
         renderBandeja();
         actualizarBadges();
       } else {
-        alert('Error: ' + (d.error || 'No se pudo enviar el mensaje.'));
+        showToast('Error: ' + (d.error || 'No se pudo enviar el mensaje.'), 'error');
       }
-    }).catch(function(){ alert('Error de conexión al enviar el mensaje.'); });
+    }).catch(function(){ showToast('Error de conexión al enviar el mensaje.', 'error'); });
 }
 
 // ============================================================
@@ -1255,12 +1543,66 @@ function calcCreditos() {
   return total;
 }
 
+function tieneSolicitudPendiente(codigo, tipo) {
+  for (var i = 0; i < solicitudesPendientes.length; i++) {
+    var s = solicitudesPendientes[i];
+    if (s.materiaCodigo === codigo && s.estado === 'pendiente' && s.tipo === tipo) return true;
+  }
+  return false;
+}
+
+function cargarSolicitudesPendientes() {
+  if (!<%= est_hayBD %>) return;
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  fetch(ctx + '/matricula?accion=misSolicitudes')
+    .then(function(r){ return r.json(); })
+    .then(function(data) {
+      solicitudesPendientes = Array.isArray(data) ? data : [];
+      renderSolicitudes();
+      renderInscritas();
+      renderDisponibles();
+    })
+    .catch(function(){ solicitudesPendientes = []; renderSolicitudes(); });
+}
+
+function renderSolicitudes() {
+  var tbody = document.getElementById('tablaSolicitudes');
+  var card = document.getElementById('cardSolicitudesPendientes');
+  if (!tbody) return;
+  var pendientes = solicitudesPendientes.filter(function(s){ return s.estado === 'pendiente'; });
+  if (pendientes.length === 0) {
+    if (card) card.style.display = 'none';
+    tbody.innerHTML = '';
+    return;
+  }
+  if (card) card.style.display = '';
+  tbody.innerHTML = '';
+  pendientes.forEach(function(s) {
+    var tr = document.createElement('tr');
+    var tipoLabel = s.tipo === 'inscripcion' ? 'Inscripcion' : 'Retiro';
+    tr.innerHTML =
+      '<td><span class="tag tag-amber">' + tipoLabel + '</span></td>' +
+      '<td><strong>' + (s.materiaNombre || '') + '</strong></td>' +
+      '<td>' + (s.materiaCodigo || '') + '</td>' +
+      '<td><span class="tag tag-amber">Pendiente</span></td>' +
+      '<td>' + (s.fecha || '') + '</td>';
+    tbody.appendChild(tr);
+  });
+}
+
 function renderInscritas() {
   var tbody = document.getElementById('tablaInscritas');
   if (!tbody) return;
   tbody.innerHTML = '';
   for (var i = 0; i < materiasInscritas.length; i++) {
-    (function(m, idx) {
+    (function(m) {
+      var retiroPend = tieneSolicitudPendiente(m.codigo, 'retiro');
+      var estadoHtml = retiroPend
+        ? '<span class="tag tag-amber">Retiro pendiente</span>'
+        : '<span class="tag tag-green">Inscrita</span>';
+      var accionHtml = retiroPend
+        ? '<span style="color:var(--text-soft);font-size:13px;">En revision</span>'
+        : '<button class="btn-danger" onclick="desinscribir(\'' + m.codigo + '\')">Eliminar</button>';
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + m.codigo + '</td>' +
@@ -1268,10 +1610,10 @@ function renderInscritas() {
         '<td>' + m.creditos + '</td>' +
         '<td>' + m.horario + '</td>' +
         '<td>' + m.docente + '</td>' +
-        '<td><span class="tag tag-green">Inscrita</span></td>' +
-        '<td><button class="btn-danger" onclick="desinscribir(\'' + m.codigo + '\')">Eliminar</button></td>';
+        '<td>' + estadoHtml + '</td>' +
+        '<td>' + accionHtml + '</td>';
       tbody.appendChild(tr);
-    })(materiasInscritas[i], i);
+    })(materiasInscritas[i]);
   }
   actualizarContadoresInscripcion();
 }
@@ -1285,7 +1627,11 @@ function renderDisponibles() {
     return;
   }
   for (var i = 0; i < materiasDisponibles.length; i++) {
-    (function(m, idx) {
+    (function(m) {
+      var inscPend = tieneSolicitudPendiente(m.codigo, 'inscripcion');
+      var accionHtml = inscPend
+        ? '<span class="tag tag-amber">Pendiente</span>'
+        : '<button class="btn-primary" onclick="inscribirMateria(\'' + m.codigo + '\')">Agregar</button>';
       var tr = document.createElement('tr');
       tr.innerHTML =
         '<td>' + m.codigo + '</td>' +
@@ -1293,9 +1639,9 @@ function renderDisponibles() {
         '<td>' + m.creditos + '</td>' +
         '<td>' + m.cupos + '</td>' +
         '<td>' + m.horario + '</td>' +
-        '<td><button class="btn btn-primary btn-sm" onclick="inscribirMateria(\'' + m.codigo + '\')">Inscribir</button></td>';
+        '<td>' + accionHtml + '</td>';
       tbody.appendChild(tr);
-    })(materiasDisponibles[i], i);
+    })(materiasDisponibles[i]);
   }
 }
 
@@ -1331,19 +1677,27 @@ function inscribirMateria(codigo) {
   if (idx === -1) return;
   var m = materiasDisponibles[idx];
   if (materiasInscritas.length >= 6) {
-    alert('Ha alcanzado el limite de 6 materias permitidas.');
+    showToast('Ha alcanzado el limite de 6 materias permitidas.', 'error');
     return;
   }
-  if (!confirm('Desea inscribir la materia: ' + m.nombre + '?')) return;
-  materiasInscritas.push(m);
-  materiasDisponibles.splice(idx, 1);
-  renderInscritas();
-  renderDisponibles();
-  renderCalResumen();
-  renderCalDetalle();
-  renderHorario();
-  renderHorarioHoy();
-  actualizarContadoresInscripcion();
+  showConfirm('Desea solicitar la inscripcion de: ' + m.nombre + '?', function() {
+    var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+    fetch(ctx + '/notas', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'accion=inscribir&codigoMateria=' + encodeURIComponent(codigo)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        showToast('Error: ' + (d.error || 'No se pudo enviar la solicitud.'), 'error');
+        return;
+      }
+      showToast(d.mensaje || 'Su solicitud quedo pendiente de aprobacion.', 'info');
+      cargarSolicitudesPendientes();
+    })
+    .catch(function(){ showToast('Error de conexion al enviar la solicitud.', 'error'); });
+  });
 }
 
 function desinscribir(codigo) {
@@ -1353,16 +1707,24 @@ function desinscribir(codigo) {
   }
   if (idx === -1) return;
   var m = materiasInscritas[idx];
-  if (!confirm('Desea eliminar la inscripcion de: ' + m.nombre + '?')) return;
-  materiasInscritas.splice(idx, 1);
-  materiasDisponibles.push(m);
-  renderInscritas();
-  renderDisponibles();
-  renderCalResumen();
-  renderCalDetalle();
-  renderHorario();
-  renderHorarioHoy();
-  actualizarContadoresInscripcion();
+  showConfirm('Desea solicitar el retiro de: ' + m.nombre + '?', function() {
+    var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+    fetch(ctx + '/notas', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+      body: 'accion=desinscribir&codigoMateria=' + encodeURIComponent(codigo)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (!d.ok) {
+        showToast('Error: ' + (d.error || 'No se pudo enviar la solicitud.'), 'error');
+        return;
+      }
+      showToast(d.mensaje || 'Su solicitud de retiro quedo pendiente de aprobacion.', 'info');
+      cargarSolicitudesPendientes();
+    })
+    .catch(function(){ showToast('Error de conexion al enviar la solicitud.', 'error'); });
+  });
 }
 
 // ============================================================
@@ -1427,7 +1789,6 @@ function renderCalDetalle() {
 }
 
 function actualizarStatsCalificaciones() {
-  if (!materiasInscritas.length) return;
   var suma = 0; var mejor = 0; var mejorNombre = ''; var conNotas = 0;
   materiasInscritas.forEach(function(m) {
     var n = m.nota || 0;
@@ -1435,32 +1796,24 @@ function actualizarStatsCalificaciones() {
   });
   var prom = conNotas > 0 ? Math.round((suma/conNotas)*10)/10 : 0;
   var elProm=document.getElementById('calProm'), elMejor=document.getElementById('calMejor'),
-      elMejorS=document.getElementById('calMejorSub'), elPromI=document.getElementById('statPromedio');
+      elMejorS=document.getElementById('calMejorSub'),
+      elPromI=document.getElementById('statPromedio'),
+      elPromISub=document.getElementById('statPromedioSub');
   if(elProm)   elProm.textContent = prom;
   if(elMejor)  elMejor.textContent = mejor > 0 ? mejor : '-';
   if(elMejorS) elMejorS.textContent = mejorNombre || '-';
   if(elPromI)  elPromI.textContent = prom;
-}
-
-function actualizarStatsCalificaciones() {
-  if (materiasInscritas.length === 0) return;
-  var suma = 0;
-  var mejor = 0;
-  var mejorNombre = '';
-  for (var i = 0; i < materiasInscritas.length; i++) {
-    var n = materiasInscritas[i].nota;
-    suma += n;
-    if (n > mejor) { mejor = n; mejorNombre = materiasInscritas[i].nombre; }
+  if(elPromISub) {
+    var etiqueta = 'Sin notas';
+    if (conNotas > 0) {
+      if (prom >= 90) etiqueta = 'Excelente';
+      else if (prom >= 80) etiqueta = 'Muy bueno';
+      else if (prom >= 70) etiqueta = 'Bueno';
+      else if (prom >= 60) etiqueta = 'Regular';
+      else etiqueta = 'En riesgo';
+    }
+    elPromISub.textContent = etiqueta;
   }
-  var prom = Math.round((suma / materiasInscritas.length) * 10) / 10;
-  var elProm   = document.getElementById('calProm');
-  var elMejor  = document.getElementById('calMejor');
-  var elMejorS = document.getElementById('calMejorSub');
-  var elPromI  = document.getElementById('statPromedio');
-  if (elProm)   elProm.textContent   = prom;
-  if (elMejor)  elMejor.textContent  = mejor;
-  if (elMejorS) elMejorS.textContent = mejorNombre;
-  if (elPromI)  elPromI.textContent  = prom;
 }
 
 // ============================================================
@@ -1504,6 +1857,75 @@ function renderHorario() {
     tr.innerHTML = html;
     tbody.appendChild(tr);
   }
+}
+
+function renderFechaHoy() {
+  var el = document.getElementById('fechaHoy');
+  if (!el) return;
+  var dias = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
+  var meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  var hoy = new Date();
+  el.textContent = dias[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + meses[hoy.getMonth()];
+}
+
+// ============================================================
+// AVISOS INSTITUCIONALES
+// ============================================================
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+var AVISO_CLASES = { info:'', urgente:'ann-amber', recordatorio:'', exito:'ann-green' };
+
+function renderAvisos(lista) {
+  var resumen = document.getElementById('avisosResumen');
+  var listaEl = document.getElementById('avisosLista');
+  if (!lista || !lista.length) {
+    var vacio = '<div style="color:var(--text-soft);font-size:14px;padding:12px 0;">No hay avisos por el momento.</div>';
+    if (resumen) resumen.innerHTML = vacio;
+    if (listaEl) listaEl.innerHTML = vacio;
+    return;
+  }
+  var htmlCompleto = '';
+  lista.forEach(function(a) {
+    var clase = AVISO_CLASES[a.tipo] || '';
+    htmlCompleto +=
+      '<div class="ann-item' + (clase ? ' ' + clase : '') + '">' +
+        '<div class="ann-titulo">' + escHtml(a.titulo) + '</div>' +
+        '<div class="ann-cuerpo">' + escHtml(a.cuerpo) + '</div>' +
+        '<div class="ann-fecha">' + escHtml(a.fecha) + ' - ' + escHtml(a.origen) + '</div>' +
+      '</div>';
+  });
+  if (listaEl) listaEl.innerHTML = htmlCompleto;
+
+  if (resumen) {
+    var htmlResumen = '';
+    lista.slice(0, 3).forEach(function(a) {
+      var clase = AVISO_CLASES[a.tipo] || '';
+      htmlResumen +=
+        '<div class="ann-item' + (clase ? ' ' + clase : '') + '">' +
+          '<div class="ann-titulo">' + escHtml(a.titulo) + '</div>' +
+          '<div class="ann-cuerpo">' + escHtml(a.cuerpo) + '</div>' +
+          '<div class="ann-fecha">' + escHtml(a.fecha) + '</div>' +
+        '</div>';
+    });
+    resumen.innerHTML = htmlResumen;
+  }
+}
+
+function cargarAvisos() {
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  fetch(ctx + '/avisos')
+    .then(function(r){ return r.json(); })
+    .then(function(d){ renderAvisos(Array.isArray(d) ? d : []); })
+    .catch(function(){
+      var msg = '<div style="color:var(--text-soft);font-size:14px;padding:12px 0;">No se pudieron cargar los avisos.</div>';
+      var resumen = document.getElementById('avisosResumen');
+      var listaEl = document.getElementById('avisosLista');
+      if (resumen) resumen.innerHTML = msg;
+      if (listaEl) listaEl.innerHTML = msg;
+    });
 }
 
 function renderHorarioHoy() {

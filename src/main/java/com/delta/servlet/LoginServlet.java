@@ -28,20 +28,16 @@ public class LoginServlet extends HttpServlet {
             Usuario usuario = dao.autenticar(username, password);
 
             if (usuario == null) {
-                // Credenciales incorrectas → volver con error
-                String pagina = "profesor".equals(destino)
-                        ? "portal_profesor.jsp" : "portal_estudiante.jsp";
-                resp.sendRedirect(req.getContextPath() + "/" + pagina + "?error=1");
+                resp.sendRedirect(req.getContextPath() + "/" + paginaError(destino) + "?error=1");
                 return;
             }
 
             // Verificar que el rol coincida con el portal de destino
             boolean rolCorrecto = ("profesor".equals(destino) && usuario.esProfesor())
-                               || ("estudiante".equals(destino) && usuario.esEstudiante());
+                               || ("estudiante".equals(destino) && usuario.esEstudiante())
+                               || ("admin".equals(destino) && usuario.esAdmin());
             if (!rolCorrecto) {
-                // Rol no coincide con el portal solicitado
-                String pagina = "profesor".equals(destino)
-                        ? "portal_profesor.jsp" : "portal_estudiante.jsp";
+                String pagina = paginaError(destino);
                 resp.sendRedirect(req.getContextPath() + "/" + pagina + "?error=1");
                 return;
             }
@@ -60,6 +56,9 @@ public class LoginServlet extends HttpServlet {
                 resp.sendRedirect(req.getContextPath() + "/portal_profesor.jsp");
             } else if (usuario.esEstudiante()) {
                 resp.sendRedirect(req.getContextPath() + "/portal_estudiante.jsp");
+            } else if (usuario.esAdmin()) {
+                session.setAttribute("adminNombre", usuario.getUsername());
+                resp.sendRedirect(req.getContextPath() + "/portal_administrador.jsp");
             } else {
                 resp.sendRedirect(req.getContextPath() + "/index.jsp");
             }
@@ -78,11 +77,19 @@ public class LoginServlet extends HttpServlet {
             String rol = (String) session.getAttribute("usuarioRol");
             if ("profesor".equals(rol)) {
                 resp.sendRedirect(req.getContextPath() + "/portal_profesor.jsp");
+            } else if ("admin".equals(rol)) {
+                resp.sendRedirect(req.getContextPath() + "/portal_administrador.jsp");
             } else {
                 resp.sendRedirect(req.getContextPath() + "/portal_estudiante.jsp");
             }
         } else {
             resp.sendRedirect(req.getContextPath() + "/index.jsp");
         }
+    }
+
+    private String paginaError(String destino) {
+        if ("profesor".equals(destino)) return "portal_profesor.jsp";
+        if ("admin".equals(destino)) return "portal_administrador.jsp";
+        return "portal_estudiante.jsp";
     }
 }

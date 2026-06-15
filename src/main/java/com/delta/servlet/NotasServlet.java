@@ -1,6 +1,8 @@
 package com.delta.servlet;
 
+import com.delta.dao.SolicitudMatriculaDAO;
 import com.delta.util.ConexionDB;
+import com.delta.util.MatriculaHelper;
 import javax.servlet.ServletException;
 import javax.servlet.http.*;
 import java.io.IOException;
@@ -8,10 +10,13 @@ import java.io.PrintWriter;
 import java.sql.*;
 
 /**
- * Gestiona calificaciones de estudiantes.
+ * Gestiona calificaciones e inscripciones de estudiantes.
  *
- * GET  /notas?grupoId=X          → JSON lista notas del grupo
- * POST /notas  (form: inscripcionId, componente, nota) → guarda / actualiza nota
+ * GET  /notas?grupoId=X                  -> JSON lista notas del grupo
+ * GET  /notas?accion=misNotas            -> JSON notas del estudiante en sesion
+ * POST /notas (accion=inscribir)         -> crea solicitud de inscripcion pendiente
+ * POST /notas (accion=desinscribir)      -> crea solicitud de retiro pendiente
+ * POST /notas (form: inscripcionId, componente, nota) -> guarda/actualiza una nota
  */
 public class NotasServlet extends HttpServlet {
 
@@ -30,7 +35,7 @@ public class NotasServlet extends HttpServlet {
         String accionGet = req.getParameter("accion");
         PrintWriter out = resp.getWriter();
 
-        // ── Notas del estudiante en sesión ──
+        // -- Notas del estudiante en sesion --
         if ("misNotas".equals(accionGet)) {
             String sql2 = "SELECT m.nombre AS materia, m.codigo, "
                        + "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, "
@@ -38,11 +43,11 @@ public class NotasServlet extends HttpServlet {
                        + "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, "
                        + "MAX(CASE WHEN n.componente='examen_final' THEN n.nota END) AS ef "
                        + "FROM inscripciones i "
-                       + "JOIN estudiantes e ON e.usuario_id = ? "
+                       + "JOIN estudiantes e ON e.id = i.estudiante_id "
                        + "JOIN grupos g ON g.id = i.grupo_id "
                        + "JOIN materias m ON m.id = g.materia_id "
                        + "LEFT JOIN notas n ON n.inscripcion_id = i.id "
-                       + "WHERE i.estudiante_id = e.id AND i.estado = 'activo' "
+                       + "WHERE e.usuario_id = ? AND i.estado = 'activo' "
                        + "GROUP BY m.id, m.nombre, m.codigo";
             try (Connection con = ConexionDB.obtenerConexion();
                  PreparedStatement ps2 = con.prepareStatement(sql2)) {
@@ -139,8 +144,21 @@ public class NotasServlet extends HttpServlet {
             resp.getWriter().print("{\"error\":\"no autenticado\"}");
             return;
         }
+        int usuarioId = (Integer) session.getAttribute("usuarioId");
+        PrintWriter out = resp.getWriter();
+        String accion = req.getParameter("accion");
 
         try {
+            if ("inscribir".equals(accion)) {
+                inscribir(usuarioId, req.getParameter("codigoMateria"), out);
+                return;
+            }
+            if ("desinscribir".equals(accion)) {
+                desinscribir(usuarioId, req.getParameter("codigoMateria"), out);
+                return;
+            }
+
+            // Por defecto: guardar nota individual
             int    inscripcionId = Integer.parseInt(req.getParameter("inscripcionId"));
             String componente    = req.getParameter("componente");
             double nota          = Double.parseDouble(req.getParameter("nota"));
@@ -154,11 +172,72 @@ public class NotasServlet extends HttpServlet {
                 ps.setDouble(3, nota);
                 ps.executeUpdate();
             }
-            resp.getWriter().print("{\"ok\":true}");
+            out.print("{\"ok\":true}");
         } catch (Exception e) {
             resp.setStatus(500);
-            resp.getWriter().print("{\"error\":\"" + e.getMessage() + "\"}");
+            out.print("{\"error\":\"" + e.getMessage() + "\"}");
         }
+    }
+
+    /**
+     * Crea solicitud de inscripcion pendiente de aprobacion administrativa.
+     */
+    private void inscribir(int usuarioId, String codigoMateria, PrintWriter out) throws SQLException, IOException {
+        if (codigoMateria == null || codigoMateria.trim().isEmpty()) {
+            out.print("{\"error\":\"codigoMateria requerido\"}");
+            return;
+        }
+
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            int estudianteId = MatriculaHelper.obtenerEstudianteId(con, usuarioId);
+            if (estudianteId == -1) {
+                out.print("{\"error\":\"estudiante no encontrado\"}");
+                return;
+            }
+            int activas = MatriculaHelper.contarInscripcionesActivas(con, estudianteId);
+            if (activas >= 6) {
+                out.print("{\"error\":\"Ha alcanzado el limite de 6 materias permitidas.\"}");
+                return;
+            }
+        }
+
+        SolicitudMatriculaDAO dao = new SolicitudMatriculaDAO();
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            int estudianteId = MatriculaHelper.obtenerEstudianteId(con, usuarioId);
+            int solicitudId = dao.crearInscripcion(estudianteId, codigoMateria);
+            out.print("{\"ok\":true,\"pendiente\":true,\"solicitudId\":" + solicitudId
+                    + ",\"mensaje\":\"Su solicitud de inscripcion quedo pendiente de aprobacion.\"}");
+        } catch (SQLException e) {
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}");
+        }
+    }
+
+    /**
+     * Crea solicitud de retiro pendiente de aprobacion administrativa.
+     */
+    private void desinscribir(int usuarioId, String codigoMateria, PrintWriter out) throws SQLException, IOException {
+        if (codigoMateria == null || codigoMateria.trim().isEmpty()) {
+            out.print("{\"error\":\"codigoMateria requerido\"}");
+            return;
+        }
+
+        SolicitudMatriculaDAO dao = new SolicitudMatriculaDAO();
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            int estudianteId = MatriculaHelper.obtenerEstudianteId(con, usuarioId);
+            int solicitudId = dao.crearRetiro(estudianteId, codigoMateria);
+            out.print("{\"ok\":true,\"pendiente\":true,\"solicitudId\":" + solicitudId
+                    + ",\"mensaje\":\"Su solicitud de retiro quedo pendiente de aprobacion.\"}");
+        } catch (SQLException e) {
+            out.print("{\"error\":\"" + e.getMessage().replace("\"", "'") + "\"}");
+        }
+    }
+
+    private int obtenerEstudianteId(Connection con, int usuarioId) throws SQLException {
+        return MatriculaHelper.obtenerEstudianteId(con, usuarioId);
+    }
+
+    private int contarInscripcionesActivas(Connection con, int estudianteId) throws SQLException {
+        return MatriculaHelper.contarInscripcionesActivas(con, estudianteId);
     }
 
     private String jStr(String s) {

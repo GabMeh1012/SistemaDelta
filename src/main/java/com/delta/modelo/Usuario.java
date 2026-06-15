@@ -39,4 +39,5 @@ public class Usuario {
 
     public boolean esProfesor()    { return "profesor".equals(rol); }
     public boolean esEstudiante()  { return "estudiante".equals(rol); }
+    public boolean esAdmin()       { return "admin".equals(rol); }
 }
