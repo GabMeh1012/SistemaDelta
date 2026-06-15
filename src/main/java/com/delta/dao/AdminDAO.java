@@ -257,17 +257,75 @@ public class AdminDAO {
         return queryList(sql);
     }
 
+    /** Promedio general de notas agrupado por carrera del estudiante. */
+    public List<Map<String, Object>> reportePromedioCarrera() throws SQLException {
+        String sql = "SELECT e.carrera, ROUND(AVG(vp.promedio_final),1) AS promedio, COUNT(*) AS materias_evaluadas "
+                   + "FROM v_promedios vp "
+                   + "JOIN estudiantes e ON e.id = vp.estudiante_id "
+                   + "WHERE e.carrera IS NOT NULL "
+                   + "GROUP BY e.carrera ORDER BY promedio DESC";
+        return queryList(sql);
+    }
+
+    /**
+     * Materias ordenadas por cantidad de aprobados (promedio >= 71) o reprobados
+     * (promedio < 61), segun el parametro `orden`.
+     */
+    public List<Map<String, Object>> reporteAprobadosReprobados(String orden) throws SQLException {
+        String orderBy = "reprobados".equals(orden) ? "reprobados DESC" : "aprobados DESC";
+        String sql = "SELECT m.nombre, m.codigo, COUNT(*) AS total_evaluados, "
+                   + "SUM(CASE WHEN vp.promedio_final >= 71 THEN 1 ELSE 0 END) AS aprobados, "
+                   + "SUM(CASE WHEN vp.promedio_final < 61 THEN 1 ELSE 0 END) AS reprobados "
+                   + "FROM v_promedios vp "
+                   + "JOIN inscripciones i ON i.id = vp.inscripcion_id "
+                   + "JOIN grupos g ON g.id = i.grupo_id "
+                   + "JOIN materias m ON m.id = g.materia_id "
+                   + "GROUP BY m.id ORDER BY " + orderBy;
+        return queryList(sql);
+    }
+
     public List<Map<String, Object>> reporteRiesgo() throws SQLException {
         String sql = "SELECT estudiante, materia, promedio_final, estado_academico FROM v_riesgo_academico ORDER BY promedio_final";
         return queryList(sql);
     }
 
     public List<Map<String, Object>> reporteInscritosMateria() throws SQLException {
+        return reporteInscritosMateria("desc");
+    }
+
+    /** Materias ordenadas por cantidad de inscritos, ascendente o descendente. */
+    public List<Map<String, Object>> reporteInscritosMateria(String orden) throws SQLException {
+        String orderBy = "asc".equalsIgnoreCase(orden) ? "inscritos ASC" : "inscritos DESC";
         String sql = "SELECT m.nombre, m.codigo, COUNT(i.id) AS inscritos, g.capacidad "
                    + "FROM materias m "
                    + "JOIN grupos g ON g.materia_id = m.id "
                    + "LEFT JOIN inscripciones i ON i.grupo_id = g.id AND i.estado='activo' "
-                   + "GROUP BY m.id, g.id ORDER BY inscritos DESC";
+                   + "GROUP BY m.id, g.id ORDER BY " + orderBy;
+        return queryList(sql);
+    }
+
+    /** Cupos disponibles (capacidad - inscritos activos) por materia/grupo. */
+    public List<Map<String, Object>> reporteCuposDisponibles() throws SQLException {
+        String sql = "SELECT m.nombre, m.codigo, g.codigo_grupo, g.capacidad, COUNT(i.id) AS inscritos, "
+                   + "(g.capacidad - COUNT(i.id)) AS cupos_disponibles "
+                   + "FROM materias m "
+                   + "JOIN grupos g ON g.materia_id = m.id "
+                   + "LEFT JOIN inscripciones i ON i.grupo_id = g.id AND i.estado='activo' "
+                   + "GROUP BY m.id, g.id ORDER BY cupos_disponibles ASC";
+        return queryList(sql);
+    }
+
+    /** Carga academica de los profesores: grupos asignados, creditos totales y horas semanales. */
+    public List<Map<String, Object>> reporteCargaProfesores() throws SQLException {
+        String sql = "SELECT CONCAT(p.nombre,' ',p.apellido) AS profesor, p.departamento, "
+                   + "COUNT(DISTINCT g.id) AS grupos_asignados, COALESCE(SUM(m.creditos),0) AS creditos_totales, "
+                   + "COALESCE((SELECT SUM(TIME_TO_SEC(TIMEDIFF(h.hora_fin,h.hora_inicio)))/3600 "
+                   + "          FROM horarios h JOIN grupos g3 ON g3.id = h.grupo_id "
+                   + "          WHERE g3.profesor_id = p.id), 0) AS horas_semanales "
+                   + "FROM profesores p "
+                   + "LEFT JOIN grupos g ON g.profesor_id = p.id "
+                   + "LEFT JOIN materias m ON m.id = g.materia_id "
+                   + "GROUP BY p.id ORDER BY horas_semanales DESC";
         return queryList(sql);
     }
 
@@ -448,8 +506,8 @@ public class AdminDAO {
      * grupo o materia, segun el parametro `agrupar`.
      */
     public List<Map<String, Object>> reporteAsistenciaPorcentaje(String agrupar) throws SQLException {
-        String campoNombre, campoId, joinExtra, groupBy;
-        switch (agrupar) {
+        String campoNombre, campoId, groupBy;
+        switch (agrupar == null ? "" : agrupar) {
             case "grupo":
                 campoNombre = "g.codigo_grupo"; campoId = "g.id"; groupBy = "g.id, g.codigo_grupo";
                 break;
@@ -459,7 +517,7 @@ public class AdminDAO {
             default: // estudiante
                 campoNombre = "CONCAT(e.nombre,' ',e.apellido)"; campoId = "e.id"; groupBy = "e.id, e.nombre, e.apellido";
         }
-        String sql = "SELECT " + campoNombre + " AS nombre, " + campoId + " AS id, "
+        String sql = "SELECT " + campoNombre + " AS nombre, "
                    + "COUNT(*) AS total, "
                    + "SUM(CASE WHEN a.estado IN ('presente','tardanza') THEN 1 ELSE 0 END) AS presentes, "
                    + "ROUND(100 * SUM(CASE WHEN a.estado IN ('presente','tardanza') THEN 1 ELSE 0 END) / COUNT(*), 1) AS porcentaje "

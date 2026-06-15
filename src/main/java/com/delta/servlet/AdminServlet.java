@@ -72,11 +72,23 @@ public class AdminServlet extends HttpServlet {
                 case "reportePromedioMateria":
                     out.print(listToJson(dao.reportePromedioMateria()));
                     break;
+                case "reportePromedioCarrera":
+                    out.print(listToJson(dao.reportePromedioCarrera()));
+                    break;
                 case "reporteRiesgo":
                     out.print(listToJson(dao.reporteRiesgo()));
                     break;
+                case "reporteAprobadosReprobados":
+                    out.print(listToJson(dao.reporteAprobadosReprobados(req.getParameter("orden"))));
+                    break;
                 case "reporteInscritos":
-                    out.print(listToJson(dao.reporteInscritosMateria()));
+                    out.print(listToJson(dao.reporteInscritosMateria(req.getParameter("orden"))));
+                    break;
+                case "reporteCupos":
+                    out.print(listToJson(dao.reporteCuposDisponibles()));
+                    break;
+                case "reporteCargaProfesores":
+                    out.print(listToJson(dao.reporteCargaProfesores()));
                     break;
                 case "actualizarCreditos":
                     dao.actualizarCreditos(Integer.parseInt(req.getParameter("materiaId")),

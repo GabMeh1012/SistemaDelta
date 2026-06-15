@@ -312,12 +312,36 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- REPORTES -->
     <div id="tab-reportes" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Reportes</h2></div>
+
+      <div class="card-title" style="margin-bottom:8px;">Reportes Academicos</div>
       <div class="sub-nav">
         <button class="active" onclick="cargarReporte('reportePromedioMateria',this)">Promedio por Materia</button>
+        <button onclick="cargarReporte('reportePromedioCarrera',this)">Promedio por Carrera</button>
+        <button onclick="cargarReporte('reporteAprobadosReprobados',this,{orden:'aprobados'})">Mas Aprobados</button>
+        <button onclick="cargarReporte('reporteAprobadosReprobados',this,{orden:'reprobados'})">Mas Reprobados</button>
         <button onclick="cargarReporte('reporteRiesgo',this)">Estudiantes en Riesgo</button>
-        <button onclick="cargarReporte('reporteInscritos',this)">Inscritos por Materia</button>
       </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div></div>
+
+      <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Matricula</div>
+      <div class="sub-nav">
+        <button onclick="cargarReporte('reporteInscritos',this,{orden:'desc'})">Mas Inscritos</button>
+        <button onclick="cargarReporte('reporteInscritos',this,{orden:'asc'})">Menos Inscritos</button>
+        <button onclick="cargarReporte('reporteCupos',this)">Cupos Disponibles</button>
+      </div>
+
+      <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Profesores</div>
+      <div class="sub-nav">
+        <button onclick="cargarReporte('reporteCargaProfesores',this)">Carga Academica y Horas Semanales</button>
+      </div>
+
+      <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Asistencia</div>
+      <div class="sub-nav">
+        <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'estudiante'})">% Asistencia por Estudiante</button>
+        <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'grupo'})">% Asistencia por Grupo</button>
+        <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'materia'})">% Asistencia por Materia</button>
+      </div>
+
+      <div class="card" style="margin-top:18px;"><div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div></div>
     </div>
 
   </main>
@@ -745,18 +769,42 @@ function corregirAsistencia(inscripcionId, fecha, idx) {
     .catch(function(){ showToast('Error de conexion al corregir asistencia.', 'error'); });
 }
 
-function cargarReporte(accion, btn) {
+var REPORTE_COL_LABEL = {
+  nombre:'Nombre', codigo:'Codigo', carrera:'Carrera', promedio:'Promedio',
+  materias_evaluadas:'Materias Evaluadas', estudiante:'Estudiante', materia:'Materia',
+  promedio_final:'Promedio Final', estado_academico:'Estado',
+  total_evaluados:'Total Evaluados', aprobados:'Aprobados', reprobados:'Reprobados',
+  inscritos:'Inscritos', capacidad:'Cupos Totales', codigo_grupo:'Grupo',
+  cupos_disponibles:'Cupos Disponibles', profesor:'Profesor', departamento:'Departamento',
+  grupos_asignados:'Grupos Asignados', creditos_totales:'Creditos Totales',
+  horas_semanales:'Horas Semanales', id:'ID', total:'Total Clases', presentes:'Presentes',
+  porcentaje:'% Asistencia', grupo:'Grupo'
+};
+
+function cargarReporte(accion, btn, extraParams) {
   document.querySelectorAll('#tab-reportes .sub-nav button').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  fetch(CTX+'/admin?accion='+accion).then(function(r){ return r.json(); }).then(function(rows) {
-    if (!rows.length) { document.getElementById('tblReportes').innerHTML = '<tbody><tr><td>Sin datos</td></tr></tbody>'; return; }
+  var q = 'accion='+accion;
+  if (extraParams) {
+    Object.keys(extraParams).forEach(function(k){ q += '&'+k+'='+encodeURIComponent(extraParams[k]); });
+  }
+  fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
+    if (!rows.length) { document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>'; return; }
     var keys = Object.keys(rows[0]);
-    var html = '<thead><tr>' + keys.map(function(k){ return '<th>'+k+'</th>'; }).join('') + '</tr></thead><tbody>';
+    var html = '<thead><tr>' + keys.map(function(k){ return '<th>'+(REPORTE_COL_LABEL[k]||k)+'</th>'; }).join('') + '</tr></thead><tbody>';
     rows.forEach(function(r) {
-      html += '<tr>' + keys.map(function(k){ return '<td>'+esc(String(r[k]!=null?r[k]:''))+'</td>'; }).join('') + '</tr>';
+      html += '<tr>' + keys.map(function(k){
+        var v = r[k];
+        if (k === 'porcentaje' && v != null) v = v + '%';
+        if (k === 'estado_academico' && v != null) {
+          var cls = v === 'RIESGO' ? 'tag-red' : (v === 'ALERTA' ? 'tag-amber' : 'tag-green');
+          return '<td><span class="tag '+cls+'">'+esc(String(v))+'</span></td>';
+        }
+        return '<td>'+esc(String(v!=null?v:'-'))+'</td>';
+      }).join('') + '</tr>';
     });
     document.getElementById('tblReportes').innerHTML = html + '</tbody>';
-  });
+  }).catch(function(){ showToast('Error al cargar el reporte.', 'error'); });
 }
 
 function renderTable(id, headers, rows, mapFn) {
