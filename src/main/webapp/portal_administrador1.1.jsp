@@ -213,7 +213,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('profesores',this)"><span class="nav-icon">&#128104;&#8205;&#127979;</span> Gestion de Profesores</button>
       <button class="nav-item" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
       <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
-      <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
       <div class="nav-label">Supervision</div>
       <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
       <button class="nav-item" onclick="irTab('sup-asistencia',this)"><span class="nav-icon">&#9989;</span> Asistencia</button>
@@ -274,15 +273,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <button id="btnSolRet" onclick="cargarSolicitudes('retiro',this)">Solicitudes de Retiro</button>
       </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSolicitudes"></table></div></div>
-    </div>
-
-    <!-- LIMITES DE SOLICITUDES -->
-    <div id="tab-limites" class="tab-panel">
-      <div class="topbar">
-        <h2 class="page-title">&#128273; Limites de Solicitudes</h2>
-        <div class="page-subtitle">Controla cuantas veces puede un estudiante solicitar inscripcion o retiro por materia. El limite por defecto es 2.</div>
-      </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblLimites"></table></div></div>
     </div>
 
     <!-- SUPERVISION DE CALIFICACIONES -->
@@ -422,7 +412,6 @@ function irTab(id, btn) {
   if (id==='profesores') cargarProfesores();
   if (id==='materias') cargarMaterias();
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
-  if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
   if (id==='sup-asistencia') cargarSupervisionAsistencia();
   if (id==='avisos') cargarAvisos();
@@ -551,56 +540,6 @@ function guardarMateria(idx, materiaId, grupoId) {
       cargarMaterias();
     })
     .catch(function(){ showToast('Error de conexion al guardar los cambios.', 'error'); });
-}
-
-// ============================================================
-// LIMITES DE SOLICITUDES DE MATRICULA
-// ============================================================
-function cargarLimitesSolicitudes() {
-  fetch(CTX+'/admin?accion=limitesSolicitudes').then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblLimites');
-    if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay estudiantes con inscripciones activas.</td></tr></tbody>';
-      return;
-    }
-    var html = '<thead><tr>'
-      + '<th>Estudiante</th><th>Materia</th><th>Solicitudes Inscripcion</th>'
-      + '<th>Solicitudes Retiro</th><th>Limite Actual</th><th>Nuevo Limite</th><th>Accion</th>'
-      + '</tr></thead><tbody>';
-    rows.forEach(function(r, idx) {
-      var tagInsc = r.solInscripcion >= r.limite
-        ? '<span class="tag tag-red">'+r.solInscripcion+' / '+r.limite+'</span>'
-        : '<span class="tag tag-green">'+r.solInscripcion+' / '+r.limite+'</span>';
-      var tagRet = r.solRetiro >= r.limite
-        ? '<span class="tag tag-red">'+r.solRetiro+' / '+r.limite+'</span>'
-        : '<span class="tag tag-green">'+r.solRetiro+' / '+r.limite+'</span>';
-      html += '<tr>'
-        + '<td><strong>'+esc(r.estudiante)+'</strong></td>'
-        + '<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        + '<td style="text-align:center;">'+tagInsc+'</td>'
-        + '<td style="text-align:center;">'+tagRet+'</td>'
-        + '<td style="text-align:center;"><span class="tag tag-blue">'+r.limite+'</span></td>'
-        + '<td><input class="edit-input" type="number" min="1" max="20" id="lim_'+idx+'" value="'+r.limite+'"></td>'
-        + '<td><button class="btn btn-primary btn-sm" onclick="guardarLimiteSolicitud('+r.estudianteId+','+r.grupoId+','+idx+')">Guardar</button></td>'
-        + '</tr>';
-    });
-    tbl.innerHTML = html + '</tbody>';
-  }).catch(function(){ showToast('Error al cargar los limites.', 'error'); });
-}
-
-function guardarLimiteSolicitud(estudianteId, grupoId, idx) {
-  var nuevoLimite = parseInt(document.getElementById('lim_'+idx).value, 10);
-  if (isNaN(nuevoLimite) || nuevoLimite < 1) {
-    showToast('El limite debe ser al menos 1.', 'error'); return;
-  }
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'accion=actualizarLimiteSolicitud&estudianteId='+estudianteId+'&grupoId='+grupoId+'&limite='+nuevoLimite})
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (d.ok) { showToast('Limite actualizado correctamente.', 'success'); cargarLimitesSolicitudes(); }
-      else showToast('Error: ' + (d.error || 'No se pudo actualizar.'), 'error');
-    })
-    .catch(function(){ showToast('Error de conexion.', 'error'); });
 }
 
 var tipoSolicitudActual = 'inscripcion';

@@ -139,6 +139,20 @@ public class AdminServlet extends HttpServlet {
                 case "reporteAsistenciaPorcentaje":
                     out.print(listToJson(dao.reporteAsistenciaPorcentaje(req.getParameter("agrupar"))));
                     break;
+                case "limitesSolicitudes":
+                    out.print(listToJson(dao.listarLimitesSolicitudes()));
+                    break;
+                case "actualizarLimiteSolicitud": {
+                    HttpSession sLim = req.getSession(false);
+                    int adminId = (Integer) sLim.getAttribute("usuarioId");
+                    dao.actualizarLimiteSolicitud(
+                        Integer.parseInt(req.getParameter("estudianteId")),
+                        Integer.parseInt(req.getParameter("grupoId")),
+                        Integer.parseInt(req.getParameter("limite")),
+                        adminId);
+                    out.print("{\"ok\":true}");
+                    break;
+                }
                 case "desactivarAviso":
                     dao.desactivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");

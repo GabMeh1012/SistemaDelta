@@ -355,6 +355,54 @@ public class AdminDAO {
     }
 
     // ============================================================
+    // GESTION DE LIMITES DE SOLICITUDES DE MATRICULA
+    // ============================================================
+
+    /**
+     * Lista todos los estudiantes con inscripciones activas, mostrando por cada
+     * (estudiante, grupo) cuantas solicitudes han realizado vs el limite actual.
+     * Util para que el admin vea quien se acerca o supero el limite.
+     */
+    public List<Map<String, Object>> listarLimitesSolicitudes() throws SQLException {
+        String sql = "SELECT e.id AS estudiante_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
+                   + "m.nombre AS materia, m.codigo AS materia_codigo, g.id AS grupo_id, "
+                   + "COALESCE(ls.limite, 2) AS limite, "
+                   + "(SELECT COUNT(*) FROM solicitudes_matricula s2 "
+                   + " WHERE s2.estudiante_id = e.id AND s2.grupo_id = g.id AND s2.tipo = 'inscripcion') AS sol_inscripcion, "
+                   + "(SELECT COUNT(*) FROM solicitudes_matricula s3 "
+                   + " WHERE s3.estudiante_id = e.id AND s3.grupo_id = g.id AND s3.tipo = 'retiro') AS sol_retiro "
+                   + "FROM estudiantes e "
+                   + "JOIN inscripciones i ON i.estudiante_id = e.id AND i.estado = 'activo' "
+                   + "JOIN grupos g ON g.id = i.grupo_id "
+                   + "JOIN materias m ON m.id = g.materia_id "
+                   + "LEFT JOIN limites_solicitudes ls ON ls.estudiante_id = e.id AND ls.grupo_id = g.id "
+                   + "ORDER BY e.apellido, e.nombre, m.codigo";
+        List<Map<String, Object>> lista = new ArrayList<>();
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("estudianteId", rs.getInt("estudiante_id"));
+                row.put("estudiante",   rs.getString("estudiante"));
+                row.put("materia",      rs.getString("materia"));
+                row.put("materiaCodigo", rs.getString("materia_codigo"));
+                row.put("grupoId",      rs.getInt("grupo_id"));
+                row.put("limite",       rs.getInt("limite"));
+                row.put("solInscripcion", rs.getInt("sol_inscripcion"));
+                row.put("solRetiro",    rs.getInt("sol_retiro"));
+                lista.add(row);
+            }
+        }
+        return lista;
+    }
+
+    /** Actualiza el limite de solicitudes para un estudiante/grupo especifico. */
+    public void actualizarLimiteSolicitud(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
+        new SolicitudMatriculaDAO().actualizarLimite(estudianteId, grupoId, nuevoLimite, adminUsuarioId);
+    }
+
+    // ============================================================
     // SUPERVISION DE CALIFICACIONES
     // ============================================================
 

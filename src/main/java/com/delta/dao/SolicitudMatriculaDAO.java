@@ -10,6 +10,9 @@ import java.util.List;
 
 public class SolicitudMatriculaDAO {
 
+    /** Limite base de solicitudes permitidas por (estudiante, grupo, tipo). */
+    private static final int LIMITE_DEFAULT = 2;
+
     private static final String SELECT_BASE =
             "SELECT s.id, s.estudiante_id, s.grupo_id, s.tipo, s.estado, s.inscripcion_id, "
           + "s.motivo, s.admin_usuario_id, s.fecha_solicitud, s.fecha_resolucion, "
@@ -23,6 +26,7 @@ public class SolicitudMatriculaDAO {
     public int crearInscripcion(int estudianteId, String codigoMateria) throws SQLException {
         int grupoId = obtenerGrupoIdPorCodigo(codigoMateria);
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
+        verificarLimite(estudianteId, grupoId, "inscripcion");
         if (tienePendiente(estudianteId, grupoId, "inscripcion")) {
             throw new SQLException("Ya existe una solicitud de inscripcion pendiente para esta materia.");
         }
@@ -37,6 +41,7 @@ public class SolicitudMatriculaDAO {
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
         Integer inscripcionId = obtenerInscripcionActiva(estudianteId, codigoMateria);
         if (inscripcionId == null) throw new SQLException("inscripcion no encontrada");
+        verificarLimite(estudianteId, grupoId, "retiro");
         if (tienePendiente(estudianteId, grupoId, "retiro")) {
             throw new SQLException("Ya existe una solicitud de retiro pendiente para esta materia.");
         }
@@ -280,5 +285,76 @@ public class SolicitudMatriculaDAO {
         s.setMateriaNombre(rs.getString("materia_nombre"));
         s.setGrupoCodigo(rs.getString("codigo_grupo"));
         return s;
+    }
+
+    // ──────────────────────────────────────────────────────────
+    // Control de limite de solicitudes
+    // ──────────────────────────────────────────────────────────
+
+    /**
+     * Verifica que el estudiante no haya superado el limite de solicitudes
+     * para este (grupo, tipo). Lanza SQLException con mensaje claro si se excede.
+     */
+    private void verificarLimite(int estudianteId, int grupoId, String tipo) throws SQLException {
+        int realizadas = contarSolicitudes(estudianteId, grupoId, tipo);
+        int limite = obtenerLimite(estudianteId, grupoId);
+        if (realizadas >= limite) {
+            throw new SQLException(
+                "Has alcanzado el limite de " + limite + " solicitud(es) de " + tipo
+                + " permitidas para esta materia. Contacta al administrador para ampliar el limite."
+            );
+        }
+    }
+
+    /** Cuenta todas las solicitudes (en cualquier estado) para un (estudiante, grupo, tipo). */
+    private int contarSolicitudes(int estudianteId, int grupoId, String tipo) throws SQLException {
+        String sql = "SELECT COUNT(*) FROM solicitudes_matricula "
+                   + "WHERE estudiante_id = ? AND grupo_id = ? AND tipo = ?";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            ps.setString(3, tipo);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Devuelve el limite configurado para un (estudiante, grupo).
+     * Si no hay fila en limites_solicitudes, devuelve LIMITE_DEFAULT.
+     */
+    public int obtenerLimite(int estudianteId, int grupoId) throws SQLException {
+        String sql = "SELECT limite FROM limites_solicitudes "
+                   + "WHERE estudiante_id = ? AND grupo_id = ?";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getInt(1);
+            }
+        }
+        return LIMITE_DEFAULT;
+    }
+
+    /**
+     * Actualiza (o crea) el limite de solicitudes para un (estudiante, grupo).
+     * Llamado desde el portal administrador.
+     */
+    public void actualizarLimite(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
+        String sql = "INSERT INTO limites_solicitudes (estudiante_id, grupo_id, limite, admin_usuario_id) "
+                   + "VALUES (?,?,?,?) "
+                   + "ON DUPLICATE KEY UPDATE limite = VALUES(limite), admin_usuario_id = VALUES(admin_usuario_id)";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            ps.setInt(3, nuevoLimite);
+            ps.setInt(4, adminUsuarioId);
+            ps.executeUpdate();
+        }
     }
 }
