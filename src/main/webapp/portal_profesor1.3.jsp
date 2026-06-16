@@ -1496,36 +1496,25 @@ function renderGradesTable(tbodyId, grupo, editable, onchange) {
     const tr = document.createElement('tr');
     const rowId = tbodyId + '_' + i;
     if (editable) {
-      const inputCell = (modCount, val, id) => {
-        const mods = modCount || 0;
-        const enLimite = mods >= LIMITE;
-        const restantes = LIMITE - mods;
-        if (enLimite) {
-          // Bloqueado — límite alcanzado
-          return `<input class="grade-input" type="number" value="${val}" id="${id}" disabled
-            title="Limite alcanzado (${mods}/${LIMITE} modificaciones). Solicita autorizacion al administrador."
-            style="opacity:0.55;cursor:not-allowed;background:#fee2e2;border-color:#fca5a5;">`;
-        } else if (mods > 0) {
-          // Editable pero ya tiene modificaciones — mostrar aviso suave
-          return `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
-            oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})"
-            onchange="showSaveToast()"
-            title="${mods}/${LIMITE} modificaciones usadas. Quedan ${restantes}."
-            style="border-color:#fbbf24;">`;
-        } else {
-          // Sin modificaciones — input normal
-          return `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
+      // Determinar si cada componente está bloqueado por límite de modificaciones
+      const bloqP1   = (est.modP1   || 0) >= LIMITE;
+      const bloqP2   = (est.modP2   || 0) >= LIMITE;
+      const bloqProy = (est.modProy || 0) >= LIMITE;
+      const bloqEf   = (est.modEf   || 0) >= LIMITE;
+      const inputAttr = (bloq, val, id, comp) => bloq
+        ? `<input class="grade-input" type="number" value="${val}" id="${id}" disabled
+            title="Limite de modificaciones alcanzado. Solicita autorizacion al administrador."
+            style="opacity:0.5;cursor:not-allowed;background:#fee2e2;border-color:#fca5a5;">`
+        : `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
             oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})"
             onchange="showSaveToast()">`;
-        }
-      };
       tr.innerHTML = `
         <td><strong>${est.name}</strong></td>
         <td style="color:var(--text-soft);font-size:14px;">${est.id}</td>
-        <td>${inputCell(est.modP1,   est.p1,    rowId+'_p1')}</td>
-        <td>${inputCell(est.modP2,   est.p2,    rowId+'_p2')}</td>
-        <td>${inputCell(est.modProy, est.proj,  rowId+'_proj')}</td>
-        <td>${inputCell(est.modEf,   est.final, rowId+'_fin')}</td>
+        <td>${inputAttr(bloqP1,   est.p1,    rowId+'_p1',   'parcial1')}</td>
+        <td>${inputAttr(bloqP2,   est.p2,    rowId+'_p2',   'parcial2')}</td>
+        <td>${inputAttr(bloqProy, est.proj,  rowId+'_proj', 'proyecto')}</td>
+        <td>${inputAttr(bloqEf,   est.final, rowId+'_fin',  'examen_final')}</td>
         <td id="${rowId}_notafinal">${getNotaTag(nota)}</td>
         <td id="${rowId}_estado">${getEstado(nota)}</td>`;
       if (tbodyId === 'grupoGradesBody') {
