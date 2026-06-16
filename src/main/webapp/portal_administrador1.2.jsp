@@ -696,34 +696,22 @@ function cargarSupervisionCalificaciones() {
   fetch(CTX+'/admin?accion=supervisionCalificaciones').then(function(r){ return r.json(); }).then(function(rows) {
     var tbl = document.getElementById('tblSupCalificaciones');
     if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td colspan="7" style="text-align:center;color:var(--text-soft);padding:20px;">No hay notas registradas todavia.</td></tr></tbody>';
+      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay notas modificadas registradas todavia.</td></tr></tbody>';
       return;
     }
     var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Componente</th><th>Nota Actual</th><th>Modificaciones</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(r) {
-      var notaTxt = (r.notaActual != null && r.notaActual !== 0) ? r.notaActual : (r.notaActual === 0 ? '0' : '-');
+      var notaTxt = (r.notaActual != null) ? r.notaActual : '-';
       var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
-      var modTag;
-      if (r.modificaciones === 0) {
-        modTag = '<span class="tag tag-blue">0 / '+r.limite+' (sin cambios)</span>';
-      } else if (r.enLimite) {
-        modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
-      } else {
-        modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
-      }
-      html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        + '<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        + '<td>'+esc(r.grupo||'-')+'</td>'
-        + '<td>'+esc(compLabel)+'</td>'
-        + '<td><strong>'+notaTxt+'</strong></td>'
-        + '<td>'+modTag+'</td>'
-        + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-        + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
+      var modTag = r.enLimite
+        ? '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>'
+        : '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
+      html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td><td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
+        + '<td>'+esc(r.grupo||'-')+'</td><td>'+esc(compLabel)+'</td><td>'+notaTxt+'</td>'
+        + '<td>'+modTag+'</td><td>'
+        + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button> ';
       if (r.enLimite) {
         html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
-      }
-      if (r.modificaciones > 0) {
-        html += '<button class="btn btn-danger-fill btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
       }
       html += '</td></tr>';
     });
@@ -739,7 +727,7 @@ function verHistorialNota(inscripcionId, componente) {
       var tbl = document.getElementById('tblHistorialNota');
       var html = '<thead><tr><th>Fecha</th><th>Nota Anterior</th><th>Nota Nueva</th></tr></thead><tbody>';
       if (!rows.length) {
-        html += '<tr><td colspan="3" style="text-align:center;color:var(--text-soft);">Sin historial de modificaciones.</td></tr>';
+        html += '<tr><td colspan="3" style="text-align:center;color:var(--text-soft);">Sin historial.</td></tr>';
       } else {
         rows.forEach(function(h) {
           html += '<tr><td>'+esc(h.fecha)+'</td><td>'+(h.notaAnterior!=null?h.notaAnterior:'-')+'</td><td>'+h.notaNueva+'</td></tr>';
@@ -762,20 +750,6 @@ function autorizarModificacion(inscripcionId, componente) {
         else showToast('Error: ' + (d.error || 'No se pudo autorizar.'), 'error');
       })
       .catch(function(){ showToast('Error de conexion al autorizar.', 'error'); });
-  });
-}
-
-function reiniciarModificaciones(inscripcionId, componente) {
-  var compLabel = COMPONENTE_LABEL[componente] || componente;
-  showConfirm('¿Reiniciar el historial de modificaciones para ' + compLabel + '?\n\nEl profesor volvera a tener el limite completo de ' + 3 + ' modificaciones disponibles.', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'accion=reiniciarModificaciones&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente)})
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { showToast('Modificaciones reiniciadas. El profesor puede volver a editar esta nota.', 'success'); cargarSupervisionCalificaciones(); }
-        else showToast('Error: ' + (d.error || 'No se pudo reiniciar.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al reiniciar.', 'error'); });
   });
 }
 

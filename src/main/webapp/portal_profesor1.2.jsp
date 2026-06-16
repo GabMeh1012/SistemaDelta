@@ -1490,31 +1490,18 @@ function renderGradesTable(tbodyId, grupo, editable, onchange) {
   if (!tbody) return;
   tbody.innerHTML = '';
   const g = gruposData[grupo];
-  const LIMITE = 3; // debe coincidir con NotasServlet.LIMITE_MODIFICACIONES
   g.estudiantes.forEach((est, i) => {
     const nota = calcNotaFinal(est.p1, est.p2, est.proj, est.final);
     const tr = document.createElement('tr');
     const rowId = tbodyId + '_' + i;
     if (editable) {
-      // Determinar si cada componente está bloqueado por límite de modificaciones
-      const bloqP1   = (est.modP1   || 0) >= LIMITE;
-      const bloqP2   = (est.modP2   || 0) >= LIMITE;
-      const bloqProy = (est.modProy || 0) >= LIMITE;
-      const bloqEf   = (est.modEf   || 0) >= LIMITE;
-      const inputAttr = (bloq, val, id, comp) => bloq
-        ? `<input class="grade-input" type="number" value="${val}" id="${id}" disabled
-            title="Limite de modificaciones alcanzado. Solicita autorizacion al administrador."
-            style="opacity:0.5;cursor:not-allowed;background:#fee2e2;border-color:#fca5a5;">`
-        : `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
-            oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})"
-            onchange="showSaveToast()">`;
       tr.innerHTML = `
-        <td><strong>${est.name}</strong></td>
+        <td ${tbodyId === 'grupoGradesBody' ? '<td>' : ''}><strong>${est.name}</strong></td>
         <td style="color:var(--text-soft);font-size:14px;">${est.id}</td>
-        <td>${inputAttr(bloqP1,   est.p1,    rowId+'_p1',   'parcial1')}</td>
-        <td>${inputAttr(bloqP2,   est.p2,    rowId+'_p2',   'parcial2')}</td>
-        <td>${inputAttr(bloqProy, est.proj,  rowId+'_proj', 'proyecto')}</td>
-        <td>${inputAttr(bloqEf,   est.final, rowId+'_fin',  'examen_final')}</td>
+        <td><input class="grade-input" type="number" min="0" max="100" value="${est.p1}" id="${rowId}_p1" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
+        <td><input class="grade-input" type="number" min="0" max="100" value="${est.p2}" id="${rowId}_p2" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
+        <td><input class="grade-input" type="number" min="0" max="100" value="${est.proj}" id="${rowId}_proj" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
+        <td><input class="grade-input" type="number" min="0" max="100" value="${est.final}" id="${rowId}_fin" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
         <td id="${rowId}_notafinal">${getNotaTag(nota)}</td>
         <td id="${rowId}_estado">${getEstado(nota)}</td>`;
       if (tbodyId === 'grupoGradesBody') {
@@ -2484,17 +2471,13 @@ window.addEventListener('DOMContentLoaded', function() {
       .then(function(lista){
         if (!Array.isArray(lista) || !lista.length) return;
         lista.forEach(function(row) {
+          var bd = inscripcionesBD;
           var est = gruposData['1SF133'].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
           if (est) {
-            if (row.p1   !== null) est.p1    = row.p1;
-            if (row.p2   !== null) est.p2    = row.p2;
-            if (row.proy !== null) est.proj  = row.proy;
-            if (row.ef   !== null) est.final = row.ef;
-            // Conteo de modificaciones por componente (para bloquear inputs al limite)
-            est.modP1   = row.modP1   || 0;
-            est.modP2   = row.modP2   || 0;
-            est.modProy = row.modProy || 0;
-            est.modEf   = row.modEf   || 0;
+            if (row.p1  !== null) est.p1    = row.p1;
+            if (row.p2  !== null) est.p2    = row.p2;
+            if (row.proy!== null) est.proj  = row.proy;
+            if (row.ef  !== null) est.final = row.ef;
           }
         });
         updateGroupCounts();

@@ -416,18 +416,18 @@ public class AdminDAO {
     public List<Map<String, Object>> listarSupervisionCalificaciones() throws SQLException {
         String sql = "SELECT i.id AS inscripcion_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
                    + "m.nombre AS materia, m.codigo AS materia_codigo, g.codigo_grupo, "
-                   + "h.componente, n.nota AS nota_actual, "
-                   + "COUNT(h.id) AS modificaciones, "
+                   + "n.componente, n.nota AS nota_actual, "
+                   + "COALESCE((SELECT COUNT(*) FROM notas_historial h "
+                   + "          WHERE h.inscripcion_id = i.id AND h.componente = n.componente), 0) AS modificaciones, "
                    + "COALESCE((SELECT SUM(cantidad) FROM notas_autorizaciones na "
-                   + "          WHERE na.inscripcion_id = h.inscripcion_id AND na.componente = h.componente), 0) AS autorizaciones "
-                   + "FROM notas_historial h "
-                   + "JOIN inscripciones i ON i.id = h.inscripcion_id "
+                   + "          WHERE na.inscripcion_id = i.id AND na.componente = n.componente), 0) AS autorizaciones "
+                   + "FROM notas n "
+                   + "JOIN inscripciones i ON i.id = n.inscripcion_id "
                    + "JOIN estudiantes e ON e.id = i.estudiante_id "
                    + "JOIN grupos g ON g.id = i.grupo_id "
                    + "JOIN materias m ON m.id = g.materia_id "
-                   + "LEFT JOIN notas n ON n.inscripcion_id = h.inscripcion_id AND n.componente = h.componente "
-                   + "GROUP BY h.inscripcion_id, h.componente "
-                   + "ORDER BY modificaciones DESC, e.apellido";
+                   + "WHERE i.estado = 'activo' "
+                   + "ORDER BY e.apellido, e.nombre, n.componente";
         List<Map<String, Object>> lista = new ArrayList<>();
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql);
@@ -465,6 +465,31 @@ public class AdminDAO {
             ps.setInt(3, cantidad);
             ps.setInt(4, adminUsuarioId);
             ps.executeUpdate();
+        }
+    }
+
+    /**
+     * Reinicia el contador de modificaciones de una nota: borra el historial
+     * y las autorizaciones previas, dejando la nota como si nunca hubiera
+     * sido modificada (el profesor vuelve a tener el limite completo).
+     */
+    public void reiniciarModificaciones(int inscripcionId, String componente) throws SQLException {
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            con.setAutoCommit(false);
+            try {
+                try (PreparedStatement ps = con.prepareStatement(
+                        "DELETE FROM notas_historial WHERE inscripcion_id = ? AND componente = ?")) {
+                    ps.setInt(1, inscripcionId); ps.setString(2, componente);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = con.prepareStatement(
+                        "DELETE FROM notas_autorizaciones WHERE inscripcion_id = ? AND componente = ?")) {
+                    ps.setInt(1, inscripcionId); ps.setString(2, componente);
+                    ps.executeUpdate();
+                }
+                con.commit();
+            } catch (SQLException ex) { con.rollback(); throw ex; }
+            finally { con.setAutoCommit(true); }
         }
     }
 

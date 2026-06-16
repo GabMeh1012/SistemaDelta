@@ -124,6 +124,12 @@ public class AdminServlet extends HttpServlet {
                     out.print("{\"ok\":true}");
                     break;
                 }
+                case "reiniciarModificaciones":
+                    dao.reiniciarModificaciones(
+                            Integer.parseInt(req.getParameter("inscripcionId")),
+                            req.getParameter("componente"));
+                    out.print("{\"ok\":true}");
+                    break;
                 case "supervisionAsistencia": {
                     Integer grupoId = parseIntOrNull(req.getParameter("grupoId"));
                     Integer estudianteId = parseIntOrNull(req.getParameter("estudianteId"));

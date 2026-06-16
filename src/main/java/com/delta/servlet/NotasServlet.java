@@ -97,10 +97,15 @@ public class NotasServlet extends HttpServlet {
                    + "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, "
                    + "MAX(CASE WHEN n.componente='parcial2'     THEN n.nota END) AS p2, "
                    + "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, "
-                   + "MAX(CASE WHEN n.componente='examen_final' THEN n.nota END) AS ef "
+                   + "MAX(CASE WHEN n.componente='examen_final' THEN n.nota END) AS ef, "
+                   + "COALESCE(SUM(CASE WHEN h.componente='parcial1'     THEN 1 END),0) AS mod_p1, "
+                   + "COALESCE(SUM(CASE WHEN h.componente='parcial2'     THEN 1 END),0) AS mod_p2, "
+                   + "COALESCE(SUM(CASE WHEN h.componente='proyecto'     THEN 1 END),0) AS mod_proy, "
+                   + "COALESCE(SUM(CASE WHEN h.componente='examen_final' THEN 1 END),0) AS mod_ef "
                    + "FROM inscripciones i "
                    + "JOIN estudiantes e ON e.id = i.estudiante_id "
                    + "LEFT JOIN notas n ON n.inscripcion_id = i.id "
+                   + "LEFT JOIN notas_historial h ON h.inscripcion_id = i.id "
                    + "WHERE i.grupo_id = ? AND i.estado = 'activo' "
                    + "GROUP BY e.id, i.id "
                    + "ORDER BY e.apellido";
@@ -122,6 +127,10 @@ public class NotasServlet extends HttpServlet {
                         + ",\"p2\":"            + nullableDouble(rs, "p2")
                         + ",\"proy\":"          + nullableDouble(rs, "proy")
                         + ",\"ef\":"            + nullableDouble(rs, "ef")
+                        + ",\"modP1\":"         + rs.getInt("mod_p1")
+                        + ",\"modP2\":"         + rs.getInt("mod_p2")
+                        + ",\"modProy\":"       + rs.getInt("mod_proy")
+                        + ",\"modEf\":"         + rs.getInt("mod_ef")
                         + "}");
                 }
                 out.print("]");
