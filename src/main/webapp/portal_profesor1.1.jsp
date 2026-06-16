@@ -539,7 +539,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       <div class="topbar">
         <div>
           <h2 class="page-title">Bienvenida, Profesora Mosquera </h2>
-          <div class="page-subtitle" id="fechaHoyProf">Martes 27 de mayo, 2026 · I Semestre · Calidad del Software</div>
+          <div class="page-subtitle" id="fechaHoyProf">Cargando...</div>
         </div>
         <div class="topbar-right">
           <div class="notif-btn" id="notifBellBtn" onclick="openNotifPanel()" style="position:relative;">🔔<div class="notif-dot" id="notifDot" style="<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>"></div><span id="campanaCountProf" style="<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>;position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:<%= (noLeidosMsgs > 0) ? "flex" : "none" %>;align-items:center;justify-content:center;"><%= noLeidosMsgs %></span></div>
@@ -1490,18 +1490,42 @@ function renderGradesTable(tbodyId, grupo, editable, onchange) {
   if (!tbody) return;
   tbody.innerHTML = '';
   const g = gruposData[grupo];
+  const LIMITE = 3; // debe coincidir con NotasServlet.LIMITE_MODIFICACIONES
   g.estudiantes.forEach((est, i) => {
     const nota = calcNotaFinal(est.p1, est.p2, est.proj, est.final);
     const tr = document.createElement('tr');
     const rowId = tbodyId + '_' + i;
     if (editable) {
+      const inputCell = (modCount, val, id) => {
+        const mods = modCount || 0;
+        const enLimite = mods >= LIMITE;
+        const restantes = LIMITE - mods;
+        if (enLimite) {
+          // Bloqueado — límite alcanzado
+          return `<input class="grade-input" type="number" value="${val}" id="${id}" disabled
+            title="Limite alcanzado (${mods}/${LIMITE} modificaciones). Solicita autorizacion al administrador."
+            style="opacity:0.55;cursor:not-allowed;background:#fee2e2;border-color:#fca5a5;">`;
+        } else if (mods > 0) {
+          // Editable pero ya tiene modificaciones — mostrar aviso suave
+          return `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
+            oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})"
+            onchange="showSaveToast()"
+            title="${mods}/${LIMITE} modificaciones usadas. Quedan ${restantes}."
+            style="border-color:#fbbf24;">`;
+        } else {
+          // Sin modificaciones — input normal
+          return `<input class="grade-input" type="number" min="0" max="100" value="${val}" id="${id}"
+            oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})"
+            onchange="showSaveToast()">`;
+        }
+      };
       tr.innerHTML = `
-        <td ${tbodyId === 'grupoGradesBody' ? '<td>' : ''}><strong>${est.name}</strong></td>
+        <td><strong>${est.name}</strong></td>
         <td style="color:var(--text-soft);font-size:14px;">${est.id}</td>
-        <td><input class="grade-input" type="number" min="0" max="100" value="${est.p1}" id="${rowId}_p1" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
-        <td><input class="grade-input" type="number" min="0" max="100" value="${est.p2}" id="${rowId}_p2" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
-        <td><input class="grade-input" type="number" min="0" max="100" value="${est.proj}" id="${rowId}_proj" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
-        <td><input class="grade-input" type="number" min="0" max="100" value="${est.final}" id="${rowId}_fin" oninput="clampGrade(this);updateRowFinal('${tbodyId}','${grupo}',${i})" onchange="showSaveToast()"></td>
+        <td>${inputCell(est.modP1,   est.p1,    rowId+'_p1')}</td>
+        <td>${inputCell(est.modP2,   est.p2,    rowId+'_p2')}</td>
+        <td>${inputCell(est.modProy, est.proj,  rowId+'_proj')}</td>
+        <td>${inputCell(est.modEf,   est.final, rowId+'_fin')}</td>
         <td id="${rowId}_notafinal">${getNotaTag(nota)}</td>
         <td id="${rowId}_estado">${getEstado(nota)}</td>`;
       if (tbodyId === 'grupoGradesBody') {
@@ -1586,8 +1610,11 @@ function guardarNotasEnBD(tbodyId, grupo) {
           document.getElementById('saveToast').classList.remove('show');
           if (errores===0) {
             showToast('Calificaciones guardadas correctamente.', 'success');
+            // Re-fetch para actualizar conteos de modificaciones y re-renderizar
+            recargarNotasBD();
           } else {
             showToast((primerError ? primerError : 'Algunas notas no se pudieron guardar.') + (errores > 1 ? ' (' + errores + ' notas afectadas)' : ''), 'error');
+            recargarNotasBD(); // Recargar igual para reflejar qué sí se guardó
           }
         }}).catch(()=>{ pendientes--; errores++; });
     });
@@ -1600,6 +1627,32 @@ function renderCalificaciones() {
   const titleEl = document.getElementById('calCardTitle');
   if (titleEl) titleEl.textContent = `Lista de Estudiantes — ${grupo}`;
   renderGradesTable('calTableBody', grupo, true, true);
+}
+
+/** Re-fetch notas desde BD para actualizar conteos de modificaciones y re-renderizar. */
+function recargarNotasBD() {
+  if (!window._grupoIS401Id) return;
+  fetch(CTX + '/notas?grupoId=' + window._grupoIS401Id)
+    .then(r => r.json())
+    .then(function(lista) {
+      if (!Array.isArray(lista)) return;
+      lista.forEach(function(row) {
+        var est = gruposData['1SF133'].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
+        if (est) {
+          if (row.p1   !== null) est.p1    = row.p1;
+          if (row.p2   !== null) est.p2    = row.p2;
+          if (row.proy !== null) est.proj  = row.proy;
+          if (row.ef   !== null) est.final = row.ef;
+          est.modP1   = row.modP1   || 0;
+          est.modP2   = row.modP2   || 0;
+          est.modProy = row.modProy || 0;
+          est.modEf   = row.modEf   || 0;
+        }
+      });
+      renderCalificaciones();
+      updateGroupCounts();
+    })
+    .catch(function(){});
 }
 
 function showSaveToast() { document.getElementById('saveToast').classList.add('show'); }
@@ -2334,8 +2387,21 @@ function renderFechaHoyProf() {
   var el = document.getElementById('fechaHoyProf');
   if (!el) return;
   var hoy = new Date();
-  var texto = DIAS_ES[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + MESES_ES[hoy.getMonth()] + ', ' + hoy.getFullYear();
-  el.textContent = texto + ' · I Semestre · Calidad del Software';
+  var fechaStr = DIAS_ES[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + MESES_ES[hoy.getMonth()] + ', ' + hoy.getFullYear();
+
+  // Construir lista de materias con clase hoy desde misGruposBD
+  var diaHoy = DIA_SEMANA_MAP[hoy.getDay()];
+  var materiasHoy = [];
+  misGruposBD.forEach(function(g) {
+    var tieneClase = (g.horarios || []).some(function(h){ return h.dia === diaHoy; });
+    if (tieneClase) materiasHoy.push(g.materia || g.codigo);
+  });
+
+  var sufijo = materiasHoy.length > 0
+    ? ' · ' + materiasHoy.join(' · ')
+    : ' · Sin clases hoy';
+
+  el.textContent = fechaStr + ' · I Semestre 2026' + sufijo;
 }
 
 function renderClasesHoy() {
@@ -2458,13 +2524,17 @@ window.addEventListener('DOMContentLoaded', function() {
       .then(function(lista){
         if (!Array.isArray(lista) || !lista.length) return;
         lista.forEach(function(row) {
-          var bd = inscripcionesBD;
           var est = gruposData['1SF133'].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
           if (est) {
-            if (row.p1  !== null) est.p1    = row.p1;
-            if (row.p2  !== null) est.p2    = row.p2;
-            if (row.proy!== null) est.proj  = row.proy;
-            if (row.ef  !== null) est.final = row.ef;
+            if (row.p1   !== null) est.p1    = row.p1;
+            if (row.p2   !== null) est.p2    = row.p2;
+            if (row.proy !== null) est.proj  = row.proy;
+            if (row.ef   !== null) est.final = row.ef;
+            // Conteo de modificaciones por componente (para bloquear inputs al limite)
+            est.modP1   = row.modP1   || 0;
+            est.modP2   = row.modP2   || 0;
+            est.modProy = row.modProy || 0;
+            est.modEf   = row.modEf   || 0;
           }
         });
         updateGroupCounts();
