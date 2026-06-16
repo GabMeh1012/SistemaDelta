@@ -539,7 +539,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       <div class="topbar">
         <div>
           <h2 class="page-title">Bienvenida, Profesora Mosquera </h2>
-          <div class="page-subtitle" id="fechaHoyProf">Cargando...</div>
+          <div class="page-subtitle" id="fechaHoyProf">Martes 27 de mayo, 2026 · I Semestre · Calidad del Software</div>
         </div>
         <div class="topbar-right">
           <div class="notif-btn" id="notifBellBtn" onclick="openNotifPanel()" style="position:relative;">🔔<div class="notif-dot" id="notifDot" style="<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>"></div><span id="campanaCountProf" style="<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>;position:absolute;top:-6px;right:-6px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;font-weight:700;display:<%= (noLeidosMsgs > 0) ? "flex" : "none" %>;align-items:center;justify-content:center;"><%= noLeidosMsgs %></span></div>
@@ -2334,21 +2334,8 @@ function renderFechaHoyProf() {
   var el = document.getElementById('fechaHoyProf');
   if (!el) return;
   var hoy = new Date();
-  var fechaStr = DIAS_ES[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + MESES_ES[hoy.getMonth()] + ', ' + hoy.getFullYear();
-
-  // Construir lista de materias con clase hoy desde misGruposBD
-  var diaHoy = DIA_SEMANA_MAP[hoy.getDay()];
-  var materiasHoy = [];
-  misGruposBD.forEach(function(g) {
-    var tieneClase = (g.horarios || []).some(function(h){ return h.dia === diaHoy; });
-    if (tieneClase) materiasHoy.push(g.materia || g.codigo);
-  });
-
-  var sufijo = materiasHoy.length > 0
-    ? ' · ' + materiasHoy.join(' · ')
-    : ' · Sin clases hoy';
-
-  el.textContent = fechaStr + ' · I Semestre 2026' + sufijo;
+  var texto = DIAS_ES[hoy.getDay()] + ' ' + hoy.getDate() + ' de ' + MESES_ES[hoy.getMonth()] + ', ' + hoy.getFullYear();
+  el.textContent = texto + ' · I Semestre · Calidad del Software';
 }
 
 function renderClasesHoy() {
