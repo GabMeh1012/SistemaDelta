@@ -544,23 +544,41 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
 .horario-cell-clase { padding: 8px; border-radius: 8px; font-size: 14px; font-weight: 700; }
 
 /* ===== TOASTS Y MODAL DE CONFIRMACION ===== */
-.toast-container { position: fixed; top: 20px; right: 20px; z-index: 9999; display: flex; flex-direction: column; gap: 10px; max-width: 360px; }
+.toast-container { position: fixed; top: 24px; right: 24px; z-index: 9999; display: flex; flex-direction: column; gap: 12px; max-width: 380px; pointer-events: none; }
 .toast {
-  display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px;
-  border-radius: var(--radius-sm); background: #fff; box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px;
+  border-radius: 12px; background: #fff;
+  box-shadow: 0 8px 32px rgba(0,0,0,.15), 0 2px 8px rgba(0,0,0,.08);
   border-left: 5px solid var(--blue); font-size: 14px; color: var(--text);
-  animation: toast-in 0.25s ease-out; line-height: 1.4;
+  animation: toast-in 0.3s cubic-bezier(.34,1.56,.64,1); line-height: 1.5;
+  pointer-events: all; position: relative; overflow: hidden; min-width: 280px;
 }
 .toast.toast-success { border-left-color: var(--green); }
 .toast.toast-error   { border-left-color: var(--red); }
+.toast.toast-warning { border-left-color: var(--amber); }
 .toast.toast-info    { border-left-color: var(--blue); }
-.toast-icon { font-size: 18px; flex-shrink: 0; line-height: 1.4; }
-.toast-msg  { flex: 1; white-space: pre-line; }
-.toast-close { cursor: pointer; color: var(--text-soft); font-size: 16px; line-height: 1; flex-shrink: 0; background:none; border:none; padding:0; }
+.toast-icon-box { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.toast-success .toast-icon-box { background: var(--green-bg); }
+.toast-error   .toast-icon-box { background: var(--red-bg); }
+.toast-warning .toast-icon-box { background: var(--amber-bg); }
+.toast-info    .toast-icon-box { background: var(--blue-light); }
+.toast-content { flex: 1; min-width: 0; }
+.toast-title { font-weight: 800; font-size: 14px; margin-bottom: 2px; }
+.toast-success .toast-title { color: var(--green); }
+.toast-error   .toast-title { color: var(--red); }
+.toast-warning .toast-title { color: var(--amber); }
+.toast-info    .toast-title { color: var(--blue); }
+.toast-msg  { font-size: 13px; color: var(--text-mid); white-space: pre-line; line-height: 1.4; }
+.toast-close { cursor: pointer; color: var(--text-soft); font-size: 18px; line-height: 1; flex-shrink: 0; background: none; border: none; padding: 0 0 0 4px; margin-top: -2px; }
 .toast-close:hover { color: var(--text); }
-.toast.toast-out { animation: toast-out 0.2s ease-in forwards; }
-@keyframes toast-in  { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
-@keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(30px); } }
+.toast-progress { position: absolute; bottom: 0; left: 0; height: 3px; }
+.toast-success .toast-progress { background: var(--green); }
+.toast-error   .toast-progress { background: var(--red); }
+.toast-warning .toast-progress { background: var(--amber); }
+.toast-info    .toast-progress { background: var(--blue); }
+.toast.toast-out { animation: toast-out 0.25s ease-in forwards; }
+@keyframes toast-in  { from { opacity: 0; transform: translateX(40px) scale(0.95); } to { opacity: 1; transform: translateX(0) scale(1); } }
+@keyframes toast-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(40px); } }
 
 .modal-overlay {
   position: fixed; inset: 0; background: rgba(30,42,59,.45); z-index: 10000;
@@ -625,8 +643,10 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
         <button type="button" class="password-toggle" id="togglePass" onclick="togglePasswordVisibility()" aria-label="Mostrar contrasena" title="Mostrar contrasena">&#128065;</button>
       </div>
     </div>
-    <div class="login-error" id="loginError">Usuario o contrase&ntilde;a incorrecto.</div>
-    <script>if(<%= est_loginError %>) document.getElementById("loginError").style.display="block";</script>
+    <div class="login-error" id="loginError" style="display:none;">Usuario o contraseña incorrecto.</div>
+    <% if (est_loginError) { %>
+    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.','error'); });</script>
+    <% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Demo: usuario <strong>estudiante</strong> &middot; clave <strong>1234</strong></div>
     <div class="login-switch">Es docente? <a href="index.jsp">Ir al Portal Docente &#8594;</a></div>
@@ -956,13 +976,21 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
           <div class="page-subtitle">Comunicacion con docentes y administracion</div>
         </div>
       </div>
+      <!-- Sub-nav: Recibidos / Enviados -->
+      <div style="display:flex;gap:10px;margin-bottom:18px;">
+        <button id="btnBandeja" class="btn btn-primary btn-sm" onclick="mostrarBandeja()">📥 Recibidos <span id="badgeInbox" class="nav-badge" style="display:none;margin-left:4px;">0</span></button>
+        <button id="btnEnviados" class="btn btn-secondary btn-sm" onclick="mostrarEnviados()">📤 Enviados</button>
+      </div>
       <div class="grid-21">
         <div class="card">
-          <div class="card-title">
-            Bandeja de Entrada
-            <span class="nav-badge" id="badgeInbox" style="display:none;">0</span>
+          <div id="panelBandeja">
+            <div class="card-title">Bandeja de Entrada</div>
+            <div id="bandeja"></div>
           </div>
-          <div id="bandeja"></div>
+          <div id="panelEnviados" style="display:none;">
+            <div class="card-title">Mensajes Enviados</div>
+            <div id="enviados"></div>
+          </div>
         </div>
         <div class="card">
           <div class="card-title">Nuevo Mensaje</div>
@@ -1011,23 +1039,45 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
 // ============================================================
 function showToast(mensaje, tipo) {
   tipo = tipo || 'info';
-  var iconos = { success: '&#9989;', error: '&#10060;', info: '&#8505;&#65039;' };
+  var config = {
+    success: { titulo: 'Éxito',       icono: '✅', duracion: 4000 },
+    error:   { titulo: 'Error',       icono: '❌', duracion: 6000 },
+    warning: { titulo: 'Advertencia', icono: '⚠️', duracion: 5000 },
+    info:    { titulo: 'Información', icono: 'ℹ️', duracion: 4000 }
+  };
+  var cfg = config[tipo] || config.info;
   var container = document.getElementById('toastContainer');
   if (!container) { window.alert(mensaje); return; }
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + tipo;
   toast.innerHTML =
-    '<span class="toast-icon">' + (iconos[tipo] || iconos.info) + '</span>' +
-    '<span class="toast-msg"></span>' +
-    '<button class="toast-close" aria-label="Cerrar">&times;</button>';
+    '<div class="toast-icon-box">' + cfg.icono + '</div>' +
+    '<div class="toast-content">' +
+      '<div class="toast-title">' + cfg.titulo + '</div>' +
+      '<div class="toast-msg"></div>' +
+    '</div>' +
+    '<button class="toast-close" aria-label="Cerrar">&times;</button>' +
+    '<div class="toast-progress" style="width:100%;"></div>';
   toast.querySelector('.toast-msg').textContent = mensaje;
   var quitar = function() {
+    if (toast._removed) return;
+    toast._removed = true;
     toast.classList.add('toast-out');
-    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 200);
+    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
   };
   toast.querySelector('.toast-close').addEventListener('click', quitar);
   container.appendChild(toast);
-  setTimeout(quitar, 4000);
+  var bar = toast.querySelector('.toast-progress');
+  bar.style.transition = 'width ' + cfg.duracion + 'ms linear';
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ bar.style.width = '0%'; }); });
+  var timer = setTimeout(quitar, cfg.duracion);
+  toast.addEventListener('mouseenter', function(){ clearTimeout(timer); bar.style.transition = 'none'; });
+  toast.addEventListener('mouseleave', function(){
+    var remaining = parseFloat(bar.style.width) / 100 * cfg.duracion;
+    bar.style.transition = 'width ' + remaining + 'ms linear';
+    bar.style.width = '0%';
+    timer = setTimeout(quitar, remaining);
+  });
 }
 
 function showConfirm(mensaje, onConfirm) {
@@ -1191,18 +1241,20 @@ function doLogin() {
   var pass = document.getElementById('loginPass').value.trim();
   var err  = document.getElementById('loginError');
   if (!user || !pass) { err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); return; }
-  var params = 'username='+encodeURIComponent(user)+'&password='+encodeURIComponent(pass)+'&destino=estudiante';
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  fetch(ctx+'/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params, redirect:'follow'})
-    .then(function(r) {
-      if (r.url && r.url.indexOf('portal_estudiante') !== -1) {
-        window.location.href = r.url;
-      } else if (r.url && r.url.indexOf('error=1') !== -1) {
-        err.style.display='block'; setTimeout(function(){err.style.display='none';},3500);
-      } else {
-        window.location.reload();
-      }
-    }).catch(function(){ err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); });
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = ctx + '/login';
+  var fields = {username: user, password: pass, destino: 'estudiante'};
+  Object.keys(fields).forEach(function(k) {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = k;
+    input.value = fields[k];
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
 }
 
 document.getElementById('loginPass').addEventListener('keydown', function(e) {
@@ -1210,12 +1262,9 @@ document.getElementById('loginPass').addEventListener('keydown', function(e) {
 });
 
 function cerrarSesion() {
-  showConfirm('Desea cerrar sesion?', function() {
-    document.getElementById('page-portal').classList.add('hidden');
-    document.getElementById('page-login').classList.remove('hidden');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    cerrarNotifPanel();
+  showConfirm('¿Desea cerrar sesión?', function() {
+    var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+    window.location.href = ctx + '/logout';
   });
 }
 
@@ -1432,6 +1481,64 @@ function actualizarBadges_legacy() {
 // ============================================================
 // MENSAJES
 // ============================================================
+function mostrarBandeja() {
+  document.getElementById('panelBandeja').style.display = '';
+  document.getElementById('panelEnviados').style.display = 'none';
+  document.getElementById('btnBandeja').className = 'btn btn-primary btn-sm';
+  document.getElementById('btnEnviados').className = 'btn btn-secondary btn-sm';
+  renderBandeja();
+}
+
+function mostrarEnviados() {
+  document.getElementById('panelBandeja').style.display = 'none';
+  document.getElementById('panelEnviados').style.display = '';
+  document.getElementById('btnBandeja').className = 'btn btn-secondary btn-sm';
+  document.getElementById('btnEnviados').className = 'btn btn-primary btn-sm';
+  renderEnviados();
+}
+
+function renderEnviados() {
+  var cont = document.getElementById('enviados');
+  if (!cont) return;
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  cont.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Cargando mensajes enviados...</div>';
+  fetch(ctx+'/mensajes?accion=enviados')
+    .then(function(r){ return r.json(); })
+    .then(function(msgs){
+      cont.innerHTML = '';
+      if (!msgs.length) {
+        cont.innerHTML = '<div style="text-align:center;padding:24px;color:#6b7e96;">No has enviado ningún mensaje.</div>';
+        return;
+      }
+      // Tabla con destinatario, asunto, fecha, estado (leído o no por el destinatario)
+      var html = '<table class="delta-table" style="font-size:14px;">'
+        + '<thead><tr><th>Para</th><th>Asunto</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>';
+      msgs.forEach(function(msg) {
+        var fecha = msg.fecha ? msg.fecha.substring(0, 16).replace('T', ' ') : '';
+        var estado = msg.leido
+          ? '<span class="tag tag-green">✓ Leído</span>'
+          : '<span class="tag tag-amber">⏳ Sin leer</span>';
+        html += '<tr style="cursor:pointer;" onclick="verMsgEnviado(' + JSON.stringify(msg) + ')">'
+          + '<td><strong>' + (msg.destinatario || 'Desconocido') + '</strong></td>'
+          + '<td>' + (msg.asunto || '(Sin asunto)') + '</td>'
+          + '<td style="color:var(--text-soft);font-size:12px;white-space:nowrap;">' + fecha + '</td>'
+          + '<td>' + estado + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table>';
+      cont.innerHTML = html;
+    }).catch(function(){
+      cont.innerHTML = '<div style="text-align:center;padding:24px;color:#6b7e96;">No se pudo cargar los mensajes enviados.</div>';
+    });
+}
+
+function verMsgEnviado(msg) {
+  showInfoModal(
+    'Para: ' + (msg.destinatario || '') + ' — ' + (msg.asunto || '(Sin asunto)'),
+    msg.cuerpo || ''
+  );
+}
+
 function renderBandeja() {
   var cont = document.getElementById('bandeja');
   if (!cont) return;
@@ -1528,6 +1635,11 @@ function enviarMsg() {
         document.getElementById('msgCuerpo').value = '';
         renderBandeja();
         actualizarBadges();
+        // Si el panel de enviados está visible, actualizarlo también
+        if (document.getElementById('panelEnviados') &&
+            document.getElementById('panelEnviados').style.display !== 'none') {
+          renderEnviados();
+        }
       } else {
         showToast('Error: ' + (d.error || 'No se pudo enviar el mensaje.'), 'error');
       }
