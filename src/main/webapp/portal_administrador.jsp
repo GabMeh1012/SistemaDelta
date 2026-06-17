@@ -1,8 +1,5 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" isELIgnored="true" %>
 <%
-  response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  response.setHeader("Pragma", "no-cache");
-  response.setDateHeader("Expires", 0);
   Integer adm_usuarioId = (Integer) session.getAttribute("usuarioId");
   String  adm_rol       = (String)  session.getAttribute("usuarioRol");
   String  adm_nombre    = (String)  session.getAttribute("adminNombre");
@@ -130,34 +127,18 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 @media(max-width:900px) { .stats-4 { grid-template-columns:1fr 1fr; } .main-content { padding:20px; } }
 
 /* TOASTS Y MODAL DE CONFIRMACION */
-.toast-container{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:12px;max-width:380px;pointer-events:none;}
-.toast{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-radius:12px;background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.15),0 2px 8px rgba(0,0,0,.08);border-left:5px solid var(--purple);font-size:14px;color:var(--text);animation:toast-in 0.3s cubic-bezier(.34,1.56,.64,1);line-height:1.5;pointer-events:all;position:relative;overflow:hidden;min-width:280px;}
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12);border-left:5px solid var(--purple);font-size:14px;color:var(--text);animation:toast-in 0.25s ease-out;line-height:1.4;}
 .toast.toast-success{border-left-color:var(--green);}
 .toast.toast-error{border-left-color:var(--red);}
-.toast.toast-warning{border-left-color:var(--amber);}
 .toast.toast-info{border-left-color:var(--purple);}
-.toast-icon-box{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.toast-success .toast-icon-box{background:var(--green-bg);}
-.toast-error   .toast-icon-box{background:var(--red-bg);}
-.toast-warning .toast-icon-box{background:var(--amber-bg);}
-.toast-info    .toast-icon-box{background:var(--purple-bg);}
-.toast-content{flex:1;min-width:0;}
-.toast-title{font-weight:800;font-size:14px;margin-bottom:2px;}
-.toast-success .toast-title{color:var(--green);}
-.toast-error   .toast-title{color:var(--red);}
-.toast-warning .toast-title{color:var(--amber);}
-.toast-info    .toast-title{color:var(--purple);}
-.toast-msg{font-size:13px;color:var(--text-mid);white-space:pre-line;line-height:1.4;}
-.toast-close{cursor:pointer;color:var(--text-soft);font-size:18px;line-height:1;flex-shrink:0;background:none;border:none;padding:0 0 0 4px;margin-top:-2px;}
+.toast-icon{font-size:18px;flex-shrink:0;line-height:1.4;}
+.toast-msg{flex:1;white-space:pre-line;}
+.toast-close{cursor:pointer;color:var(--text-soft);font-size:16px;line-height:1;flex-shrink:0;background:none;border:none;padding:0;}
 .toast-close:hover{color:var(--text);}
-.toast-progress{position:absolute;bottom:0;left:0;height:3px;}
-.toast-success .toast-progress{background:var(--green);}
-.toast-error   .toast-progress{background:var(--red);}
-.toast-warning .toast-progress{background:var(--amber);}
-.toast-info    .toast-progress{background:var(--purple);}
-.toast.toast-out{animation:toast-out 0.25s ease-in forwards;}
-@keyframes toast-in{from{opacity:0;transform:translateX(40px) scale(0.95);}to{opacity:1;transform:translateX(0) scale(1);}}
-@keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(40px);}}
+.toast.toast-out{animation:toast-out 0.2s ease-in forwards;}
+@keyframes toast-in{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(30px);}}
 .modal-overlay{position:fixed;inset:0;background:rgba(30,42,59,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.hidden{display:none;}
 .modal-box{background:#fff;border-radius:10px;max-width:420px;width:100%;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.2);}
@@ -198,10 +179,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <label for="loginPass">Contrasena</label>
       <input id="loginPass" type="password" placeholder="********" autocomplete="current-password">
     </div>
-    <div class="login-error" id="loginError" style="display:none;">Usuario o contraseña incorrecto.</div>
-    <% if (adm_loginError) { %>
-    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.','error'); });</script>
-    <% } %>
+    <div class="login-error" id="loginError">Usuario o contrasena incorrecto.</div>
+    <% if (adm_loginError) { %><script>document.getElementById('loginError').style.display='block';</script><% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Demo: usuario <strong>admin</strong> &middot; clave <strong>1234</strong></div>
     <div class="login-switch"><a href="index.jsp">&#8592; Volver a seleccion de portal</a></div>
@@ -263,7 +242,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <input id="fEstNombre" placeholder="Nombre" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <input id="fEstCedula" placeholder="Cedula / Matricula" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <input id="fEstCarrera" placeholder="Carrera" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
-        <input id="fEstMateria" placeholder="Materia inscrita" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
+        <input id="fEstMateria" placeholder="Materia inscrita (ej: Calculo)" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <button class="btn btn-primary btn-sm" onclick="cargarEstudiantes()">Filtrar</button>
       </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblEstudiantes"></table></div></div>
@@ -273,9 +252,9 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div id="tab-profesores" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Profesores</h2></div>
       <div class="filter-row">
-        <input id="fProfNombre" placeholder="Nombre">
-        <input id="fProfDepto" placeholder="Departamento">
-        <input id="fProfMateria" placeholder="Materia">
+        <input id="fProfNombre" placeholder="Nombre" onkeyup="if(event.key==='Enter')cargarProfesores()">
+        <input id="fProfDepto" placeholder="Departamento" onkeyup="if(event.key==='Enter')cargarProfesores()">
+        <input id="fProfMateria" placeholder="Materia" onkeyup="if(event.key==='Enter')cargarProfesores()">
         <button class="btn btn-primary btn-sm" onclick="cargarProfesores()">Filtrar</button>
       </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblProfesores"></table></div></div>
@@ -384,45 +363,23 @@ var HAY_BD = <%= adm_hayBD %>;
 
 function showToast(mensaje, tipo) {
   tipo = tipo || 'info';
-  var config = {
-    success: { titulo: 'Éxito',       icono: '✅', duracion: 4000 },
-    error:   { titulo: 'Error',       icono: '❌', duracion: 6000 },
-    warning: { titulo: 'Advertencia', icono: '⚠️', duracion: 5000 },
-    info:    { titulo: 'Información', icono: 'ℹ️', duracion: 4000 }
-  };
-  var cfg = config[tipo] || config.info;
+  var iconos = { success: '✅', error: '❌', info: 'ℹ️' };
   var container = document.getElementById('toastContainer');
   if (!container) { window.alert(mensaje); return; }
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + tipo;
   toast.innerHTML =
-    '<div class="toast-icon-box">' + cfg.icono + '</div>' +
-    '<div class="toast-content">' +
-      '<div class="toast-title">' + cfg.titulo + '</div>' +
-      '<div class="toast-msg"></div>' +
-    '</div>' +
-    '<button class="toast-close" aria-label="Cerrar">&times;</button>' +
-    '<div class="toast-progress" style="width:100%;"></div>';
+    '<span class="toast-icon">' + (iconos[tipo] || iconos.info) + '</span>' +
+    '<span class="toast-msg"></span>' +
+    '<button class="toast-close" aria-label="Cerrar">&times;</button>';
   toast.querySelector('.toast-msg').textContent = mensaje;
   var quitar = function() {
-    if (toast._removed) return;
-    toast._removed = true;
     toast.classList.add('toast-out');
-    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
+    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 200);
   };
   toast.querySelector('.toast-close').addEventListener('click', quitar);
   container.appendChild(toast);
-  var bar = toast.querySelector('.toast-progress');
-  bar.style.transition = 'width ' + cfg.duracion + 'ms linear';
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ bar.style.width = '0%'; }); });
-  var timer = setTimeout(quitar, cfg.duracion);
-  toast.addEventListener('mouseenter', function(){ clearTimeout(timer); bar.style.transition = 'none'; });
-  toast.addEventListener('mouseleave', function(){
-    var remaining = parseFloat(bar.style.width) / 100 * cfg.duracion;
-    bar.style.transition = 'width ' + remaining + 'ms linear';
-    bar.style.width = '0%';
-    timer = setTimeout(quitar, remaining);
-  });
+  setTimeout(quitar, 4000);
 }
 
 function showConfirm(mensaje, onConfirm) {
@@ -517,7 +474,7 @@ function cargarProfesores() {
     + '&departamento=' + encodeURIComponent(document.getElementById('fProfDepto').value)
     + '&materia=' + encodeURIComponent(document.getElementById('fProfMateria').value);
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Materias que Imparte','Grupos Asignados','Creditos (Carga Academica)','Horas Semanales'],
+    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Materias que Imparte','Grupos Asignados','Creditos','Horas Semanales'],
       rows, function(r){ return [r.codigo,r.nombre,r.departamento,r.materiasLista||'-',r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
   });
 }
