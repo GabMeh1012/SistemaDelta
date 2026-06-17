@@ -547,7 +547,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
       <div class="stats-row stats-4">
         <div class="stat-card"><div class="stat-icon-box icon-blue">👥</div><div><div class="stat-label">Grupos Activos</div><div class="stat-value">3</div><div class="stat-sub"><span id="inicioTotalEst">12</span> estudiantes total</div></div></div>
-        <div class="stat-card"><div class="stat-icon-box icon-green">✅</div><div><div class="stat-label">Asistencia Hoy</div><div class="stat-value">91%</div><div class="stat-sub">↑ +3% esta semana</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box icon-green">✅</div><div><div class="stat-label">Asistencia Hoy</div><div class="stat-value" id="statAsistenciaHoy">--</div><div class="stat-sub" id="statAsistenciaHoySub">Cargando...</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-amber">⚠️</div><div><div class="stat-label">En Riesgo</div><div class="stat-value" id="statEnRiesgo"><%= enRiesgo %></div><div class="stat-sub">Nota menor a 70</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-red">📝</div><div><div class="stat-label">Por Calificar</div><div class="stat-value">12</div><div class="stat-sub">Parciales pendientes</div></div></div>
       </div>
@@ -765,16 +765,16 @@ h1,h2,h3{font-family:'Merriweather',serif;}
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <!-- 9:00 AM -->
             <div class="horario-cell horario-time">9:00<br>10:00</div>
-            <div class="horario-cell"><div class="horario-class" style="background:#15803d;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
-            <div class="horario-cell"><div class="horario-class" style="background:#15803d;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <!-- 10:00 AM -->
             <div class="horario-cell horario-time">10:00<br>11:00</div>
-            <div class="horario-cell"><div class="horario-class" style="background:#15803d;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
-            <div class="horario-cell"><div class="horario-class" style="background:#15803d;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <!-- 11:00 AM -->
@@ -783,20 +783,20 @@ h1,h2,h3{font-family:'Merriweather',serif;}
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
-            <div class="horario-cell"><div class="horario-class" style="background:#7c3aed;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
             <!-- 12:00 PM -->
             <div class="horario-cell horario-time">12:00<br>1:00</div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
             <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
-            <div class="horario-cell"><div class="horario-class" style="background:#7c3aed;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
           </div>
         </div>
         <div style="display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;">
           <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#1a56a0;"></div> Calidad del Software (1SF133)</div>
-          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#15803d;"></div> Ingeniería de Software I (1SF131)</div>
-          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#7c3aed;"></div> Pruebas de Software (2SF241)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#bbf7d0;border:1.5px solid #86efac;"></div> Ingeniería de Software I (1SF131)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#ede9fe;border:1.5px solid #c4b5fd;"></div> Pruebas de Software (2SF241)</div>
         </div>
       </div>
       <div class="grid-2">
@@ -1998,6 +1998,44 @@ function updateAttSummary(grupo) {
   const a = vals.filter(v=>v==='absent').length;
   const el = document.getElementById('attSummary');
   if (el) el.innerHTML = `<span class="tag tag-green">✓ ${p} Presentes</span>&nbsp;<span class="tag tag-amber">⏱ ${l} Tardanza</span>&nbsp;<span class="tag tag-red">✗ ${a} Ausentes</span>`;
+  // Actualizar también el stat de asistencia hoy en el Dashboard
+  actualizarStatAsistenciaHoy();
+}
+
+/**
+ * Actualiza el stat card "Asistencia Hoy" en el Dashboard de inicio
+ * basándose en attDayStates del grupo que tiene clase hoy (1SF133 por defecto).
+ */
+function actualizarStatAsistenciaHoy() {
+  var elVal = document.getElementById('statAsistenciaHoy');
+  var elSub = document.getElementById('statAsistenciaHoySub');
+  if (!elVal || !elSub) return;
+
+  // Buscar el grupo que tiene clase hoy
+  var diaHoy = DIA_SEMANA_MAP[new Date().getDay()];
+  var grupoHoy = null;
+  misGruposBD.forEach(function(g) {
+    if (!grupoHoy && (g.horarios||[]).some(function(h){ return h.dia === diaHoy; })) {
+      // Mapear codigo BD al codigo frontend
+      if (g.codigo === 'GRP-IS-401') grupoHoy = '1SF133';
+    }
+  });
+
+  if (!grupoHoy || !attDayStates[grupoHoy]) {
+    elVal.textContent = '--';
+    elSub.textContent = 'Sin clase hoy';
+    return;
+  }
+
+  var vals = Object.values(attDayStates[grupoHoy]);
+  var total = vals.length;
+  if (total === 0) { elVal.textContent = '--'; elSub.textContent = 'Sin datos'; return; }
+  var presentes = vals.filter(function(v){ return v === 'present'; }).length;
+  var tardanzas = vals.filter(function(v){ return v === 'late'; }).length;
+  var ausentes  = vals.filter(function(v){ return v === 'absent'; }).length;
+  var pct = Math.round(((presentes + tardanzas) / total) * 100);
+  elVal.textContent = pct + '%';
+  elSub.textContent = presentes + ' presentes · ' + tardanzas + ' tardanzas · ' + ausentes + ' ausentes';
 }
 
 function renderSemesterList(grupo) {
@@ -2371,7 +2409,14 @@ function poblarSelectGruposAviso() {
 var DIA_SEMANA_MAP = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
 var MESES_ES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 var DIAS_ES  = ['Domingo','Lunes','Martes','Miercoles','Jueves','Viernes','Sabado'];
-var SCHED_COLORES = ['var(--blue)','var(--green)','var(--amber)','var(--red)','#7c3aed','#0e7490'];
+var SCHED_COLORES = [
+  {bg:'#dbeafe', text:'#1a56a0', border:'#93c5fd'},  // azul pastel
+  {bg:'#bbf7d0', text:'#14532d', border:'#86efac'},  // verde pastel
+  {bg:'#ede9fe', text:'#5b21b6', border:'#c4b5fd'},  // púrpura pastel
+  {bg:'#fef3c7', text:'#92400e', border:'#fcd34d'},  // ámbar pastel
+  {bg:'#fee2e2', text:'#991b1b', border:'#fca5a5'},  // rojo pastel
+  {bg:'#cffafe', text:'#164e63', border:'#67e8f9'},  // cyan pastel
+];
 
 function formatHora12(horaStr) {
   // horaStr viene como "HH:MM:SS"
@@ -2420,7 +2465,7 @@ function renderClasesHoy() {
           codigo: g.codigo,
           numEstudiantes: g.numEstudiantes,
           aula: g.aula,
-          color: SCHED_COLORES[idx % SCHED_COLORES.length]
+          colores: SCHED_COLORES[idx % SCHED_COLORES.length]
         });
       }
     });
@@ -2428,6 +2473,7 @@ function renderClasesHoy() {
 
   if (clases.length === 0) {
     cont.innerHTML = '<div style="color:var(--text-soft);font-size:14px;padding:12px 0;">No hay clases hoy.</div>';
+    actualizarStatAsistenciaHoy();
     return;
   }
 
@@ -2435,18 +2481,20 @@ function renderClasesHoy() {
 
   var html = '';
   clases.forEach(function(c) {
+    var col = c.colores;
     html +=
       '<div class="sched-item">' +
         '<div class="sched-time">' + formatHora12(c.hora) + '</div>' +
-        '<div class="sched-bar" style="background:' + c.color + ';"></div>' +
+        '<div class="sched-bar" style="background:' + col.bg + ';border:2px solid ' + col.border + ';"></div>' +
         '<div>' +
-          '<div class="sched-subject">' + escHtml(c.materia) + ' — ' + escHtml(c.codigo) + '</div>' +
+          '<div class="sched-subject" style="color:' + col.text + ';">' + escHtml(c.materia) + ' — ' + escHtml(c.codigo) + '</div>' +
           '<div class="sched-prof">' + (c.numEstudiantes||0) + ' estudiantes inscritos</div>' +
           '<div class="sched-room">🏫 ' + escHtml(c.aula||'Sin asignar') + '</div>' +
         '</div>' +
       '</div>';
   });
   cont.innerHTML = html;
+  actualizarStatAsistenciaHoy();
 }
 
 const AVISO_ICONOS = { info:'📘', urgente:'⚠️', recordatorio:'📅', exito:'✅' };

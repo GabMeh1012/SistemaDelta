@@ -1191,20 +1191,18 @@ function doLogin() {
   var pass = document.getElementById('loginPass').value.trim();
   var err  = document.getElementById('loginError');
   if (!user || !pass) { err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); return; }
+  var params = 'username='+encodeURIComponent(user)+'&password='+encodeURIComponent(pass)+'&destino=estudiante';
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = ctx + '/login';
-  var fields = {username: user, password: pass, destino: 'estudiante'};
-  Object.keys(fields).forEach(function(k) {
-    var input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = k;
-    input.value = fields[k];
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
+  fetch(ctx+'/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params, redirect:'follow'})
+    .then(function(r) {
+      if (r.url && r.url.indexOf('portal_estudiante') !== -1) {
+        window.location.href = r.url;
+      } else if (r.url && r.url.indexOf('error=1') !== -1) {
+        err.style.display='block'; setTimeout(function(){err.style.display='none';},3500);
+      } else {
+        window.location.reload();
+      }
+    }).catch(function(){ err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); });
 }
 
 document.getElementById('loginPass').addEventListener('keydown', function(e) {
@@ -1213,8 +1211,11 @@ document.getElementById('loginPass').addEventListener('keydown', function(e) {
 
 function cerrarSesion() {
   showConfirm('Desea cerrar sesion?', function() {
-    var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-    window.location.href = ctx + '/logout';
+    document.getElementById('page-portal').classList.add('hidden');
+    document.getElementById('page-login').classList.remove('hidden');
+    document.getElementById('loginUser').value = '';
+    document.getElementById('loginPass').value = '';
+    cerrarNotifPanel();
   });
 }
 

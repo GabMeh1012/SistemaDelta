@@ -400,19 +400,15 @@ function doLogin() {
   var pass = document.getElementById('loginPass').value.trim();
   var err  = document.getElementById('loginError');
   if (!user || !pass) { err.style.display='block'; return; }
-  var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = CTX + '/login';
-  var fields = {username: user, password: pass, destino: 'admin'};
-  Object.keys(fields).forEach(function(k) {
-    var input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = k;
-    input.value = fields[k];
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
+  var params = 'username='+encodeURIComponent(user)+'&password='+encodeURIComponent(pass)+'&destino=admin';
+  fetch(CTX+'/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params, redirect:'follow'})
+    .then(function(r) {
+      if (r.url && r.url.indexOf('portal_administrador') !== -1 && r.url.indexOf('error') === -1) {
+        window.location.href = r.url;
+      } else {
+        err.style.display='block';
+      }
+    }).catch(function(){ err.style.display='block'; });
 }
 document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 

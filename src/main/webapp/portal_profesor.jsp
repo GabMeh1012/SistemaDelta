@@ -1276,12 +1276,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key
 
 function logout() {
   showConfirm('¿Desea cerrar sesión?', function() {
-    document.getElementById('page-portal').classList.add('hidden');
-    document.getElementById('page-login').classList.remove('hidden');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('saveToast').classList.remove('show');
-    closeNotifPanel();
+    window.location.href = CTX + '/logout';
   });
 }
 

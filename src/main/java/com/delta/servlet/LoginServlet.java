@@ -21,7 +21,15 @@ public class LoginServlet extends HttpServlet {
         req.setCharacterEncoding("UTF-8");
         String username = req.getParameter("username");
         String password = req.getParameter("password");
-        String destino  = req.getParameter("destino"); // 'profesor' | 'estudiante'
+        String destino  = req.getParameter("destino");
+
+        // Validar que las credenciales no estén vacías
+        if (username == null || username.trim().isEmpty()
+                || password == null || password.trim().isEmpty()) {
+            resp.sendRedirect(req.getContextPath() + "/" + paginaError(destino) + "?error=1");
+            return;
+        }
+        username = username.trim();
 
         try {
             UsuarioDAO dao = new UsuarioDAO();
@@ -42,7 +50,12 @@ public class LoginServlet extends HttpServlet {
                 return;
             }
 
-            // Guardar en sesión
+            // Guardar en sesión — primero invalidar la sesión anterior si existe
+            // (protección contra session fixation)
+            HttpSession oldSession = req.getSession(false);
+            if (oldSession != null) {
+                oldSession.invalidate();
+            }
             HttpSession session = req.getSession(true);
             session.setAttribute("usuarioId",       usuario.getId());
             session.setAttribute("usuarioUsername", usuario.getUsername());
