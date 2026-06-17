@@ -517,8 +517,8 @@ function cargarProfesores() {
     + '&departamento=' + encodeURIComponent(document.getElementById('fProfDepto').value)
     + '&materia=' + encodeURIComponent(document.getElementById('fProfMateria').value);
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Materias que Imparte','Grupos Asignados','Creditos (Carga Academica)','Horas Semanales'],
-      rows, function(r){ return [r.codigo,r.nombre,r.departamento,r.materiasLista||'-',r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
+    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Grupos Asignados','Creditos (Carga Academica)','Horas Semanales'],
+      rows, function(r){ return [r.codigo,r.nombre,r.departamento,r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
   });
 }
 

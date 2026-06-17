@@ -38,7 +38,7 @@ public class AdminDAO {
         String sql = "SELECT e.id, e.cedula, CONCAT(e.nombre,' ',e.apellido) AS nombre, e.carrera, e.semestre, "
                    + "(SELECT COUNT(*) FROM inscripciones i WHERE i.estudiante_id=e.id AND i.estado='activo') AS materias_activas "
                    + "FROM estudiantes e WHERE 1=1";
-        if (carrera != null && !carrera.isEmpty()) sql += " AND e.carrera = ?";
+        if (carrera != null && !carrera.isEmpty()) sql += " AND e.carrera LIKE ?";
         if (nombre != null && !nombre.isEmpty()) sql += " AND CONCAT(e.nombre,' ',e.apellido) LIKE ?";
         if (cedula != null && !cedula.isEmpty()) sql += " AND e.cedula LIKE ?";
         if (materia != null && !materia.isEmpty()) {
@@ -52,7 +52,7 @@ public class AdminDAO {
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             int i = 1;
-            if (carrera != null && !carrera.isEmpty()) ps.setString(i++, carrera);
+            if (carrera != null && !carrera.isEmpty()) ps.setString(i++, "%" + carrera + "%");
             if (nombre != null && !nombre.isEmpty()) ps.setString(i++, "%" + nombre + "%");
             if (cedula != null && !cedula.isEmpty()) ps.setString(i++, "%" + cedula + "%");
             if (materia != null && !materia.isEmpty()) {
@@ -80,7 +80,8 @@ public class AdminDAO {
                    + "COUNT(DISTINCT g.id) AS grupos, COALESCE(SUM(m.creditos),0) AS creditos, "
                    + "COALESCE((SELECT SUM(TIME_TO_SEC(TIMEDIFF(h.hora_fin,h.hora_inicio)))/3600 "
                    + "          FROM horarios h JOIN grupos g3 ON g3.id = h.grupo_id "
-                   + "          WHERE g3.profesor_id = p.id), 0) AS horas_semanales "
+                   + "          WHERE g3.profesor_id = p.id), 0) AS horas_semanales, "
+                   + "GROUP_CONCAT(DISTINCT m.nombre ORDER BY m.nombre SEPARATOR ', ') AS materias_lista "
                    + "FROM profesores p "
                    + "LEFT JOIN grupos g ON g.profesor_id = p.id "
                    + "LEFT JOIN materias m ON m.id = g.materia_id WHERE 1=1";
@@ -112,6 +113,7 @@ public class AdminDAO {
                     row.put("grupos", rs.getInt("grupos"));
                     row.put("creditos", rs.getInt("creditos"));
                     row.put("horasSemanales", rs.getDouble("horas_semanales"));
+                    row.put("materiasLista", rs.getString("materias_lista"));
                     lista.add(row);
                 }
             }
