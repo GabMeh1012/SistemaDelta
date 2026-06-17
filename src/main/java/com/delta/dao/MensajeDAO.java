@@ -17,6 +17,38 @@ public class MensajeDAO {
     // MENSAJES
     // ─────────────────────────────────────────
 
+    /** Devuelve todos los mensajes enviados por un usuario (ordenados por fecha desc). */
+    public List<Mensaje> listarEnviados(int remitenteId) throws SQLException {
+        List<Mensaje> lista = new ArrayList<>();
+        String sql = "SELECT m.id, m.destinatario_id, m.asunto, m.cuerpo, m.leido, m.fecha_envio, "
+                   + "COALESCE(CONCAT(p.nombre,' ',p.apellido), CONCAT(e.nombre,' ',e.apellido), u.username) AS destinatario_nombre "
+                   + "FROM mensajes m "
+                   + "JOIN usuarios u ON u.id = m.destinatario_id "
+                   + "LEFT JOIN profesores  p ON p.usuario_id = m.destinatario_id "
+                   + "LEFT JOIN estudiantes e ON e.usuario_id = m.destinatario_id "
+                   + "WHERE m.remitente_id = ? "
+                   + "ORDER BY m.fecha_envio DESC";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, remitenteId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Mensaje msg = new Mensaje();
+                    msg.setId(rs.getInt("id"));
+                    msg.setDestinatarioId(rs.getInt("destinatario_id"));
+                    msg.setDestinatarioNombre(rs.getString("destinatario_nombre"));
+                    msg.setAsunto(rs.getString("asunto"));
+                    msg.setCuerpo(rs.getString("cuerpo"));
+                    msg.setLeido(rs.getBoolean("leido"));
+                    Timestamp ts = rs.getTimestamp("fecha_envio");
+                    if (ts != null) msg.setFechaEnvio(ts.toLocalDateTime());
+                    lista.add(msg);
+                }
+            }
+        }
+        return lista;
+    }
+
     /** Devuelve todos los mensajes recibidos por un usuario (ordenados por fecha desc). */
     public List<Mensaje> listarRecibidos(int destinatarioId) throws SQLException {
         List<Mensaje> lista = new ArrayList<>();

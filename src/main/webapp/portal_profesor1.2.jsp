@@ -838,21 +838,10 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     <!-- MENSAJES -->
     <div id="tab-mensajes" class="tab-panel">
       <div class="topbar"><div><h2 class="page-title">✉️ Mensajes</h2><div class="page-subtitle">Comunicación con estudiantes y administración</div></div></div>
-      <!-- Sub-nav: Recibidos / Enviados -->
-      <div style="display:flex;gap:10px;margin-bottom:18px;">
-        <button id="profBtnBandeja" class="btn btn-primary btn-sm" onclick="profMostrarBandeja()">📥 Recibidos <span class="nav-badge" style="font-size:14px;<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>;margin-left:4px;" id="inboxBadgeCount"><%= noLeidosMsgs %></span></button>
-        <button id="profBtnEnviados" class="btn btn-secondary btn-sm" onclick="profMostrarEnviados()">📤 Enviados</button>
-      </div>
       <div class="grid-2">
         <div class="card">
-          <div id="profPanelBandeja">
-            <div class="card-title">Bandeja de Entrada</div>
-            <div id="profInbox"><div style="text-align:center;padding:20px;color:var(--text-soft);">Cargando mensajes...</div></div>
-          </div>
-          <div id="profPanelEnviados" style="display:none;">
-            <div class="card-title">Mensajes Enviados</div>
-            <div id="profEnviados"></div>
-          </div>
+          <div class="card-title">Bandeja de Entrada <span class="nav-badge" style="font-size:14px;<%= (noLeidosMsgs > 0) ? "" : "display:none;" %>" id="inboxBadgeCount"><%= noLeidosMsgs %></span></div>
+          <div id="profInbox"><div style="text-align:center;padding:20px;color:var(--text-soft);">Cargando mensajes...</div></div>
         </div>
         <div class="card">
           <div class="card-title">Nuevo Mensaje</div>
@@ -1287,12 +1276,7 @@ document.getElementById('loginPass').addEventListener('keydown', e => { if(e.key
 
 function logout() {
   showConfirm('¿Desea cerrar sesión?', function() {
-    document.getElementById('page-portal').classList.add('hidden');
-    document.getElementById('page-login').classList.remove('hidden');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    document.getElementById('saveToast').classList.remove('show');
-    closeNotifPanel();
+    window.location.href = CTX + '/logout';
   });
 }
 
@@ -2379,63 +2363,10 @@ function sendProfMsg() {
         document.getElementById('profMsgSubj').value='';
         document.getElementById('profMsgBody').value='';
         cargarInbox();
-        // Refrescar enviados si está visible
-        if (document.getElementById('profPanelEnviados') &&
-            document.getElementById('profPanelEnviados').style.display !== 'none') {
-          profRenderEnviados();
-        }
       } else {
         showToast('Error: ' + (d.error||'No se pudo enviar. Verifica el nombre del destinatario.'), 'error');
       }
     }).catch(()=>showToast('Error de conexion al enviar el mensaje.', 'error'));
-}
-
-function profMostrarBandeja() {
-  document.getElementById('profPanelBandeja').style.display = '';
-  document.getElementById('profPanelEnviados').style.display = 'none';
-  document.getElementById('profBtnBandeja').className = 'btn btn-primary btn-sm';
-  document.getElementById('profBtnEnviados').className = 'btn btn-secondary btn-sm';
-  cargarInbox();
-}
-
-function profMostrarEnviados() {
-  document.getElementById('profPanelBandeja').style.display = 'none';
-  document.getElementById('profPanelEnviados').style.display = '';
-  document.getElementById('profBtnBandeja').className = 'btn btn-secondary btn-sm';
-  document.getElementById('profBtnEnviados').className = 'btn btn-primary btn-sm';
-  profRenderEnviados();
-}
-
-function profRenderEnviados() {
-  const cont = document.getElementById('profEnviados');
-  if (!cont) return;
-  cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-soft);">Cargando mensajes enviados...</div>';
-  fetch(CTX+'/mensajes?accion=enviados')
-    .then(r=>r.json())
-    .then(function(msgs) {
-      if (!msgs.length) {
-        cont.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-soft);">No has enviado ningún mensaje.</div>';
-        return;
-      }
-      let html = '<table class="delta-table" style="font-size:14px;">'
-        + '<thead><tr><th>Para</th><th>Asunto</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>';
-      msgs.forEach(function(msg) {
-        const fecha = msg.fecha ? msg.fecha.substring(0, 16).replace('T', ' ') : '';
-        const estado = msg.leido
-          ? '<span class="tag tag-green">✓ Leído</span>'
-          : '<span class="tag tag-amber">⏳ Sin leer</span>';
-        html += `<tr style="cursor:pointer;" onclick="showInfoModal('Para: ${escHtml(msg.destinatario||'')} — ${escHtml(msg.asunto||'')}', ${JSON.stringify(msg.cuerpo||'')})">`
-          + `<td><strong>${escHtml(msg.destinatario||'Desconocido')}</strong></td>`
-          + `<td>${escHtml(msg.asunto||'(Sin asunto)')}</td>`
-          + `<td style="color:var(--text-soft);font-size:12px;white-space:nowrap;">${fecha}</td>`
-          + `<td>${estado}</td>`
-          + '</tr>';
-      });
-      html += '</tbody></table>';
-      cont.innerHTML = html;
-    }).catch(function(){
-      cont.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-soft);">No se pudo cargar los mensajes enviados.</div>';
-    });
 }
 
 // ==================== AVISOS ====================

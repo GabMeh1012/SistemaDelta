@@ -46,6 +46,24 @@ public class MensajesServlet extends HttpServlet {
                     break;
                 }
 
+                case "enviados": {
+                    List<Mensaje> msgs = dao.listarEnviados(usuarioId);
+                    out.print("[");
+                    for (int i = 0; i < msgs.size(); i++) {
+                        Mensaje m = msgs.get(i);
+                        if (i > 0) out.print(",");
+                        out.print("{\"id\":"          + m.getId()
+                            + ",\"destinatario\":"    + jsonStr(m.getDestinatarioNombre())
+                            + ",\"asunto\":"          + jsonStr(m.getAsunto())
+                            + ",\"cuerpo\":"          + jsonStr(m.getCuerpo())
+                            + ",\"leido\":"           + m.isLeido()
+                            + ",\"fecha\":"           + jsonStr(m.getFechaEnvio() != null ? m.getFechaEnvio().toString() : "")
+                            + "}");
+                    }
+                    out.print("]");
+                    break;
+                }
+
                 case "noLeidos": {
                     int cnt  = dao.contarNoLeidos(usuarioId);
                     int cntN = dao.contarNoLeidas(usuarioId);

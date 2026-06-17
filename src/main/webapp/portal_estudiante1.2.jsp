@@ -956,21 +956,13 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
           <div class="page-subtitle">Comunicacion con docentes y administracion</div>
         </div>
       </div>
-      <!-- Sub-nav: Recibidos / Enviados -->
-      <div style="display:flex;gap:10px;margin-bottom:18px;">
-        <button id="btnBandeja" class="btn btn-primary btn-sm" onclick="mostrarBandeja()">📥 Recibidos <span id="badgeInbox" class="nav-badge" style="display:none;margin-left:4px;">0</span></button>
-        <button id="btnEnviados" class="btn btn-secondary btn-sm" onclick="mostrarEnviados()">📤 Enviados</button>
-      </div>
       <div class="grid-21">
         <div class="card">
-          <div id="panelBandeja">
-            <div class="card-title">Bandeja de Entrada</div>
-            <div id="bandeja"></div>
+          <div class="card-title">
+            Bandeja de Entrada
+            <span class="nav-badge" id="badgeInbox" style="display:none;">0</span>
           </div>
-          <div id="panelEnviados" style="display:none;">
-            <div class="card-title">Mensajes Enviados</div>
-            <div id="enviados"></div>
-          </div>
+          <div id="bandeja"></div>
         </div>
         <div class="card">
           <div class="card-title">Nuevo Mensaje</div>
@@ -1199,18 +1191,20 @@ function doLogin() {
   var pass = document.getElementById('loginPass').value.trim();
   var err  = document.getElementById('loginError');
   if (!user || !pass) { err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); return; }
-  var params = 'username='+encodeURIComponent(user)+'&password='+encodeURIComponent(pass)+'&destino=estudiante';
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  fetch(ctx+'/login', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params, redirect:'follow'})
-    .then(function(r) {
-      if (r.url && r.url.indexOf('portal_estudiante') !== -1) {
-        window.location.href = r.url;
-      } else if (r.url && r.url.indexOf('error=1') !== -1) {
-        err.style.display='block'; setTimeout(function(){err.style.display='none';},3500);
-      } else {
-        window.location.reload();
-      }
-    }).catch(function(){ err.style.display='block'; setTimeout(function(){err.style.display='none';},3500); });
+  var form = document.createElement('form');
+  form.method = 'POST';
+  form.action = ctx + '/login';
+  var fields = {username: user, password: pass, destino: 'estudiante'};
+  Object.keys(fields).forEach(function(k) {
+    var input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = k;
+    input.value = fields[k];
+    form.appendChild(input);
+  });
+  document.body.appendChild(form);
+  form.submit();
 }
 
 document.getElementById('loginPass').addEventListener('keydown', function(e) {
@@ -1219,11 +1213,8 @@ document.getElementById('loginPass').addEventListener('keydown', function(e) {
 
 function cerrarSesion() {
   showConfirm('Desea cerrar sesion?', function() {
-    document.getElementById('page-portal').classList.add('hidden');
-    document.getElementById('page-login').classList.remove('hidden');
-    document.getElementById('loginUser').value = '';
-    document.getElementById('loginPass').value = '';
-    cerrarNotifPanel();
+    var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+    window.location.href = ctx + '/logout';
   });
 }
 
@@ -1440,64 +1431,6 @@ function actualizarBadges_legacy() {
 // ============================================================
 // MENSAJES
 // ============================================================
-function mostrarBandeja() {
-  document.getElementById('panelBandeja').style.display = '';
-  document.getElementById('panelEnviados').style.display = 'none';
-  document.getElementById('btnBandeja').className = 'btn btn-primary btn-sm';
-  document.getElementById('btnEnviados').className = 'btn btn-secondary btn-sm';
-  renderBandeja();
-}
-
-function mostrarEnviados() {
-  document.getElementById('panelBandeja').style.display = 'none';
-  document.getElementById('panelEnviados').style.display = '';
-  document.getElementById('btnBandeja').className = 'btn btn-secondary btn-sm';
-  document.getElementById('btnEnviados').className = 'btn btn-primary btn-sm';
-  renderEnviados();
-}
-
-function renderEnviados() {
-  var cont = document.getElementById('enviados');
-  if (!cont) return;
-  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  cont.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Cargando mensajes enviados...</div>';
-  fetch(ctx+'/mensajes?accion=enviados')
-    .then(function(r){ return r.json(); })
-    .then(function(msgs){
-      cont.innerHTML = '';
-      if (!msgs.length) {
-        cont.innerHTML = '<div style="text-align:center;padding:24px;color:#6b7e96;">No has enviado ningún mensaje.</div>';
-        return;
-      }
-      // Tabla con destinatario, asunto, fecha, estado (leído o no por el destinatario)
-      var html = '<table class="delta-table" style="font-size:14px;">'
-        + '<thead><tr><th>Para</th><th>Asunto</th><th>Fecha</th><th>Estado</th></tr></thead><tbody>';
-      msgs.forEach(function(msg) {
-        var fecha = msg.fecha ? msg.fecha.substring(0, 16).replace('T', ' ') : '';
-        var estado = msg.leido
-          ? '<span class="tag tag-green">✓ Leído</span>'
-          : '<span class="tag tag-amber">⏳ Sin leer</span>';
-        html += '<tr style="cursor:pointer;" onclick="verMsgEnviado(' + JSON.stringify(msg) + ')">'
-          + '<td><strong>' + (msg.destinatario || 'Desconocido') + '</strong></td>'
-          + '<td>' + (msg.asunto || '(Sin asunto)') + '</td>'
-          + '<td style="color:var(--text-soft);font-size:12px;white-space:nowrap;">' + fecha + '</td>'
-          + '<td>' + estado + '</td>'
-          + '</tr>';
-      });
-      html += '</tbody></table>';
-      cont.innerHTML = html;
-    }).catch(function(){
-      cont.innerHTML = '<div style="text-align:center;padding:24px;color:#6b7e96;">No se pudo cargar los mensajes enviados.</div>';
-    });
-}
-
-function verMsgEnviado(msg) {
-  showInfoModal(
-    'Para: ' + (msg.destinatario || '') + ' — ' + (msg.asunto || '(Sin asunto)'),
-    msg.cuerpo || ''
-  );
-}
-
 function renderBandeja() {
   var cont = document.getElementById('bandeja');
   if (!cont) return;
@@ -1594,11 +1527,6 @@ function enviarMsg() {
         document.getElementById('msgCuerpo').value = '';
         renderBandeja();
         actualizarBadges();
-        // Si el panel de enviados está visible, actualizarlo también
-        if (document.getElementById('panelEnviados') &&
-            document.getElementById('panelEnviados').style.display !== 'none') {
-          renderEnviados();
-        }
       } else {
         showToast('Error: ' + (d.error || 'No se pudo enviar el mensaje.'), 'error');
       }

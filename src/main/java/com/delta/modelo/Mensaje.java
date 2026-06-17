@@ -7,6 +7,7 @@ public class Mensaje {
     private int remitenteId;
     private int destinatarioId;
     private String remitenteNombre;
+    private String destinatarioNombre;
     private String asunto;
     private String cuerpo;
     private boolean leido;
@@ -26,6 +27,9 @@ public class Mensaje {
 
     public String getRemitenteNombre()              { return remitenteNombre; }
     public void setRemitenteNombre(String v)        { this.remitenteNombre = v; }
+
+    public String getDestinatarioNombre()           { return destinatarioNombre; }
+    public void setDestinatarioNombre(String v)     { this.destinatarioNombre = v; }
 
     public String getAsunto()                       { return asunto; }
     public void setAsunto(String asunto)            { this.asunto = asunto; }
