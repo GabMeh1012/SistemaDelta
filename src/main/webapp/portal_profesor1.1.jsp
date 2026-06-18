@@ -1,6 +1,9 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" isELIgnored="true" %>
 <%@ page import="com.delta.dao.MensajeDAO, com.delta.dao.GrupoDAO, com.delta.util.ConexionDB, java.sql.*" %>
 <%
+  response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  response.setHeader("Pragma", "no-cache");
+  response.setDateHeader("Expires", 0);
   // ── Verificar sesión ──
   Integer usuarioId_pg  = (Integer) session.getAttribute("usuarioId");
   Integer profesorId_pg = (Integer) session.getAttribute("profesorId");

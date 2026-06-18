@@ -37,7 +37,7 @@
     } catch (Exception e) { /* BD no conectada */ }
     try (Connection _c = ConexionDB.obtenerConexion();
          PreparedStatement _p = _c.prepareStatement(
-           "SELECT CONCAT(e.nombre,' ',e.apellido) AS nom, i.id AS iid, e.cedula, " +
+           "SELECT CONCAT(e.nombre,' ',e.apellido) AS nom, i.id AS iid, e.cedula, e.carrera, " +
            "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, " +
            "MAX(CASE WHEN n.componente='parcial2'     THEN n.nota END) AS p2, " +
            "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, " +
@@ -46,7 +46,7 @@
            "JOIN grupos g ON g.id=i.grupo_id JOIN materias m ON m.id=g.materia_id " +
            "LEFT JOIN notas n ON n.inscripcion_id=i.id " +
            "WHERE m.codigo='IS-401' AND i.estado='activo' " +
-           "GROUP BY e.id, i.id, e.nombre, e.apellido, e.cedula")) {
+           "GROUP BY e.id, i.id, e.nombre, e.apellido, e.cedula, e.carrera")) {
       ResultSet _r = _p.executeQuery();
       boolean _f = true;
       while (_r.next()) {
@@ -60,6 +60,7 @@
         inscripcionesJson.append("\"").append(_nom).append("\":{")
           .append("\"iid\":").append(_r.getInt("iid"))
           .append(",\"cedula\":\"").append(_r.getString("cedula")).append("\"")
+          .append(",\"carrera\":\"").append(_r.getString("carrera") != null ? _r.getString("carrera").replace("\"","") : "").append("\"")
           .append(",\"p1\":").append(_np1   ? 0 : _p1)
           .append(",\"p2\":").append(_np2   ? 0 : _p2)
           .append(",\"proj\":").append(_nproy ? 0 : _proy)
@@ -606,21 +607,21 @@ h1,h2,h3{font-family:'Merriweather',serif;}
           <div class="class-bar" style="background:var(--blue);"></div>
           <div style="flex:1;"><div class="class-name">Calidad del Software</div><div class="class-meta">Grupo 1SF133 · Mar y Jue · 7:00 AM · Aula 3B</div></div>
           <div class="class-right"><div class="class-count" id="cnt1SF133">5 est.</div><div class="class-avg">Prom: <span id="prom1SF133">--</span></div></div>
-          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF133')">Ver Notas</button>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF133')">Ver Estudiantes</button>
         </div>
         <!-- Grupo 1SF131: 4 estudiantes -->
         <div class="class-row">
           <div class="class-bar" style="background:var(--green);"></div>
           <div style="flex:1;"><div class="class-name">Ingeniería de Software I</div><div class="class-meta">Grupo 1SF131 · Lun y Mié · 9:00 AM · Aula 4A</div></div>
           <div class="class-right"><div class="class-count" id="cnt1SF131">4 est.</div><div class="class-avg">Prom: <span id="prom1SF131">--</span></div></div>
-          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF131')">Ver Notas</button>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF131')">Ver Estudiantes</button>
         </div>
         <!-- Grupo 2SF241: 3 estudiantes -->
         <div class="class-row">
           <div class="class-bar" style="background:var(--purple);"></div>
           <div style="flex:1;"><div class="class-name">Pruebas de Software</div><div class="class-meta">Grupo 2SF241 · Vie · 11:00 AM · Lab 2</div></div>
           <div class="class-right"><div class="class-count" id="cnt2SF241">3 est.</div><div class="class-avg">Prom: <span id="prom2SF241">--</span></div></div>
-          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('2SF241')">Ver Notas</button>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('2SF241')">Ver Estudiantes</button>
         </div>
       </div>
 
@@ -638,20 +639,30 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
       </div>
 
-      <!-- GRADES per group (shown inline below) -->
+      <!-- DETALLE DEL GRUPO — solo lectura (consulta) -->
       <div id="grupoGradesSection" class="hidden">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:22px;margin-bottom:14px;">
-          <h3 style="font-family:'Merriweather',serif;font-size:20px;" id="grupoGradesTitle">Calificaciones — Grupo</h3>
+          <h3 style="font-family:'Merriweather',serif;font-size:20px;" id="grupoGradesTitle">Estudiantes — Grupo</h3>
           <button class="btn btn-secondary btn-sm" onclick="closeGrupoGrades()">✕ Cerrar</button>
         </div>
         <div class="card">
+          <div style="font-size:13px;color:var(--text-soft);margin-bottom:14px;">
+            📋 Vista de solo lectura. Para modificar calificaciones, use la sección <strong>Calificaciones</strong>.
+          </div>
           <table class="delta-table">
-            <thead><tr><th>#</th><th>Estudiante</th><th>Cédula</th><th>Parcial 1</th><th>Parcial 2</th><th>Proyecto</th><th>Final</th><th>Nota Final</th><th>Estado</th></tr></thead>
+            <thead>
+              <tr>
+                <th>Estudiante</th>
+                <th>Cédula</th>
+                <th>Carrera</th>
+                <th>Materia</th>
+                <th>Grupo</th>
+                <th>Promedio Final</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
             <tbody id="grupoGradesBody"></tbody>
           </table>
-          <div style="margin-top:18px;display:flex;gap:12px;flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="saveGrupoGrades()">💾 Guardar Calificaciones</button>
-          </div>
         </div>
       </div>
     </div>
@@ -1253,6 +1264,7 @@ const gruposData = {
           return {
             name: nom,
             id: bd.cedula || '',
+            carrera: bd.carrera || '',
             inscripcionId: bd.iid,
             p1:    bd.p1    || 0,
             p2:    bd.p2    || 0,
@@ -1577,9 +1589,6 @@ function renderGradesTable(tbodyId, grupo, editable, onchange) {
         <td>${inputCell(est.modEf,   est.final, rowId+'_fin')}</td>
         <td id="${rowId}_notafinal">${getNotaTag(nota)}</td>
         <td id="${rowId}_estado">${getEstado(nota)}</td>`;
-      if (tbodyId === 'grupoGradesBody') {
-        tr.innerHTML = `<td style="font-weight:800;color:var(--text-soft);">${i+1}</td>` + tr.innerHTML;
-      }
     } else {
       tr.innerHTML = `<td><strong>${est.name}</strong></td><td style="color:var(--text-soft);">${est.id}</td><td>${est.p1}</td><td>${est.p2}</td><td>${est.proj}</td><td>${est.final}</td><td>${getNotaTag(nota)}</td><td>${getEstado(nota)}</td>`;
     }
@@ -1714,10 +1723,6 @@ function confirmSaveGrades() {
 function saveCalificaciones() {
   const grupo = document.getElementById('calGrupoSelect')?.value || '1SF133';
   guardarNotasEnBD('calTableBody', grupo);
-  // Si es 1SF133, sincronizar con la tabla de Mis Grupos
-  if (grupo === '1SF133') {
-    sincronizarTablas('calTableBody', 'grupoGradesBody');
-  }
 }
 
 // ==================== GRUPO GRADES ====================
@@ -1727,23 +1732,32 @@ function openGrupoGrades(grupo) {
   const section = document.getElementById('grupoGradesSection');
   const titleEl = document.getElementById('grupoGradesTitle');
   const g = gruposData[grupo];
-  titleEl.textContent = `Calificaciones — Grupo ${grupo} · ${g.nombre}`;
+  titleEl.textContent = `Estudiantes — Grupo ${grupo} · ${g.nombre}`;
   section.classList.remove('hidden');
-  renderGradesTable('grupoGradesBody', grupo, true, true);
+
+  // Render tabla de solo lectura
+  const tbody = document.getElementById('grupoGradesBody');
+  tbody.innerHTML = '';
+  g.estudiantes.forEach(function(est) {
+    const nota = calcNotaFinal(est.p1, est.p2, est.proj, est.final);
+    const tr = document.createElement('tr');
+    const carrera = est.carrera || 'Ingeniería en Sistemas';
+    tr.innerHTML =
+      `<td><strong>${escHtml(est.name)}</strong></td>` +
+      `<td style="color:var(--text-soft);">${escHtml(est.id)}</td>` +
+      `<td>${escHtml(carrera)}</td>` +
+      `<td>${escHtml(g.nombre)}</td>` +
+      `<td><span style="font-weight:700;">${escHtml(grupo)}</span></td>` +
+      `<td>${getNotaTag(nota)}</td>` +
+      `<td>${getEstado(nota)}</td>`;
+    tbody.appendChild(tr);
+  });
+
   section.scrollIntoView({behavior:'smooth', block:'start'});
 }
 function closeGrupoGrades() {
   document.getElementById('grupoGradesSection').classList.add('hidden');
   currentGrupoGrades = null;
-}
-function saveGrupoGrades() {
-  if (currentGrupoGrades) {
-    guardarNotasEnBD('grupoGradesBody', currentGrupoGrades);
-    // Si es 1SF133, sincronizar con la tabla de Calificaciones
-    if (currentGrupoGrades === '1SF133') {
-      sincronizarTablas('grupoGradesBody', 'calTableBody');
-    }
-  }
 }
 
 function sincronizarTablas(origen, destino) {
