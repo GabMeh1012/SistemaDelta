@@ -22,7 +22,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="ctx" content="<%= request.getContextPath() %>">
-<title>PRUEBA123 — Portal Administrativo</title>
+<title>Sistema Delta — Portal Administrativo</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Merriweather:wght@700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -525,7 +525,7 @@ function cargarMaterias() {
     var tbl = document.getElementById('tblMaterias');
     var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Cupos</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(r, idx) {
-      var creditosInput = '<input class="edit-input" type="number" min="1" max="10" id="mCred_'+idx+'" value="'+r.creditos+'">';
+    	var creditosInput = '<span style="font-weight:700;">'+r.creditos+'</span>';
       var capacidadCell, profesorCell, accionesCell;
       if (r.grupoId != null) {
         capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'">';
