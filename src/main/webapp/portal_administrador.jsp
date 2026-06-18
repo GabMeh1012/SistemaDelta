@@ -245,7 +245,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
       <div class="nav-label">Supervision</div>
       <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
-      <button class="nav-item" onclick="irTab('sup-asistencia',this)"><span class="nav-icon">&#9989;</span> Asistencia</button>
       <div class="nav-label">Comunicacion</div>
       <button class="nav-item" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
       <button class="nav-item" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
@@ -317,29 +316,17 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- SUPERVISION CALIFICACIONES -->
     <div id="tab-sup-calificaciones" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">Supervision de Calificaciones</h2>
-        <div class="page-subtitle">Notas que han sido modificadas al menos una vez, con su limite de cambios permitidos</div>
+        <h2 class="page-title">Calificaciones — Calidad de Software</h2>
+        <div class="page-subtitle">Notas por componente con historial de modificaciones y autorizaciones</div>
       </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupCalificaciones"></table></div></div>
-      <div class="card" id="historialCard" style="display:none;">
-        <div class="card-title">Historial de cambios <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historialCard').style.display='none';" style="margin-left:auto;">Cerrar</button></div>
+      <div id="contenedorCalificaciones" style="display:flex;flex-direction:column;gap:0;"></div>
+      <div class="card" id="historialCard" style="display:none;margin-top:20px;">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Historial de cambios
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historialCard').style.display='none';">Cerrar</button>
+        </div>
         <div style="overflow-x:auto;"><table class="delta-table" id="tblHistorialNota"></table></div>
       </div>
-    </div>
-
-    <!-- SUPERVISION ASISTENCIA -->
-    <div id="tab-sup-asistencia" class="tab-panel">
-      <div class="topbar">
-        <h2 class="page-title">Supervision de Asistencia</h2>
-        <div class="page-subtitle">Asistencia registrada por los profesores, con opcion de correccion</div>
-      </div>
-      <div class="filter-row">
-        <select id="fAsistGrupo"><option value="">Todos los grupos</option></select>
-        <select id="fAsistMateria"><option value="">Todas las materias</option></select>
-        <input id="fAsistFecha" type="date">
-        <button class="btn btn-primary btn-sm" onclick="cargarSupervisionAsistencia()">Filtrar</button>
-      </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupAsistencia"></table></div></div>
     </div>
 
     <!-- AVISOS -->
@@ -443,7 +430,6 @@ function irTab(id, btn) {
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
   if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
-  if (id==='sup-asistencia') cargarSupervisionAsistencia();
   if (id==='avisos') cargarAvisos('todos', document.querySelector('#filtrosAvisos button'));
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
@@ -789,32 +775,91 @@ var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Pr
 
 function cargarSupervisionCalificaciones() {
   fetch(CTX+'/admin?accion=supervisionCalificaciones').then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblSupCalificaciones');
+    var container = document.getElementById('contenedorCalificaciones');
     if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td colspan="7" style="text-align:center;color:var(--text-soft);padding:20px;">No hay notas registradas todavia.</td></tr></tbody>';
+      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay notas registradas para Calidad de Software.</div>';
       return;
     }
-    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Componente</th><th>Nota Actual</th><th>Modificaciones</th><th>Acciones</th></tr></thead><tbody>';
+
+    // Agrupar por inscripcionId (un estudiante = un grupo de componentes)
+    var porInscripcion = {};
     rows.forEach(function(r) {
-      var notaTxt = (r.notaActual != null && r.notaActual !== 0) ? r.notaActual : (r.notaActual === 0 ? '0' : '-');
-      var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
-      var modTag;
-      if (r.modificaciones === 0) modTag = '<span class="tag tag-green">0 / '+r.limite+' (sin cambios)</span>';
-      else if (r.enLimite) modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
-      else modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
-      html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        +'<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        +'<td>'+esc(r.grupo||'-')+'</td>'
-        +'<td>'+esc(compLabel)+'</td>'
-        +'<td><strong>'+notaTxt+'</strong></td>'
-        +'<td>'+modTag+'</td>'
-        +'<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-        +'<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
-      if (r.enLimite) html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
-      if (r.modificaciones > 0) html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
-      html += '</td></tr>';
+      if (!porInscripcion[r.inscripcionId]) {
+        porInscripcion[r.inscripcionId] = {
+          inscripcionId: r.inscripcionId,
+          estudiante: r.estudiante,
+          materia: r.materia,
+          materiaCodigo: r.materiaCodigo,
+          grupo: r.grupo,
+          componentes: []
+        };
+      }
+      porInscripcion[r.inscripcionId].componentes.push(r);
     });
-    tbl.innerHTML = html + '</tbody>';
+
+    var html = '';
+    Object.keys(porInscripcion).forEach(function(inscId) {
+      var est = porInscripcion[inscId];
+      var inicial = esc(est.estudiante.charAt(0).toUpperCase());
+
+      // Calcular promedio visual con los componentes disponibles
+      var notas = {};
+      est.componentes.forEach(function(c) { notas[c.componente] = c.notaActual; });
+      var tieneAlguna = notas.parcial1!=null || notas.parcial2!=null || notas.proyecto!=null || notas.examen_final!=null;
+      var promedio = '-';
+      if (tieneAlguna) {
+        var p = ((notas.parcial1||0)*0.25 + (notas.parcial2||0)*0.25 + (notas.proyecto||0)*0.20 + (notas.examen_final||0)*0.30);
+        promedio = Math.round(p * 10) / 10;
+      }
+
+      html += '<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">';
+      // Cabecera del estudiante
+      html += '<div style="background:var(--purple-light);padding:16px 20px;border-bottom:2px solid #e8edf5;display:flex;align-items:center;gap:12px;">'
+            + '<div style="width:42px;height:42px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;">'
+            + inicial + '</div>'
+            + '<div style="flex:1;">'
+            + '<div style="font-weight:800;font-size:16px;color:var(--purple);">'+esc(est.estudiante)+'</div>'
+            + '<div style="font-size:12px;color:var(--text-soft);">'+esc(est.materia)+' ('+esc(est.materiaCodigo)+') &bull; Grupo: '+esc(est.grupo||'-')+'</div>'
+            + '</div>'
+            + '<div style="text-align:right;">'
+            + '<div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Promedio</div>'
+            + '<div style="font-size:22px;font-weight:800;color:var(--purple);">'+promedio+'</div>'
+            + '</div>'
+            + '</div>';
+
+      // Tabla de componentes
+      html += '<div style="padding:16px 20px;">';
+      html += '<table class="delta-table" style="margin-bottom:0;">'
+            + '<thead><tr>'
+            + '<th>Componente</th>'
+            + '<th style="text-align:center;">Nota</th>'
+            + '<th>Modificaciones</th>'
+            + '<th>Acciones</th>'
+            + '</tr></thead><tbody>';
+
+      est.componentes.forEach(function(r) {
+        var notaTxt = (r.notaActual != null) ? r.notaActual : '<span style="color:var(--text-soft);">Sin registrar</span>';
+        var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
+        var modTag;
+        if (r.modificaciones === 0) modTag = '<span class="tag tag-green">0 / '+r.limite+' sin cambios</span>';
+        else if (r.enLimite) modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' limite alcanzado</span>';
+        else modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
+
+        html += '<tr>'
+          + '<td><strong>'+esc(compLabel)+'</strong></td>'
+          + '<td style="text-align:center;font-weight:800;">'+notaTxt+'</td>'
+          + '<td>'+modTag+'</td>'
+          + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
+          + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
+        if (r.enLimite) html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
+        if (r.modificaciones > 0) html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
+        html += '</td></tr>';
+      });
+
+      html += '</tbody></table></div></div>';
+    });
+
+    container.innerHTML = html;
   }).catch(function(){ showToast('Error al cargar supervision de calificaciones.', 'error'); });
 }
 
@@ -856,71 +901,6 @@ function reiniciarModificaciones(inscripcionId, componente) {
         else showToast('Error: '+(d.error||'No se pudo reiniciar.'),'error');
       }).catch(function(){ showToast('Error de conexion.','error'); });
   });
-}
-
-var ESTADO_ASISTENCIA_LABEL = {present:'Presente', late:'Tardanza', absent:'Ausente'};
-var filtrosAsistenciaListos = false;
-
-function poblarFiltrosAsistencia() {
-  if (filtrosAsistenciaListos) return;
-  fetch(CTX+'/admin?accion=materias').then(function(r){ return r.json(); }).then(function(rows) {
-    var gruposVistos = {}, materiasVistas = {};
-    var selGrupo = document.getElementById('fAsistGrupo');
-    var selMateria = document.getElementById('fAsistMateria');
-    rows.forEach(function(r) {
-      if (r.grupoId != null && !gruposVistos[r.grupoId]) {
-        gruposVistos[r.grupoId] = true;
-        var opt = document.createElement('option'); opt.value = r.grupoId; opt.textContent = r.grupo+' - '+r.nombre; selGrupo.appendChild(opt);
-      }
-      if (!materiasVistas[r.id]) {
-        materiasVistas[r.id] = true;
-        var opt2 = document.createElement('option'); opt2.value = r.id; opt2.textContent = r.codigo+' - '+r.nombre; selMateria.appendChild(opt2);
-      }
-    });
-    filtrosAsistenciaListos = true;
-  }).catch(function(){});
-}
-
-function cargarSupervisionAsistencia() {
-  poblarFiltrosAsistencia();
-  var grupoId = document.getElementById('fAsistGrupo').value;
-  var materiaId = document.getElementById('fAsistMateria').value;
-  var fecha = document.getElementById('fAsistFecha').value;
-  var q = 'accion=supervisionAsistencia';
-  if (grupoId) q += '&grupoId='+grupoId;
-  if (materiaId) q += '&materiaId='+materiaId;
-  if (fecha) q += '&fecha='+fecha;
-  fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblSupAsistencia');
-    if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay registros de asistencia para estos filtros.</td></tr></tbody>';
-      return;
-    }
-    var html = '<thead><tr><th>Fecha</th><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Estado</th><th>Observacion</th><th>Corregir</th></tr></thead><tbody>';
-    rows.forEach(function(r, idx) {
-      var estadoOptions = ['present','late','absent'].map(function(e){
-        return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+ESTADO_ASISTENCIA_LABEL[e]+'</option>';
-      }).join('');
-      html += '<tr><td>'+esc(r.fecha)+'</td><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        +'<td>'+esc(r.materia)+'</td><td>'+esc(r.grupo)+'</td>'
-        +'<td><select class="edit-select" id="asistEstado_'+idx+'">'+estadoOptions+'</select></td>'
-        +'<td><input class="edit-input" style="width:140px;" type="text" id="asistObs_'+idx+'" value="'+esc(r.observacion||'')+'"></td>'
-        +'<td><button class="btn btn-primary btn-sm" onclick="corregirAsistencia('+r.inscripcionId+',\''+r.fecha+'\','+idx+')">Guardar</button></td></tr>';
-    });
-    tbl.innerHTML = html + '</tbody>';
-  }).catch(function(){ showToast('Error al cargar supervision de asistencia.', 'error'); });
-}
-
-function corregirAsistencia(inscripcionId, fecha, idx) {
-  var estado = document.getElementById('asistEstado_'+idx).value;
-  var observacion = document.getElementById('asistObs_'+idx).value;
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'accion=corregirAsistencia&inscripcionId='+inscripcionId+'&fecha='+fecha+'&estado='+estado+'&observacion='+encodeURIComponent(observacion)})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok) showToast('Registro de asistencia corregido.','success');
-      else showToast('Error: '+(d.error||'No se pudo corregir.'),'error');
-    }).catch(function(){ showToast('Error de conexion.','error'); });
 }
 
 var REPORTE_COL_LABEL = {

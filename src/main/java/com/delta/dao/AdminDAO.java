@@ -451,7 +451,7 @@ public class AdminDAO {
                    + "JOIN estudiantes e ON e.id = i.estudiante_id "
                    + "JOIN grupos g ON g.id = i.grupo_id "
                    + "JOIN materias m ON m.id = g.materia_id "
-                   + "WHERE i.estado = 'activo' "
+                   + "WHERE i.estado = 'activo' AND m.nombre = 'Calidad del Software' "
                    + "ORDER BY e.apellido, e.nombre, n.componente";
         List<Map<String, Object>> lista = new ArrayList<>();
         try (Connection con = ConexionDB.obtenerConexion();
