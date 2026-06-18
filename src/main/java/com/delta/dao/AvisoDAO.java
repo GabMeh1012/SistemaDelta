@@ -1,8 +1,6 @@
 package com.delta.dao;
-
 import com.delta.modelo.Aviso;
 import com.delta.util.ConexionDB;
-
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -13,28 +11,28 @@ import java.util.List;
 public class AvisoDAO {
 
     /**
-     * Lista los avisos visibles para un estudiante: los institucionales
+     * Lista los avisos ACTIVOS visibles para un estudiante: los institucionales
      * (grupo_id IS NULL, profesor_id IS NULL) más los publicados por
      * profesores dirigidos a "todos sus grupos" (grupo_id IS NULL,
      * profesor_id NOT NULL) o a un grupo específico en el que el
      * estudiante esté inscrito activamente.
+     * Solo se devuelven avisos con estado='activo' (o sin estado definido).
      */
     public List<Aviso> listarParaEstudiante(int usuarioId) throws SQLException {
         List<Aviso> lista = new ArrayList<>();
-
         String sql = "SELECT a.id, a.profesor_id, a.grupo_id, a.titulo, a.cuerpo, a.tipo, a.created_at, "
                    + "CONCAT(p.nombre,' ',p.apellido) AS profesor_nombre, g.codigo_grupo "
                    + "FROM avisos a "
                    + "LEFT JOIN profesores p ON p.id = a.profesor_id "
                    + "LEFT JOIN grupos g ON g.id = a.grupo_id "
-                   + "WHERE a.grupo_id IS NULL "
+                   + "WHERE COALESCE(a.estado,'activo') = 'activo' "
+                   + "  AND (a.grupo_id IS NULL "
                    + "   OR a.grupo_id IN ("
                    + "         SELECT i.grupo_id FROM inscripciones i "
                    + "         JOIN estudiantes e ON e.id = i.estudiante_id "
                    + "         WHERE e.usuario_id = ? AND i.estado = 'activo'"
-                   + "       ) "
+                   + "       )) "
                    + "ORDER BY a.created_at DESC";
-
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, usuarioId);
@@ -45,18 +43,20 @@ public class AvisoDAO {
         return lista;
     }
 
-    /** Lista los avisos publicados por un profesor (para mostrarlos en su propio panel). */
+    /**
+     * Lista los avisos ACTIVOS publicados por un profesor (para mostrarlos en su propio panel).
+     * Solo se devuelven avisos con estado='activo' (o sin estado definido).
+     */
     public List<Aviso> listarPorProfesor(int profesorId) throws SQLException {
         List<Aviso> lista = new ArrayList<>();
-
         String sql = "SELECT a.id, a.profesor_id, a.grupo_id, a.titulo, a.cuerpo, a.tipo, a.created_at, "
                    + "CONCAT(p.nombre,' ',p.apellido) AS profesor_nombre, g.codigo_grupo "
                    + "FROM avisos a "
                    + "LEFT JOIN profesores p ON p.id = a.profesor_id "
                    + "LEFT JOIN grupos g ON g.id = a.grupo_id "
                    + "WHERE a.profesor_id = ? "
+                   + "  AND COALESCE(a.estado,'activo') = 'activo' "
                    + "ORDER BY a.created_at DESC";
-
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, profesorId);
@@ -78,7 +78,6 @@ public class AvisoDAO {
     public int crear(int profesorId, Integer grupoId, String titulo, String cuerpo, String tipo) throws SQLException {
         String tipoFinal = (tipo == null || tipo.isEmpty()) ? "info" : tipo;
         String sql = "INSERT INTO avisos (profesor_id, grupo_id, titulo, cuerpo, tipo) VALUES (?,?,?,?,?)";
-
         int avisoId = -1;
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
@@ -92,7 +91,6 @@ public class AvisoDAO {
                 if (rs.next()) avisoId = rs.getInt(1);
             }
         }
-
         if (avisoId != -1) {
             notificarEstudiantes(profesorId, grupoId, avisoId, titulo, cuerpo);
         }
@@ -107,22 +105,18 @@ public class AvisoDAO {
                                        String titulo, String cuerpo) throws SQLException {
         String sqlUsuarios;
         if (grupoId != null) {
-            // Estudiantes inscritos activamente en ese grupo
             sqlUsuarios = "SELECT DISTINCT e.usuario_id FROM inscripciones i "
                         + "JOIN estudiantes e ON e.id = i.estudiante_id "
                         + "WHERE i.grupo_id = ? AND i.estado = 'activo'";
         } else {
-            // Estudiantes inscritos activamente en cualquier grupo del profesor
             sqlUsuarios = "SELECT DISTINCT e.usuario_id FROM inscripciones i "
                         + "JOIN estudiantes e ON e.id = i.estudiante_id "
                         + "JOIN grupos g ON g.id = i.grupo_id "
                         + "WHERE g.profesor_id = ? AND i.estado = 'activo'";
         }
-
         String resumenCuerpo = cuerpo.length() > 150 ? cuerpo.substring(0, 147) + "..." : cuerpo;
         String sqlNotif = "INSERT INTO notificaciones (usuario_id, tipo, titulo, cuerpo, enlace) "
                         + "VALUES (?, 'aviso', ?, ?, 'avisos')";
-
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
             try {
@@ -133,7 +127,6 @@ public class AvisoDAO {
                         while (rs.next()) usuarioIds.add(rs.getInt("usuario_id"));
                     }
                 }
-
                 try (PreparedStatement psN = con.prepareStatement(sqlNotif)) {
                     for (int usuarioId : usuarioIds) {
                         psN.setInt(1, usuarioId);
@@ -143,7 +136,6 @@ public class AvisoDAO {
                     }
                     if (!usuarioIds.isEmpty()) psN.executeBatch();
                 }
-
                 con.commit();
             } catch (SQLException ex) {
                 con.rollback();
