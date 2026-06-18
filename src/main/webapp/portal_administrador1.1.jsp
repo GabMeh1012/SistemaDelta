@@ -1,8 +1,5 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8" isELIgnored="true" %>
 <%
-  response.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  response.setHeader("Pragma", "no-cache");
-  response.setDateHeader("Expires", 0);
   Integer adm_usuarioId = (Integer) session.getAttribute("usuarioId");
   String  adm_rol       = (String)  session.getAttribute("usuarioRol");
   String  adm_nombre    = (String)  session.getAttribute("adminNombre");
@@ -120,6 +117,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .tag-green { background:#dcfce7; color:#15803d; }
 .tag-amber { background:#fef3c7; color:#b45309; }
 .tag-red { background:#fee2e2; color:#dc2626; }
+.tag-gray { background:#f1f5f9; color:#64748b; }
 .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
 .filter-row input, .filter-row select { padding:9px 12px; border:2px solid #e2e8f0;
   border-radius:8px; font-family:inherit; font-size:14px; }
@@ -129,35 +127,19 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .sub-nav button.active { border-color:var(--purple); background:var(--purple-light); color:var(--purple); }
 @media(max-width:900px) { .stats-4 { grid-template-columns:1fr 1fr; } .main-content { padding:20px; } }
 
-/* TOASTS Y MODAL DE CONFIRMACION */
-.toast-container{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:12px;max-width:380px;pointer-events:none;}
-.toast{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-radius:12px;background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.15),0 2px 8px rgba(0,0,0,.08);border-left:5px solid var(--purple);font-size:14px;color:var(--text);animation:toast-in 0.3s cubic-bezier(.34,1.56,.64,1);line-height:1.5;pointer-events:all;position:relative;overflow:hidden;min-width:280px;}
+/* TOASTS Y MODAL */
+.toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px;}
+.toast{display:flex;align-items:flex-start;gap:10px;padding:14px 16px;border-radius:10px;background:#fff;box-shadow:0 8px 24px rgba(0,0,0,.12);border-left:5px solid var(--purple);font-size:14px;color:var(--text);animation:toast-in 0.25s ease-out;line-height:1.4;}
 .toast.toast-success{border-left-color:var(--green);}
 .toast.toast-error{border-left-color:var(--red);}
-.toast.toast-warning{border-left-color:var(--amber);}
 .toast.toast-info{border-left-color:var(--purple);}
-.toast-icon-box{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;}
-.toast-success .toast-icon-box{background:var(--green-bg);}
-.toast-error   .toast-icon-box{background:var(--red-bg);}
-.toast-warning .toast-icon-box{background:var(--amber-bg);}
-.toast-info    .toast-icon-box{background:var(--purple-bg);}
-.toast-content{flex:1;min-width:0;}
-.toast-title{font-weight:800;font-size:14px;margin-bottom:2px;}
-.toast-success .toast-title{color:var(--green);}
-.toast-error   .toast-title{color:var(--red);}
-.toast-warning .toast-title{color:var(--amber);}
-.toast-info    .toast-title{color:var(--purple);}
-.toast-msg{font-size:13px;color:var(--text-mid);white-space:pre-line;line-height:1.4;}
-.toast-close{cursor:pointer;color:var(--text-soft);font-size:18px;line-height:1;flex-shrink:0;background:none;border:none;padding:0 0 0 4px;margin-top:-2px;}
+.toast-icon{font-size:18px;flex-shrink:0;line-height:1.4;}
+.toast-msg{flex:1;white-space:pre-line;}
+.toast-close{cursor:pointer;color:var(--text-soft);font-size:16px;line-height:1;flex-shrink:0;background:none;border:none;padding:0;}
 .toast-close:hover{color:var(--text);}
-.toast-progress{position:absolute;bottom:0;left:0;height:3px;}
-.toast-success .toast-progress{background:var(--green);}
-.toast-error   .toast-progress{background:var(--red);}
-.toast-warning .toast-progress{background:var(--amber);}
-.toast-info    .toast-progress{background:var(--purple);}
-.toast.toast-out{animation:toast-out 0.25s ease-in forwards;}
-@keyframes toast-in{from{opacity:0;transform:translateX(40px) scale(0.95);}to{opacity:1;transform:translateX(0) scale(1);}}
-@keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(40px);}}
+.toast.toast-out{animation:toast-out 0.2s ease-in forwards;}
+@keyframes toast-in{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(30px);}}
 .modal-overlay{position:fixed;inset:0;background:rgba(30,42,59,.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;}
 .modal-overlay.hidden{display:none;}
 .modal-box{background:#fff;border-radius:10px;max-width:420px;width:100%;padding:24px;box-shadow:0 12px 40px rgba(0,0,0,.2);}
@@ -165,11 +147,13 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
 .edit-input{width:70px;text-align:center;padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
 .edit-select{padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
+.aviso-field-label{display:block;font-size:13px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
+.aviso-field-input{width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
+.aviso-field-input:focus{border-color:var(--purple);outline:none;}
 </style>
 </head>
 <body>
 
-<!-- TOASTS Y MODAL DE CONFIRMACION -->
 <div class="toast-container" id="toastContainer"></div>
 <div class="modal-overlay hidden" id="confirmOverlay">
   <div class="modal-box">
@@ -177,6 +161,32 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div class="modal-actions">
       <button class="btn btn-secondary" id="confirmCancelBtn">Cancelar</button>
       <button class="btn btn-primary" id="confirmOkBtn">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR AVISO -->
+<div class="modal-overlay hidden" id="editAvisoOverlay">
+  <div class="modal-box" style="max-width:500px;">
+    <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;">Editar Aviso</h3>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Titulo</label>
+      <input type="text" id="editAvisoTitulo" class="aviso-field-input">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Contenido</label>
+      <textarea id="editAvisoCuerpo" rows="4" class="aviso-field-input" style="resize:vertical;"></textarea>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="aviso-field-label">Estado</label>
+      <select id="editAvisoEstado" class="aviso-field-input" style="width:auto;">
+        <option value="activo">Activo</option>
+        <option value="archivado">Archivado</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cerrarEditarAviso()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAviso()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -198,10 +208,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <label for="loginPass">Contrasena</label>
       <input id="loginPass" type="password" placeholder="********" autocomplete="current-password">
     </div>
-    <div class="login-error" id="loginError" style="display:none;">Usuario o contraseña incorrecto.</div>
-    <% if (adm_loginError) { %>
-    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.','error'); });</script>
-    <% } %>
+    <div class="login-error" id="loginError">Usuario o contrasena incorrecto.</div>
+    <% if (adm_loginError) { %><script>document.getElementById('loginError').style.display='block';</script><% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Demo: usuario <strong>admin</strong> &middot; clave <strong>1234</strong></div>
     <div class="login-switch"><a href="index.jsp">&#8592; Volver a seleccion de portal</a></div>
@@ -263,7 +271,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <input id="fEstNombre" placeholder="Nombre" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <input id="fEstCedula" placeholder="Cedula / Matricula" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <input id="fEstCarrera" placeholder="Carrera" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
-        <input id="fEstMateria" placeholder="Materia inscrita" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
+        <input id="fEstMateria" placeholder="Materia inscrita (ej: Calculo)" onkeyup="if(event.key==='Enter')cargarEstudiantes()">
         <button class="btn btn-primary btn-sm" onclick="cargarEstudiantes()">Filtrar</button>
       </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblEstudiantes"></table></div></div>
@@ -273,9 +281,9 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div id="tab-profesores" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Profesores</h2></div>
       <div class="filter-row">
-        <input id="fProfNombre" placeholder="Nombre">
-        <input id="fProfDepto" placeholder="Departamento">
-        <input id="fProfMateria" placeholder="Materia">
+        <input id="fProfNombre" placeholder="Nombre" onkeyup="if(event.key==='Enter')cargarProfesores()">
+        <input id="fProfDepto" placeholder="Departamento" onkeyup="if(event.key==='Enter')cargarProfesores()">
+        <input id="fProfMateria" placeholder="Materia" onkeyup="if(event.key==='Enter')cargarProfesores()">
         <button class="btn btn-primary btn-sm" onclick="cargarProfesores()">Filtrar</button>
       </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblProfesores"></table></div></div>
@@ -297,7 +305,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSolicitudes"></table></div></div>
     </div>
 
-    <!-- LIMITES DE SOLICITUDES -->
+    <!-- LIMITES -->
     <div id="tab-limites" class="tab-panel">
       <div class="topbar">
         <h2 class="page-title">&#128273; Limites de Solicitudes</h2>
@@ -306,7 +314,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblLimites"></table></div></div>
     </div>
 
-    <!-- SUPERVISION DE CALIFICACIONES -->
+    <!-- SUPERVISION CALIFICACIONES -->
     <div id="tab-sup-calificaciones" class="tab-panel">
       <div class="topbar">
         <h2 class="page-title">Supervision de Calificaciones</h2>
@@ -319,7 +327,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       </div>
     </div>
 
-    <!-- SUPERVISION DE ASISTENCIA -->
+    <!-- SUPERVISION ASISTENCIA -->
     <div id="tab-sup-asistencia" class="tab-panel">
       <div class="topbar">
         <h2 class="page-title">Supervision de Asistencia</h2>
@@ -337,13 +345,17 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- AVISOS -->
     <div id="tab-avisos" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Avisos</h2></div>
+      <div class="sub-nav" id="filtrosAvisos">
+        <button class="active" data-estado="todos" onclick="cargarAvisos('todos',this)">Todos</button>
+        <button data-estado="activo" onclick="cargarAvisos('activo',this)">Activos</button>
+        <button data-estado="archivado" onclick="cargarAvisos('archivado',this)">Archivados</button>
+      </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblAvisos"></table></div></div>
     </div>
 
     <!-- REPORTES -->
     <div id="tab-reportes" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Reportes</h2></div>
-
       <div class="card-title" style="margin-bottom:8px;">Reportes Academicos</div>
       <div class="sub-nav">
         <button class="active" onclick="cargarReporte('reportePromedioMateria',this)">Promedio por Materia</button>
@@ -352,26 +364,22 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <button onclick="cargarReporte('reporteAprobadosReprobados',this,{orden:'reprobados'})">Mas Reprobados</button>
         <button onclick="cargarReporte('reporteRiesgo',this)">Estudiantes en Riesgo</button>
       </div>
-
       <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Matricula</div>
       <div class="sub-nav">
         <button onclick="cargarReporte('reporteInscritos',this,{orden:'desc'})">Mas Inscritos</button>
         <button onclick="cargarReporte('reporteInscritos',this,{orden:'asc'})">Menos Inscritos</button>
         <button onclick="cargarReporte('reporteCupos',this)">Cupos Disponibles</button>
       </div>
-
       <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Profesores</div>
       <div class="sub-nav">
         <button onclick="cargarReporte('reporteCargaProfesores',this)">Carga Academica y Horas Semanales</button>
       </div>
-
       <div class="card-title" style="margin-bottom:8px;margin-top:18px;">Reportes de Asistencia</div>
       <div class="sub-nav">
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'estudiante'})">% Asistencia por Estudiante</button>
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'grupo'})">% Asistencia por Grupo</button>
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'materia'})">% Asistencia por Materia</button>
       </div>
-
       <div class="card" style="margin-top:18px;"><div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div></div>
     </div>
 
@@ -384,56 +392,28 @@ var HAY_BD = <%= adm_hayBD %>;
 
 function showToast(mensaje, tipo) {
   tipo = tipo || 'info';
-  var config = {
-    success: { titulo: 'Éxito',       icono: '✅', duracion: 4000 },
-    error:   { titulo: 'Error',       icono: '❌', duracion: 6000 },
-    warning: { titulo: 'Advertencia', icono: '⚠️', duracion: 5000 },
-    info:    { titulo: 'Información', icono: 'ℹ️', duracion: 4000 }
-  };
-  var cfg = config[tipo] || config.info;
+  var iconos = { success:'✅', error:'❌', info:'ℹ️' };
   var container = document.getElementById('toastContainer');
   if (!container) { window.alert(mensaje); return; }
   var toast = document.createElement('div');
   toast.className = 'toast toast-' + tipo;
-  toast.innerHTML =
-    '<div class="toast-icon-box">' + cfg.icono + '</div>' +
-    '<div class="toast-content">' +
-      '<div class="toast-title">' + cfg.titulo + '</div>' +
-      '<div class="toast-msg"></div>' +
-    '</div>' +
-    '<button class="toast-close" aria-label="Cerrar">&times;</button>' +
-    '<div class="toast-progress" style="width:100%;"></div>';
+  toast.innerHTML = '<span class="toast-icon">'+(iconos[tipo]||iconos.info)+'</span><span class="toast-msg"></span><button class="toast-close">&times;</button>';
   toast.querySelector('.toast-msg').textContent = mensaje;
-  var quitar = function() {
-    if (toast._removed) return;
-    toast._removed = true;
-    toast.classList.add('toast-out');
-    setTimeout(function(){ if (toast.parentNode) toast.parentNode.removeChild(toast); }, 250);
-  };
+  var quitar = function(){ toast.classList.add('toast-out'); setTimeout(function(){ if(toast.parentNode) toast.parentNode.removeChild(toast); },200); };
   toast.querySelector('.toast-close').addEventListener('click', quitar);
   container.appendChild(toast);
-  var bar = toast.querySelector('.toast-progress');
-  bar.style.transition = 'width ' + cfg.duracion + 'ms linear';
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ bar.style.width = '0%'; }); });
-  var timer = setTimeout(quitar, cfg.duracion);
-  toast.addEventListener('mouseenter', function(){ clearTimeout(timer); bar.style.transition = 'none'; });
-  toast.addEventListener('mouseleave', function(){
-    var remaining = parseFloat(bar.style.width) / 100 * cfg.duracion;
-    bar.style.transition = 'width ' + remaining + 'ms linear';
-    bar.style.width = '0%';
-    timer = setTimeout(quitar, remaining);
-  });
+  setTimeout(quitar, 4000);
 }
 
 function showConfirm(mensaje, onConfirm) {
   var overlay = document.getElementById('confirmOverlay');
-  var msgEl   = document.getElementById('confirmMsg');
-  var okBtn   = document.getElementById('confirmOkBtn');
+  var msgEl = document.getElementById('confirmMsg');
+  var okBtn = document.getElementById('confirmOkBtn');
   var cancelBtn = document.getElementById('confirmCancelBtn');
-  if (!overlay) { if (window.confirm(mensaje)) onConfirm(); return; }
+  if (!overlay) { if(window.confirm(mensaje)) onConfirm(); return; }
   msgEl.textContent = mensaje;
   overlay.classList.remove('hidden');
-  function cerrar() { overlay.classList.add('hidden'); okBtn.onclick = null; cancelBtn.onclick = null; }
+  function cerrar(){ overlay.classList.add('hidden'); okBtn.onclick=null; cancelBtn.onclick=null; }
   okBtn.onclick = function(){ cerrar(); onConfirm(); };
   cancelBtn.onclick = cerrar;
 }
@@ -444,18 +424,10 @@ function doLogin() {
   var err  = document.getElementById('loginError');
   if (!user || !pass) { err.style.display='block'; return; }
   var form = document.createElement('form');
-  form.method = 'POST';
-  form.action = CTX + '/login';
-  var fields = {username: user, password: pass, destino: 'admin'};
-  Object.keys(fields).forEach(function(k) {
-    var input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = k;
-    input.value = fields[k];
-    form.appendChild(input);
-  });
-  document.body.appendChild(form);
-  form.submit();
+  form.method = 'POST'; form.action = CTX + '/login';
+  var fields = {username:user, password:pass, destino:'admin'};
+  Object.keys(fields).forEach(function(k){ var inp=document.createElement('input'); inp.type='hidden'; inp.name=k; inp.value=fields[k]; form.appendChild(inp); });
+  document.body.appendChild(form); form.submit();
 }
 document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 
@@ -472,27 +444,23 @@ function irTab(id, btn) {
   if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
   if (id==='sup-asistencia') cargarSupervisionAsistencia();
-  if (id==='avisos') cargarAvisos();
+  if (id==='avisos') cargarAvisos('todos', document.querySelector('#filtrosAvisos button'));
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
 
-function cerrarSesion() {
-  window.location.href = CTX + '/logout';
-}
+function cerrarSesion() { window.location.href = CTX + '/logout'; }
 
 function cargarDashboard() {
   if (!HAY_BD) return;
-  fetch(CTX+'/admin?accion=dashboard')
-    .then(function(r){ return r.json(); })
-    .then(function(d) {
-      document.getElementById('dashStats').innerHTML =
-        statCard('&#127891;', 'Estudiantes', d.totalEstudiantes) +
-        statCard('&#128104;&#8205;&#127979;', 'Profesores', d.totalProfesores) +
-        statCard('&#128218;', 'Materias', d.totalMaterias) +
-        statCard('&#128227;', 'Avisos Activos', d.avisosActivos) +
-        statCard('&#128203;', 'Inscripciones Pendientes', d.pendInscripcion) +
-        statCard('&#128465;', 'Retiros Pendientes', d.pendRetiro);
-    });
+  fetch(CTX+'/admin?accion=dashboard').then(function(r){ return r.json(); }).then(function(d) {
+    document.getElementById('dashStats').innerHTML =
+      statCard('&#127891;','Estudiantes',d.totalEstudiantes) +
+      statCard('&#128104;&#8205;&#127979;','Profesores',d.totalProfesores) +
+      statCard('&#128218;','Materias',d.totalMaterias) +
+      statCard('&#128227;','Avisos Activos',d.avisosActivos) +
+      statCard('&#128203;','Inscripciones Pendientes',d.pendInscripcion) +
+      statCard('&#128465;','Retiros Pendientes',d.pendRetiro);
+  });
 }
 
 function statCard(icon, label, val) {
@@ -501,31 +469,30 @@ function statCard(icon, label, val) {
 
 function cargarEstudiantes() {
   var q = 'accion=estudiantes'
-    + '&nombre=' + encodeURIComponent(document.getElementById('fEstNombre').value)
-    + '&cedula=' + encodeURIComponent(document.getElementById('fEstCedula').value)
-    + '&carrera=' + encodeURIComponent(document.getElementById('fEstCarrera').value)
-    + '&materia=' + encodeURIComponent(document.getElementById('fEstMateria').value);
+    +'&nombre='+encodeURIComponent(document.getElementById('fEstNombre').value)
+    +'&cedula='+encodeURIComponent(document.getElementById('fEstCedula').value)
+    +'&carrera='+encodeURIComponent(document.getElementById('fEstCarrera').value)
+    +'&materia='+encodeURIComponent(document.getElementById('fEstMateria').value);
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    renderTable('tblEstudiantes', ['Cedula','Nombre','Carrera','Semestre','Materias Activas'],
-      rows, function(r){ return [r.cedula,r.nombre,r.carrera,r.semestre,r.materiasActivas]; });
+    renderTable('tblEstudiantes',['Cedula','Nombre','Carrera','Semestre','Materias Activas'],
+      rows,function(r){ return [r.cedula,r.nombre,r.carrera,r.semestre,r.materiasActivas]; });
   });
 }
 
 function cargarProfesores() {
   var q = 'accion=profesores'
-    + '&nombre=' + encodeURIComponent(document.getElementById('fProfNombre').value)
-    + '&departamento=' + encodeURIComponent(document.getElementById('fProfDepto').value)
-    + '&materia=' + encodeURIComponent(document.getElementById('fProfMateria').value);
+    +'&nombre='+encodeURIComponent(document.getElementById('fProfNombre').value)
+    +'&departamento='+encodeURIComponent(document.getElementById('fProfDepto').value)
+    +'&materia='+encodeURIComponent(document.getElementById('fProfMateria').value);
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    renderTable('tblProfesores', ['Codigo','Nombre','Departamento','Grupos Asignados','Creditos (Carga Academica)','Horas Semanales'],
-      rows, function(r){ return [r.codigo,r.nombre,r.departamento,r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
+    renderTable('tblProfesores',['Codigo','Nombre','Departamento','Materias que Imparte','Grupos Asignados','Creditos','Horas Semanales'],
+      rows,function(r){ return [r.codigo,r.nombre,r.departamento,r.materiasLista||'-',r.grupos,r.creditos,(Math.round((r.horasSemanales||0)*10)/10)+' h']; });
   });
 }
 
 var profesoresParaSelect = [];
 
 function cargarMaterias() {
-  // Cargar lista de profesores (para el selector de reasignacion) y luego las materias
   fetch(CTX+'/admin?accion=profesoresSimple').then(function(r){ return r.json(); }).then(function(profs) {
     profesoresParaSelect = profs;
     return fetch(CTX+'/admin?accion=materias');
@@ -533,7 +500,8 @@ function cargarMaterias() {
     var tbl = document.getElementById('tblMaterias');
     var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Cupos</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(r, idx) {
-      var creditosInput = '<input class="edit-input" type="number" min="1" max="10" id="mCred_'+idx+'" value="'+r.creditos+'">';
+      // Creditos: solo lectura (FIX - antes era <input> editable)
+      var creditosCell = '<span style="font-weight:700;">'+r.creditos+'</span>';
       var capacidadCell, profesorCell, accionesCell;
       if (r.grupoId != null) {
         capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'">';
@@ -543,66 +511,67 @@ function cargarMaterias() {
           profOptions += '<option value="'+p.id+'"'+sel+'>'+esc(p.nombre)+'</option>';
         });
         profesorCell = '<select class="edit-select" id="mProf_'+idx+'">'+profOptions+'</select>';
-        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.id+','+r.grupoId+')">Guardar</button>';
+        // FIX: botón Guardar solo cuando hay grupo (cupos + profesor)
+        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.grupoId+')">Guardar</button>';
       } else {
         capacidadCell = '<span style="color:var(--text-soft);">-</span>';
-        profesorCell = '<span style="color:var(--text-soft);">Sin grupo</span>';
-        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.id+',null)">Guardar Creditos</button>';
+        profesorCell  = '<span style="color:var(--text-soft);">Sin grupo</span>';
+        // FIX: sin grupo no hay nada editable, no mostrar botón
+        accionesCell  = '<span style="color:var(--text-soft);font-size:13px;">Sin grupo</span>';
       }
-      html += '<tr><td>'+esc(r.codigo)+'</td><td><strong>'+esc(r.nombre)+'</strong></td>'
-        + '<td>'+creditosInput+'</td><td>'+capacidadCell+'</td><td>'+r.inscritos+'</td>'
-        + '<td>'+profesorCell+'</td><td>'+esc(r.grupo||'-')+'</td>'
-        + '<td>'+accionesCell+'</td></tr>';
+      html += '<tr>'
+        +'<td>'+esc(r.codigo)+'</td>'
+        +'<td><strong>'+esc(r.nombre)+'</strong></td>'
+        +'<td>'+creditosCell+'</td>'
+        +'<td>'+capacidadCell+'</td>'
+        +'<td>'+r.inscritos+'</td>'
+        +'<td>'+profesorCell+'</td>'
+        +'<td>'+esc(r.grupo||'-')+'</td>'
+        +'<td>'+accionesCell+'</td>'
+        +'</tr>';
     });
     tbl.innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar materias.', 'error'); });
 }
 
-function guardarMateria(idx, materiaId, grupoId) {
-  var creditos = parseInt(document.getElementById('mCred_'+idx).value, 10);
-  if (isNaN(creditos) || creditos < 1) {
-    showToast('Los creditos deben ser un numero mayor o igual a 1.', 'error');
+// FIX: guardarMateria ya NO intenta leer créditos (eran un span, no un input).
+// Solo guarda capacidad y profesor del grupo.
+function guardarMateria(idx, grupoId) {
+  var capacidad = parseInt(document.getElementById('mCap_'+idx).value, 10);
+  if (isNaN(capacidad) || capacidad < 0) {
+    showToast('Los cupos deben ser un numero mayor o igual a 0.', 'error');
     return;
   }
+
+  // Advertencia si cupos < inscritos actuales
+  var filaInscritos = document.getElementById('tblMaterias').rows[idx + 1];
+  var inscritosActuales = filaInscritos ? (parseInt(filaInscritos.cells[4].textContent, 10) || 0) : 0;
+  if (capacidad < inscritosActuales) {
+    showToast('Aviso: el cupo ('+capacidad+') es menor a los inscritos actuales ('+inscritosActuales+'). No se retirara a nadie automaticamente.', 'info');
+  }
+
   var peticiones = [
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'accion=actualizarCreditos&materiaId='+materiaId+'&creditos='+creditos})
+      body:'accion=actualizarCapacidad&grupoId='+grupoId+'&capacidad='+capacidad})
   ];
 
-  if (grupoId != null) {
-    var capacidad = parseInt(document.getElementById('mCap_'+idx).value, 10);
-    if (isNaN(capacidad) || capacidad < 0) {
-      showToast('Los cupos deben ser un numero mayor o igual a 0.', 'error');
-      return;
-    }
-    var inscritosActuales = parseInt(document.getElementById('tblMaterias').rows[idx+1].cells[4].textContent, 10) || 0;
-    if (capacidad < inscritosActuales) {
-      showToast('Aviso: el cupo (' + capacidad + ') es menor a los inscritos actuales (' + inscritosActuales + '). No se retirara a nadie automaticamente.', 'info');
-    }
+  var profesorId = document.getElementById('mProf_'+idx).value;
+  if (profesorId) {
     peticiones.push(fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'accion=actualizarCapacidad&grupoId='+grupoId+'&capacidad='+capacidad}));
-
-    var profesorId = document.getElementById('mProf_'+idx).value;
-    if (profesorId) {
-      peticiones.push(fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:'accion=reasignarProfesor&grupoId='+grupoId+'&profesorId='+profesorId}));
-    }
+      body:'accion=reasignarProfesor&grupoId='+grupoId+'&profesorId='+profesorId}));
   }
 
   Promise.all(peticiones)
     .then(function(responses){ return Promise.all(responses.map(function(r){ return r.json(); })); })
     .then(function(results) {
       var error = results.find(function(d){ return !d.ok; });
-      if (error) { showToast('Error: ' + (error.error || 'No se pudo guardar.'), 'error'); return; }
+      if (error) { showToast('Error: '+(error.error||'No se pudo guardar.'), 'error'); return; }
       showToast('Cambios guardados correctamente.', 'success');
       cargarMaterias();
     })
     .catch(function(){ showToast('Error de conexion al guardar los cambios.', 'error'); });
 }
 
-// ============================================================
-// LIMITES DE SOLICITUDES DE MATRICULA
-// ============================================================
 function cargarLimitesSolicitudes() {
   fetch(CTX+'/admin?accion=limitesSolicitudes').then(function(r){ return r.json(); }).then(function(rows) {
     var tbl = document.getElementById('tblLimites');
@@ -610,10 +579,7 @@ function cargarLimitesSolicitudes() {
       tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay estudiantes con inscripciones activas.</td></tr></tbody>';
       return;
     }
-    var html = '<thead><tr>'
-      + '<th>Estudiante</th><th>Materia</th><th>Solicitudes Inscripcion</th>'
-      + '<th>Solicitudes Retiro</th><th>Limite Actual</th><th>Nuevo Limite</th><th>Accion</th>'
-      + '</tr></thead><tbody>';
+    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Solicitudes Inscripcion</th><th>Solicitudes Retiro</th><th>Limite Actual</th><th>Nuevo Limite</th><th>Accion</th></tr></thead><tbody>';
     rows.forEach(function(r, idx) {
       var tagInsc = r.solInscripcion >= r.limite
         ? '<span class="tag tag-red">'+r.solInscripcion+' / '+r.limite+'</span>'
@@ -622,14 +588,14 @@ function cargarLimitesSolicitudes() {
         ? '<span class="tag tag-red">'+r.solRetiro+' / '+r.limite+'</span>'
         : '<span class="tag tag-green">'+r.solRetiro+' / '+r.limite+'</span>';
       html += '<tr>'
-        + '<td><strong>'+esc(r.estudiante)+'</strong></td>'
-        + '<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        + '<td style="text-align:center;">'+tagInsc+'</td>'
-        + '<td style="text-align:center;">'+tagRet+'</td>'
-        + '<td style="text-align:center;"><span class="tag tag-blue">'+r.limite+'</span></td>'
-        + '<td><input class="edit-input" type="number" min="1" max="20" id="lim_'+idx+'" value="'+r.limite+'"></td>'
-        + '<td><button class="btn btn-primary btn-sm" onclick="guardarLimiteSolicitud('+r.estudianteId+','+r.grupoId+','+idx+')">Guardar</button></td>'
-        + '</tr>';
+        +'<td><strong>'+esc(r.estudiante)+'</strong></td>'
+        +'<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
+        +'<td style="text-align:center;">'+tagInsc+'</td>'
+        +'<td style="text-align:center;">'+tagRet+'</td>'
+        +'<td style="text-align:center;"><span class="tag tag-amber">'+r.limite+'</span></td>'
+        +'<td><input class="edit-input" type="number" min="1" max="20" id="lim_'+idx+'" value="'+r.limite+'"></td>'
+        +'<td><button class="btn btn-primary btn-sm" onclick="guardarLimiteSolicitud('+r.estudianteId+','+r.grupoId+','+idx+')">Guardar</button></td>'
+        +'</tr>';
     });
     tbl.innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar los limites.', 'error'); });
@@ -637,15 +603,13 @@ function cargarLimitesSolicitudes() {
 
 function guardarLimiteSolicitud(estudianteId, grupoId, idx) {
   var nuevoLimite = parseInt(document.getElementById('lim_'+idx).value, 10);
-  if (isNaN(nuevoLimite) || nuevoLimite < 1) {
-    showToast('El limite debe ser al menos 1.', 'error'); return;
-  }
+  if (isNaN(nuevoLimite) || nuevoLimite < 1) { showToast('El limite debe ser al menos 1.', 'error'); return; }
   fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body:'accion=actualizarLimiteSolicitud&estudianteId='+estudianteId+'&grupoId='+grupoId+'&limite='+nuevoLimite})
     .then(function(r){ return r.json(); })
-    .then(function(d) {
+    .then(function(d){
       if (d.ok) { showToast('Limite actualizado correctamente.', 'success'); cargarLimitesSolicitudes(); }
-      else showToast('Error: ' + (d.error || 'No se pudo actualizar.'), 'error');
+      else showToast('Error: '+(d.error||'No se pudo actualizar.'), 'error');
     })
     .catch(function(){ showToast('Error de conexion.', 'error'); });
 }
@@ -655,88 +619,128 @@ function cargarSolicitudes(tipo, btn) {
   tipoSolicitudActual = tipo;
   document.querySelectorAll('#tab-matricula .sub-nav button').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
-  fetch(CTX+'/matricula?accion=pendientes&tipo='+tipo)
-    .then(function(r){ return r.json(); })
-    .then(function(rows) {
-      var tbl = document.getElementById('tblSolicitudes');
-      if (!rows.length) {
-        tbl.innerHTML = '<tbody><tr><td colspan="6" style="text-align:center;color:#6b7e96;padding:20px;">No hay solicitudes pendientes.</td></tr></tbody>';
-        return;
-      }
-      var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Codigo</th><th>Grupo</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>';
-      rows.forEach(function(s) {
-        html += '<tr><td>'+esc(s.estudiante)+'</td><td>'+esc(s.materiaNombre)+'</td><td>'+esc(s.materiaCodigo)+'</td>'
-          + '<td>'+esc(s.grupo||'-')+'</td><td>'+esc(s.fecha)+'</td><td>'
-          + '<button class="btn btn-success btn-sm" onclick="resolverSolicitud('+s.id+',\'aprobar\')">Aprobar</button> '
-          + '<button class="btn btn-danger btn-sm" onclick="resolverSolicitud('+s.id+',\'rechazar\')">Rechazar</button>'
-          + '</td></tr>';
-      });
-      tbl.innerHTML = html + '</tbody>';
+  fetch(CTX+'/matricula?accion=pendientes&tipo='+tipo).then(function(r){ return r.json(); }).then(function(rows) {
+    var tbl = document.getElementById('tblSolicitudes');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td colspan="6" style="text-align:center;color:#6b7e96;padding:20px;">No hay solicitudes pendientes.</td></tr></tbody>';
+      return;
+    }
+    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Codigo</th><th>Grupo</th><th>Fecha</th><th>Acciones</th></tr></thead><tbody>';
+    rows.forEach(function(s) {
+      html += '<tr><td>'+esc(s.estudiante)+'</td><td>'+esc(s.materiaNombre)+'</td><td>'+esc(s.materiaCodigo)+'</td>'
+        +'<td>'+esc(s.grupo||'-')+'</td><td>'+esc(s.fecha)+'</td><td>'
+        +'<button class="btn btn-success btn-sm" onclick="resolverSolicitud('+s.id+',\'aprobar\')">Aprobar</button> '
+        +'<button class="btn btn-danger btn-sm" onclick="resolverSolicitud('+s.id+',\'rechazar\')">Rechazar</button>'
+        +'</td></tr>';
     });
+    tbl.innerHTML = html + '</tbody>';
+  });
 }
 
 function resolverSolicitud(id, accion) {
   var msg = accion === 'aprobar' ? '¿Aprobar esta solicitud?' : '¿Rechazar esta solicitud?';
   showConfirm(msg, function() {
     var body = 'accion='+accion+'&id='+id;
-    if (accion === 'rechazar') body += '&motivo=' + encodeURIComponent('Rechazada por administracion');
+    if (accion === 'rechazar') body += '&motivo='+encodeURIComponent('Rechazada por administracion');
     fetch(CTX+'/matricula', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
       .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) {
-          cargarSolicitudes(tipoSolicitudActual, null);
-          cargarDashboard();
-          showToast(accion === 'aprobar' ? 'Solicitud aprobada.' : 'Solicitud rechazada.', 'success');
-        } else {
-          showToast('Error: ' + (d.error || 'No se pudo procesar'), 'error');
-        }
+      .then(function(d){
+        if (d.ok) { cargarSolicitudes(tipoSolicitudActual, null); cargarDashboard(); showToast(accion==='aprobar'?'Solicitud aprobada.':'Solicitud rechazada.','success'); }
+        else showToast('Error: '+(d.error||'No se pudo procesar'),'error');
       })
       .catch(function(){ showToast('Error de conexion al procesar la solicitud.', 'error'); });
   });
 }
 
-function cargarAvisos() {
-  fetch(CTX+'/admin?accion=avisos').then(function(r){ return r.json(); }).then(function(rows) {
+var avisosData = {};
+
+function cargarAvisos(estado, btn) {
+  if (btn) {
+    document.querySelectorAll('#filtrosAvisos button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  var url = CTX+'/admin?accion=avisos';
+  if (estado && estado !== 'todos') url += '&estado='+estado;
+  fetch(url).then(function(r){ return r.json(); }).then(function(rows) {
+    avisosData = {};
+    rows.forEach(function(a){ avisosData[a.id] = a; });
     var tbl = document.getElementById('tblAvisos');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td colspan="6" style="text-align:center;color:var(--text-soft);padding:20px;">No hay avisos.</td></tr></tbody>';
+      return;
+    }
     var html = '<thead><tr><th>Titulo</th><th>Profesor</th><th>Grupo</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(a) {
-      var estado = a.activo ? '<span class="tag tag-green">Activo</span>' : '<span class="tag tag-red">Inactivo</span>';
-      html += '<tr><td><strong>'+esc(a.titulo)+'</strong></td><td>'+esc(a.profesor||'Institucional')+'</td>'
-        + '<td>'+esc(a.grupo||'Todos')+'</td><td>'+esc(a.fecha)+'</td><td>'+estado+'</td><td>';
-      if (a.activo) html += '<button class="btn btn-secondary btn-sm" onclick="desactivarAviso('+a.id+')">Desactivar</button> ';
-      html += '<button class="btn btn-danger btn-sm" onclick="eliminarAviso('+a.id+')">Eliminar</button></td></tr>';
+      var esActivo = (a.estado === 'activo');
+      var estadoTag = esActivo ? '<span class="tag tag-green">Activo</span>' : '<span class="tag tag-gray">Archivado</span>';
+      var acciones = '<button class="btn btn-secondary btn-sm" onclick="abrirEditarAviso('+a.id+')">Editar</button> ';
+      if (esActivo) acciones += '<button class="btn btn-secondary btn-sm" onclick="archivarAviso('+a.id+')">Archivar</button>';
+      else acciones += '<button class="btn btn-success btn-sm" onclick="restaurarAviso('+a.id+')">Restaurar</button>';
+      html += '<tr>'
+        +'<td><strong>'+esc(a.titulo)+'</strong></td>'
+        +'<td>'+esc(a.profesor||'Institucional')+'</td>'
+        +'<td>'+esc(a.grupo||'Todos')+'</td>'
+        +'<td>'+esc(a.fecha)+'</td>'
+        +'<td>'+estadoTag+'</td>'
+        +'<td>'+acciones+'</td></tr>';
     });
     tbl.innerHTML = html + '</tbody>';
-  });
+  }).catch(function(){ showToast('Error al cargar los avisos.', 'error'); });
 }
 
-function desactivarAviso(id) {
-  showConfirm('¿Desactivar este aviso?', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=desactivarAviso&id='+id})
+function filtroAvisosActual() {
+  var btn = document.querySelector('#filtrosAvisos button.active');
+  return btn ? (btn.dataset.estado || 'todos') : 'todos';
+}
+
+function archivarAviso(id) {
+  showConfirm('¿Archivar este aviso? Podras restaurarlo despues.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=archivarAviso&id='+id})
       .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { cargarAvisos(); showToast('Aviso desactivado.', 'success'); }
-        else showToast('Error: ' + (d.error || 'No se pudo desactivar el aviso.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al desactivar el aviso.', 'error'); });
+      .then(function(d){
+        if (d.ok) { cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso archivado.','success'); }
+        else showToast('Error: '+(d.error||'No se pudo archivar.'),'error');
+      }).catch(function(){ showToast('Error de conexion.','error'); });
   });
 }
 
-function eliminarAviso(id) {
-  showConfirm('¿Eliminar permanentemente este aviso? Esta accion no se puede deshacer.', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=eliminarAviso&id='+id})
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { cargarAvisos(); showToast('Aviso eliminado.', 'success'); }
-        else showToast('Error: ' + (d.error || 'No se pudo eliminar el aviso.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al eliminar el aviso.', 'error'); });
-  });
+function restaurarAviso(id) {
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=restaurarAviso&id='+id})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) { cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso restaurado.','success'); }
+      else showToast('Error: '+(d.error||'No se pudo restaurar.'),'error');
+    }).catch(function(){ showToast('Error de conexion.','error'); });
 }
 
-// ============================================================
-// SUPERVISION DE CALIFICACIONES
-// ============================================================
+function abrirEditarAviso(id) {
+  var a = avisosData[id];
+  if (!a) return;
+  document.getElementById('editAvisoTitulo').value = a.titulo || '';
+  document.getElementById('editAvisoCuerpo').value = a.cuerpo || '';
+  document.getElementById('editAvisoEstado').value = a.estado || 'activo';
+  document.getElementById('editAvisoOverlay').dataset.avisoId = id;
+  document.getElementById('editAvisoOverlay').classList.remove('hidden');
+}
+
+function cerrarEditarAviso() { document.getElementById('editAvisoOverlay').classList.add('hidden'); }
+
+function guardarAviso() {
+  var overlay = document.getElementById('editAvisoOverlay');
+  var id = overlay.dataset.avisoId;
+  var titulo = document.getElementById('editAvisoTitulo').value.trim();
+  var cuerpo = document.getElementById('editAvisoCuerpo').value.trim();
+  var estado = document.getElementById('editAvisoEstado').value;
+  if (!titulo) { showToast('El titulo no puede estar vacio.', 'error'); return; }
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'accion=actualizarAviso&id='+id+'&titulo='+encodeURIComponent(titulo)+'&cuerpo='+encodeURIComponent(cuerpo)+'&estado='+estado})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) { cerrarEditarAviso(); cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso actualizado.','success'); }
+      else showToast('Error: '+(d.error||'No se pudo guardar.'),'error');
+    }).catch(function(){ showToast('Error de conexion.','error'); });
+}
+
 var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Proyecto', examen_final:'Examen Final'};
 
 function cargarSupervisionCalificaciones() {
@@ -751,27 +755,19 @@ function cargarSupervisionCalificaciones() {
       var notaTxt = (r.notaActual != null && r.notaActual !== 0) ? r.notaActual : (r.notaActual === 0 ? '0' : '-');
       var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
       var modTag;
-      if (r.modificaciones === 0) {
-        modTag = '<span class="tag tag-blue">0 / '+r.limite+' (sin cambios)</span>';
-      } else if (r.enLimite) {
-        modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
-      } else {
-        modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
-      }
+      if (r.modificaciones === 0) modTag = '<span class="tag tag-green">0 / '+r.limite+' (sin cambios)</span>';
+      else if (r.enLimite) modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
+      else modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
       html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        + '<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        + '<td>'+esc(r.grupo||'-')+'</td>'
-        + '<td>'+esc(compLabel)+'</td>'
-        + '<td><strong>'+notaTxt+'</strong></td>'
-        + '<td>'+modTag+'</td>'
-        + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-        + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
-      if (r.enLimite) {
-        html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
-      }
-      if (r.modificaciones > 0) {
-        html += '<button class="btn btn-danger-fill btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
-      }
+        +'<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
+        +'<td>'+esc(r.grupo||'-')+'</td>'
+        +'<td>'+esc(compLabel)+'</td>'
+        +'<td><strong>'+notaTxt+'</strong></td>'
+        +'<td>'+modTag+'</td>'
+        +'<td style="display:flex;gap:6px;flex-wrap:wrap;">'
+        +'<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
+      if (r.enLimite) html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
+      if (r.modificaciones > 0) html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
       html += '</td></tr>';
     });
     tbl.innerHTML = html + '</tbody>';
@@ -785,50 +781,39 @@ function verHistorialNota(inscripcionId, componente) {
       var card = document.getElementById('historialCard');
       var tbl = document.getElementById('tblHistorialNota');
       var html = '<thead><tr><th>Fecha</th><th>Nota Anterior</th><th>Nota Nueva</th></tr></thead><tbody>';
-      if (!rows.length) {
-        html += '<tr><td colspan="3" style="text-align:center;color:var(--text-soft);">Sin historial de modificaciones.</td></tr>';
-      } else {
-        rows.forEach(function(h) {
-          html += '<tr><td>'+esc(h.fecha)+'</td><td>'+(h.notaAnterior!=null?h.notaAnterior:'-')+'</td><td>'+h.notaNueva+'</td></tr>';
-        });
-      }
+      if (!rows.length) html += '<tr><td colspan="3" style="text-align:center;color:var(--text-soft);">Sin historial de modificaciones.</td></tr>';
+      else rows.forEach(function(h){ html += '<tr><td>'+esc(h.fecha)+'</td><td>'+(h.notaAnterior!=null?h.notaAnterior:'-')+'</td><td>'+h.notaNueva+'</td></tr>'; });
       tbl.innerHTML = html + '</tbody>';
       card.style.display = '';
       card.scrollIntoView({behavior:'smooth', block:'nearest'});
-    })
-    .catch(function(){ showToast('Error al cargar el historial.', 'error'); });
+    }).catch(function(){ showToast('Error al cargar el historial.', 'error'); });
 }
 
 function autorizarModificacion(inscripcionId, componente) {
-  showConfirm('¿Autorizar una modificacion adicional para esta nota? El profesor podra cambiarla una vez mas.', function() {
+  showConfirm('¿Autorizar una modificacion adicional para esta nota?', function() {
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'accion=autorizarModificacion&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente)+'&cantidad=1'})
       .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { showToast('Modificacion adicional autorizada.', 'success'); cargarSupervisionCalificaciones(); }
-        else showToast('Error: ' + (d.error || 'No se pudo autorizar.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al autorizar.', 'error'); });
+      .then(function(d){
+        if (d.ok) { showToast('Modificacion adicional autorizada.','success'); cargarSupervisionCalificaciones(); }
+        else showToast('Error: '+(d.error||'No se pudo autorizar.'),'error');
+      }).catch(function(){ showToast('Error de conexion.','error'); });
   });
 }
 
 function reiniciarModificaciones(inscripcionId, componente) {
   var compLabel = COMPONENTE_LABEL[componente] || componente;
-  showConfirm('¿Reiniciar el historial de modificaciones para ' + compLabel + '?\n\nEl profesor volvera a tener el limite completo de ' + 3 + ' modificaciones disponibles.', function() {
+  showConfirm('¿Reiniciar el historial de modificaciones para '+compLabel+'?\n\nEl profesor volvera a tener el limite completo disponible.', function() {
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'accion=reiniciarModificaciones&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente)})
       .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { showToast('Modificaciones reiniciadas. El profesor puede volver a editar esta nota.', 'success'); cargarSupervisionCalificaciones(); }
-        else showToast('Error: ' + (d.error || 'No se pudo reiniciar.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al reiniciar.', 'error'); });
+      .then(function(d){
+        if (d.ok) { showToast('Modificaciones reiniciadas.','success'); cargarSupervisionCalificaciones(); }
+        else showToast('Error: '+(d.error||'No se pudo reiniciar.'),'error');
+      }).catch(function(){ showToast('Error de conexion.','error'); });
   });
 }
 
-// ============================================================
-// SUPERVISION DE ASISTENCIA
-// ============================================================
 var ESTADO_ASISTENCIA_LABEL = {present:'Presente', late:'Tardanza', absent:'Ausente'};
 var filtrosAsistenciaListos = false;
 
@@ -841,17 +826,11 @@ function poblarFiltrosAsistencia() {
     rows.forEach(function(r) {
       if (r.grupoId != null && !gruposVistos[r.grupoId]) {
         gruposVistos[r.grupoId] = true;
-        var opt = document.createElement('option');
-        opt.value = r.grupoId;
-        opt.textContent = r.grupo + ' - ' + r.nombre;
-        selGrupo.appendChild(opt);
+        var opt = document.createElement('option'); opt.value = r.grupoId; opt.textContent = r.grupo+' - '+r.nombre; selGrupo.appendChild(opt);
       }
       if (!materiasVistas[r.id]) {
         materiasVistas[r.id] = true;
-        var opt2 = document.createElement('option');
-        opt2.value = r.id;
-        opt2.textContent = r.codigo + ' - ' + r.nombre;
-        selMateria.appendChild(opt2);
+        var opt2 = document.createElement('option'); opt2.value = r.id; opt2.textContent = r.codigo+' - '+r.nombre; selMateria.appendChild(opt2);
       }
     });
     filtrosAsistenciaListos = true;
@@ -864,10 +843,9 @@ function cargarSupervisionAsistencia() {
   var materiaId = document.getElementById('fAsistMateria').value;
   var fecha = document.getElementById('fAsistFecha').value;
   var q = 'accion=supervisionAsistencia';
-  if (grupoId) q += '&grupoId=' + grupoId;
-  if (materiaId) q += '&materiaId=' + materiaId;
-  if (fecha) q += '&fecha=' + fecha;
-
+  if (grupoId) q += '&grupoId='+grupoId;
+  if (materiaId) q += '&materiaId='+materiaId;
+  if (fecha) q += '&fecha='+fecha;
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
     var tbl = document.getElementById('tblSupAsistencia');
     if (!rows.length) {
@@ -876,15 +854,14 @@ function cargarSupervisionAsistencia() {
     }
     var html = '<thead><tr><th>Fecha</th><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Estado</th><th>Observacion</th><th>Corregir</th></tr></thead><tbody>';
     rows.forEach(function(r, idx) {
-      var estadoOptions = ['present','late','absent'].map(function(e) {
-        var sel = (e === r.estado) ? ' selected' : '';
-        return '<option value="'+e+'"'+sel+'>'+ESTADO_ASISTENCIA_LABEL[e]+'</option>';
+      var estadoOptions = ['present','late','absent'].map(function(e){
+        return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+ESTADO_ASISTENCIA_LABEL[e]+'</option>';
       }).join('');
       html += '<tr><td>'+esc(r.fecha)+'</td><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        + '<td>'+esc(r.materia)+'</td><td>'+esc(r.grupo)+'</td>'
-        + '<td><select class="edit-select" id="asistEstado_'+idx+'">'+estadoOptions+'</select></td>'
-        + '<td><input class="edit-input" style="width:140px;" type="text" id="asistObs_'+idx+'" value="'+esc(r.observacion||'')+'"></td>'
-        + '<td><button class="btn btn-primary btn-sm" onclick="corregirAsistencia('+r.inscripcionId+',\''+r.fecha+'\','+idx+')">Guardar</button></td></tr>';
+        +'<td>'+esc(r.materia)+'</td><td>'+esc(r.grupo)+'</td>'
+        +'<td><select class="edit-select" id="asistEstado_'+idx+'">'+estadoOptions+'</select></td>'
+        +'<td><input class="edit-input" style="width:140px;" type="text" id="asistObs_'+idx+'" value="'+esc(r.observacion||'')+'"></td>'
+        +'<td><button class="btn btn-primary btn-sm" onclick="corregirAsistencia('+r.inscripcionId+',\''+r.fecha+'\','+idx+')">Guardar</button></td></tr>';
     });
     tbl.innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar supervision de asistencia.', 'error'); });
@@ -896,21 +873,19 @@ function corregirAsistencia(inscripcionId, fecha, idx) {
   fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body:'accion=corregirAsistencia&inscripcionId='+inscripcionId+'&fecha='+fecha+'&estado='+estado+'&observacion='+encodeURIComponent(observacion)})
     .then(function(r){ return r.json(); })
-    .then(function(d) {
-      if (d.ok) showToast('Registro de asistencia corregido.', 'success');
-      else showToast('Error: ' + (d.error || 'No se pudo corregir.'), 'error');
-    })
-    .catch(function(){ showToast('Error de conexion al corregir asistencia.', 'error'); });
+    .then(function(d){
+      if (d.ok) showToast('Registro de asistencia corregido.','success');
+      else showToast('Error: '+(d.error||'No se pudo corregir.'),'error');
+    }).catch(function(){ showToast('Error de conexion.','error'); });
 }
 
 var REPORTE_COL_LABEL = {
   nombre:'Nombre', codigo:'Codigo', carrera:'Carrera', promedio:'Promedio',
   materias_evaluadas:'Materias Evaluadas', estudiante:'Estudiante', materia:'Materia',
-  promedio_final:'Promedio Final', estado_academico:'Estado',
-  total_evaluados:'Total Evaluados', aprobados:'Aprobados', reprobados:'Reprobados',
-  inscritos:'Inscritos', capacidad:'Cupos Totales', codigo_grupo:'Grupo',
-  cupos_disponibles:'Cupos Disponibles', profesor:'Profesor', departamento:'Departamento',
-  grupos_asignados:'Grupos Asignados', creditos_totales:'Creditos Totales',
+  promedio_final:'Promedio Final', estado_academico:'Estado', total_evaluados:'Total Evaluados',
+  aprobados:'Aprobados', reprobados:'Reprobados', inscritos:'Inscritos', capacidad:'Cupos Totales',
+  codigo_grupo:'Grupo', cupos_disponibles:'Cupos Disponibles', profesor:'Profesor',
+  departamento:'Departamento', grupos_asignados:'Grupos Asignados', creditos_totales:'Creditos Totales',
   horas_semanales:'Horas Semanales', id:'ID', total:'Total Clases', presentes:'Presentes',
   porcentaje:'% Asistencia', grupo:'Grupo'
 };
@@ -919,34 +894,30 @@ function cargarReporte(accion, btn, extraParams) {
   document.querySelectorAll('#tab-reportes .sub-nav button').forEach(function(b){ b.classList.remove('active'); });
   if (btn) btn.classList.add('active');
   var q = 'accion='+accion;
-  if (extraParams) {
-    Object.keys(extraParams).forEach(function(k){ q += '&'+k+'='+encodeURIComponent(extraParams[k]); });
-  }
+  if (extraParams) Object.keys(extraParams).forEach(function(k){ q += '&'+k+'='+encodeURIComponent(extraParams[k]); });
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
     if (!rows.length) { document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>'; return; }
     var keys = Object.keys(rows[0]);
-    var html = '<thead><tr>' + keys.map(function(k){ return '<th>'+(REPORTE_COL_LABEL[k]||k)+'</th>'; }).join('') + '</tr></thead><tbody>';
+    var html = '<thead><tr>'+keys.map(function(k){ return '<th>'+(REPORTE_COL_LABEL[k]||k)+'</th>'; }).join('')+'</tr></thead><tbody>';
     rows.forEach(function(r) {
-      html += '<tr>' + keys.map(function(k){
+      html += '<tr>'+keys.map(function(k){
         var v = r[k];
-        if (k === 'porcentaje' && v != null) v = v + '%';
-        if (k === 'estado_academico' && v != null) {
-          var cls = v === 'RIESGO' ? 'tag-red' : (v === 'ALERTA' ? 'tag-amber' : 'tag-green');
+        if (k==='porcentaje' && v!=null) v = v+'%';
+        if (k==='estado_academico' && v!=null) {
+          var cls = v==='RIESGO'?'tag-red':(v==='ALERTA'?'tag-amber':'tag-green');
           return '<td><span class="tag '+cls+'">'+esc(String(v))+'</span></td>';
         }
         return '<td>'+esc(String(v!=null?v:'-'))+'</td>';
-      }).join('') + '</tr>';
+      }).join('')+'</tr>';
     });
     document.getElementById('tblReportes').innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar el reporte.', 'error'); });
 }
 
 function renderTable(id, headers, rows, mapFn) {
-  var html = '<thead><tr>' + headers.map(function(h){ return '<th>'+h+'</th>'; }).join('') + '</tr></thead><tbody>';
+  var html = '<thead><tr>'+headers.map(function(h){ return '<th>'+h+'</th>'; }).join('')+'</tr></thead><tbody>';
   if (!rows.length) html += '<tr><td colspan="'+headers.length+'" style="text-align:center;color:#6b7e96;">Sin resultados</td></tr>';
-  rows.forEach(function(r) {
-    html += '<tr>' + mapFn(r).map(function(c){ return '<td>'+esc(String(c!=null?c:''))+'</td>'; }).join('') + '</tr>';
-  });
+  rows.forEach(function(r){ html += '<tr>'+mapFn(r).map(function(c){ return '<td>'+esc(String(c!=null?c:''))+'</td>'; }).join('')+'</tr>'; });
   document.getElementById(id).innerHTML = html + '</tbody>';
 }
 

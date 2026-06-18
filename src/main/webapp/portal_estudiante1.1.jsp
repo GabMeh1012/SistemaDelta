@@ -1008,7 +1008,7 @@ function renderInscritas() {
     (function(m){
       var retiroPend = tieneSolicitudPendiente(m.codigo,'retiro');
       var tr=document.createElement('tr');
-      tr.innerHTML='<td>'+m.codigo+'</td><td><strong>'+m.nombre+'</strong></td><td>'+m.creditos+'</td><td>'+m.horario+'</td><td>'+m.docente+'</td><td>'+(retiroPend?'<span class="tag tag-amber">Retiro pendiente</span>':'<span class="tag tag-green">Inscrita</span>')+'</td><td>'+(retiroPend?'<span style="color:var(--text-soft);font-size:13px;">En revision</span>':'<button class="btn-danger" onclick="desinscribir(\''+m.codigo+'\')">Retirar Materia</button>')+'</td>';
+      tr.innerHTML='<td>'+m.codigo+'</td><td><strong>'+m.nombre+'</strong></td><td>'+m.creditos+'</td><td>'+m.horario+'</td><td>'+m.docente+'</td><td>'+(retiroPend?'<span class="tag tag-amber">Retiro pendiente</span>':'<span class="tag tag-green">Inscrita</span>')+'</td><td>'+(retiroPend?'<span style="color:var(--text-soft);font-size:13px;">En revision</span>':'<button class="btn-danger" onclick="desinscribir(\''+m.codigo+'\')">Eliminar</button>')+'</td>';
       tbody.appendChild(tr);
     })(materiasInscritas[i]);
   }
@@ -1055,7 +1055,7 @@ function inscribirMateria(codigo) {
 function desinscribir(codigo) {
   var idx=-1; for(var i=0;i<materiasInscritas.length;i++){ if(materiasInscritas[i].codigo===codigo){idx=i;break;} }
   if(idx===-1) return;
-  showConfirm('¿Desea retirar la materia: '+materiasInscritas[idx].nombre+'?', function(){
+  showConfirm('Desea solicitar el retiro de: '+materiasInscritas[idx].nombre+'?', function(){
     var ctx=document.querySelector('meta[name="ctx"]')?document.querySelector('meta[name="ctx"]').content:'';
     fetch(ctx+'/notas',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'accion=desinscribir&codigoMateria='+encodeURIComponent(codigo)})
       .then(function(r){return r.json();})

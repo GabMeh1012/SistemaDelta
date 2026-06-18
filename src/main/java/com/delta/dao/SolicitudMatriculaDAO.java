@@ -10,8 +10,16 @@ import java.util.List;
 
 public class SolicitudMatriculaDAO {
 
-    /** Limite base de solicitudes permitidas por (estudiante, grupo, tipo). */
-    private static final int LIMITE_DEFAULT = 2;
+    /** Limite base de oportunidades por (estudiante, grupo) — combinando inscripcion y retiro. */
+    private static final int LIMITE_DEFAULT = 3;
+
+    /** IDs de cédula de los 5 estudiantes autorizados para este módulo. */
+    private static final java.util.Set<String> ESTUDIANTES_PERMITIDOS = new java.util.HashSet<>(
+        java.util.Arrays.asList(
+            "Gabriela Fuentes", "Laura Orellana", "Evelin Pineda",
+            "Edgar Sánchez", "Luis King"
+        )
+    );
 
     private static final String SELECT_BASE =
             "SELECT s.id, s.estudiante_id, s.grupo_id, s.tipo, s.estado, s.inscripcion_id, "
@@ -24,9 +32,10 @@ public class SolicitudMatriculaDAO {
           + "JOIN materias m ON m.id = g.materia_id ";
 
     public int crearInscripcion(int estudianteId, String codigoMateria) throws SQLException {
+        verificarEstudiantePermitido(estudianteId);
         int grupoId = obtenerGrupoIdPorCodigo(codigoMateria);
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
-        verificarLimite(estudianteId, grupoId, "inscripcion");
+        verificarLimite(estudianteId, grupoId);
         if (tienePendiente(estudianteId, grupoId, "inscripcion")) {
             throw new SQLException("Ya existe una solicitud de inscripcion pendiente para esta materia.");
         }
@@ -37,11 +46,12 @@ public class SolicitudMatriculaDAO {
     }
 
     public int crearRetiro(int estudianteId, String codigoMateria) throws SQLException {
+        verificarEstudiantePermitido(estudianteId);
         int grupoId = obtenerGrupoIdPorCodigo(codigoMateria);
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
         Integer inscripcionId = obtenerInscripcionActiva(estudianteId, codigoMateria);
         if (inscripcionId == null) throw new SQLException("inscripcion no encontrada");
-        verificarLimite(estudianteId, grupoId, "retiro");
+        verificarLimite(estudianteId, grupoId);
         if (tienePendiente(estudianteId, grupoId, "retiro")) {
             throw new SQLException("Ya existe una solicitud de retiro pendiente para esta materia.");
         }
@@ -288,33 +298,51 @@ public class SolicitudMatriculaDAO {
     }
 
     // ──────────────────────────────────────────────────────────
-    // Control de limite de solicitudes
+    // Control de oportunidades por materia (inscripcion + retiro combinados)
     // ──────────────────────────────────────────────────────────
 
+    /** Verifica que el estudiante sea uno de los 5 permitidos. */
+    private void verificarEstudiantePermitido(int estudianteId) throws SQLException {
+        String sql = "SELECT CONCAT(nombre,' ',apellido) AS nombre FROM estudiantes WHERE id = ?";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    String nombre = rs.getString("nombre");
+                    if (!ESTUDIANTES_PERMITIDOS.contains(nombre)) {
+                        throw new SQLException("Este estudiante no esta habilitado para realizar solicitudes academicas.");
+                    }
+                } else {
+                    throw new SQLException("Estudiante no encontrado.");
+                }
+            }
+        }
+    }
+
     /**
-     * Verifica que el estudiante no haya superado el limite de solicitudes
-     * para este (grupo, tipo). Lanza SQLException con mensaje claro si se excede.
+     * Verifica que el estudiante no haya superado el limite de oportunidades
+     * para este grupo (contando inscripcion + retiro juntos).
      */
-    private void verificarLimite(int estudianteId, int grupoId, String tipo) throws SQLException {
-        int realizadas = contarSolicitudes(estudianteId, grupoId, tipo);
+    private void verificarLimite(int estudianteId, int grupoId) throws SQLException {
+        int usadas = contarOportunidadesUsadas(estudianteId, grupoId);
         int limite = obtenerLimite(estudianteId, grupoId);
-        if (realizadas >= limite) {
+        if (usadas >= limite) {
             throw new SQLException(
-                "Has alcanzado el limite de " + limite + " solicitud(es) de " + tipo
-                + " permitidas para esta materia. Contacta al administrador para ampliar el limite."
+                "Ha alcanzado el limite de solicitudes permitidas para esta materia. "
+                + "Contacte al administrador para obtener autorizacion adicional."
             );
         }
     }
 
-    /** Cuenta todas las solicitudes (en cualquier estado) para un (estudiante, grupo, tipo). */
-    private int contarSolicitudes(int estudianteId, int grupoId, String tipo) throws SQLException {
+    /** Cuenta TODAS las solicitudes (inscripcion + retiro, cualquier estado) para un (estudiante, grupo). */
+    public int contarOportunidadesUsadas(int estudianteId, int grupoId) throws SQLException {
         String sql = "SELECT COUNT(*) FROM solicitudes_matricula "
-                   + "WHERE estudiante_id = ? AND grupo_id = ? AND tipo = ?";
+                   + "WHERE estudiante_id = ? AND grupo_id = ?";
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, estudianteId);
             ps.setInt(2, grupoId);
-            ps.setString(3, tipo);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) return rs.getInt(1);
             }
@@ -322,13 +350,9 @@ public class SolicitudMatriculaDAO {
         return 0;
     }
 
-    /**
-     * Devuelve el limite configurado para un (estudiante, grupo).
-     * Si no hay fila en limites_solicitudes, devuelve LIMITE_DEFAULT.
-     */
+    /** Devuelve el limite configurado. Si no hay fila, devuelve LIMITE_DEFAULT (3). */
     public int obtenerLimite(int estudianteId, int grupoId) throws SQLException {
-        String sql = "SELECT limite FROM limites_solicitudes "
-                   + "WHERE estudiante_id = ? AND grupo_id = ?";
+        String sql = "SELECT limite FROM limites_solicitudes WHERE estudiante_id = ? AND grupo_id = ?";
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, estudianteId);
@@ -340,20 +364,38 @@ public class SolicitudMatriculaDAO {
         return LIMITE_DEFAULT;
     }
 
-    /**
-     * Actualiza (o crea) el limite de solicitudes para un (estudiante, grupo).
-     * Llamado desde el portal administrador.
-     */
+    /** Reinicia oportunidades: resetea limite a 3 y borra historial de solicitudes. */
+    public void reiniciarOportunidades(int estudianteId, int grupoId, int adminUsuarioId) throws SQLException {
+        String upsert = "INSERT INTO limites_solicitudes (estudiante_id, grupo_id, limite, admin_usuario_id) "
+                      + "VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE limite=?, admin_usuario_id=VALUES(admin_usuario_id)";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(upsert)) {
+            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
+            ps.setInt(3, LIMITE_DEFAULT); ps.setInt(4, adminUsuarioId); ps.setInt(5, LIMITE_DEFAULT);
+            ps.executeUpdate();
+        }
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                     "DELETE FROM solicitudes_matricula WHERE estudiante_id = ? AND grupo_id = ?")) {
+            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Agrega +1 oportunidad adicional para un (estudiante, grupo). */
+    public void autorizarOportunidad(int estudianteId, int grupoId, int adminUsuarioId) throws SQLException {
+        int nuevoLimite = obtenerLimite(estudianteId, grupoId) + 1;
+        actualizarLimite(estudianteId, grupoId, nuevoLimite, adminUsuarioId);
+    }
+
+    /** Actualiza (o crea) el limite de solicitudes para un (estudiante, grupo). */
     public void actualizarLimite(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
         String sql = "INSERT INTO limites_solicitudes (estudiante_id, grupo_id, limite, admin_usuario_id) "
-                   + "VALUES (?,?,?,?) "
-                   + "ON DUPLICATE KEY UPDATE limite = VALUES(limite), admin_usuario_id = VALUES(admin_usuario_id)";
+                   + "VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE limite=VALUES(limite), admin_usuario_id=VALUES(admin_usuario_id)";
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, estudianteId);
-            ps.setInt(2, grupoId);
-            ps.setInt(3, nuevoLimite);
-            ps.setInt(4, adminUsuarioId);
+            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
+            ps.setInt(3, nuevoLimite); ps.setInt(4, adminUsuarioId);
             ps.executeUpdate();
         }
     }

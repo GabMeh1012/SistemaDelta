@@ -152,6 +152,26 @@ public class AdminServlet extends HttpServlet {
                     out.print("{\"ok\":true}");
                     break;
                 }
+                case "reiniciarOportunidades": {
+                    HttpSession sRein = req.getSession(false);
+                    int adminIdR = (Integer) sRein.getAttribute("usuarioId");
+                    new com.delta.dao.SolicitudMatriculaDAO().reiniciarOportunidades(
+                        Integer.parseInt(req.getParameter("estudianteId")),
+                        Integer.parseInt(req.getParameter("grupoId")),
+                        adminIdR);
+                    out.print("{\"ok\":true}");
+                    break;
+                }
+                case "autorizarOportunidad": {
+                    HttpSession sAut = req.getSession(false);
+                    int adminIdA = (Integer) sAut.getAttribute("usuarioId");
+                    new com.delta.dao.SolicitudMatriculaDAO().autorizarOportunidad(
+                        Integer.parseInt(req.getParameter("estudianteId")),
+                        Integer.parseInt(req.getParameter("grupoId")),
+                        adminIdA);
+                    out.print("{\"ok\":true}");
+                    break;
+                }
                 // ---- AVISOS ----
                 case "archivarAviso":
                     dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
