@@ -1194,9 +1194,6 @@ function cargarRiesgoAcademico() {
   fetch(CTX+'/grupos?accion=riesgo').then(r=>r.json()).then(lista=>renderRiesgoTabla(container,lista)).catch(()=>renderRiesgoDemo(container));
 }
 
-// Mapa codigo_grupo BD → codigo display del portal profesor
-var GRUPO_BD_A_FRONTEND = {'GRP-IS-401':'1SF133','GRP-IS-301':'1SF131','GRP-PS-301':'2SF241'};
-
 function renderRiesgoTabla(container, lista) {
   if(lista.length===0){container.innerHTML='<div style="text-align:center;padding:24px;color:var(--green);font-weight:700;">✅ Ningún estudiante en riesgo académico actualmente.</div>';document.getElementById('riesgoBadge').textContent='0';return;}
   document.getElementById('riesgoBadge').textContent=lista.length;
@@ -1204,9 +1201,8 @@ function renderRiesgoTabla(container, lista) {
   lista.forEach(er=>{
     const esR=er.estado==='RIESGO';
     const tag=esR?'<span class="tag tag-red">🚨 Riesgo</span>':'<span class="tag tag-amber">⚠️ Alerta</span>';
-    const codigoDisplay = GRUPO_BD_A_FRONTEND[er.codigoGrupo] || er.codigoGrupo;
     html+=`<tr><td><strong>${escHtml(er.nombre)}</strong></td>
-      <td><span class="tag tag-blue">${escHtml(codigoDisplay)}</span></td>
+      <td><span class="tag tag-blue">${escHtml(er.codigoGrupo)}</span></td>
       <td>${escHtml(er.materia)}</td>
       <td><span class="tag ${esR?'tag-red':'tag-amber'}">${er.promedio}</span></td>
       <td>${tag}</td>
@@ -1379,18 +1375,8 @@ function updateGroupCounts() {
   let totalEst = 0;
   let sumAllNotas = 0;
   let countAllEst = 0;
-
-  // Mapa codigo_grupo BD → codigo frontend
-  var bdCountMap = {};
-  if (typeof misGruposBD !== 'undefined') {
-    misGruposBD.forEach(function(g) {
-      var fe = {'GRP-IS-401':'1SF133','GRP-IS-301':'1SF131','GRP-PS-301':'2SF241'}[g.codigo] || g.codigo;
-      bdCountMap[fe] = g.numEstudiantes || 0;
-    });
-  }
-
   Object.keys(gruposData).forEach(g => {
-    const cnt = (bdCountMap[g] !== undefined) ? bdCountMap[g] : gruposData[g].estudiantes.length;
+    const cnt = gruposData[g].estudiantes.length;
     totalEst += cnt;
     const elCnt = document.getElementById('cnt' + g);
     if (elCnt) elCnt.textContent = cnt + ' est.';
