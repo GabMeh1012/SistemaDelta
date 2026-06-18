@@ -27,7 +27,7 @@
 <style>
 :root {
   --purple:#5b21b6; --purple-light:#ede9fe; --purple-dark:#4c1d95;
-  --blue:#1a56a0; --green:#15803d; --amber:#b45309; --red:#dc2626;
+  --blue:#1a56a0; --green:#15803d; --amber:#b45309; --red:#dc2626; --red-bg:#fee2e2;
   --bg:#f4f6fb; --text:#1e2a3b; --text-soft:#6b7e96;
   --radius:14px; --radius-sm:10px;
   --sidebar-w:260px;
@@ -72,7 +72,14 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 /* PORTAL */
 .portal { display:flex; min-height:100vh; }
 .sidebar { width:var(--sidebar-w); background:#fff; border-right:2px solid #e8edf5;
-  position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+  position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100;
+  display:flex; flex-direction:column; }
+.sidebar-footer { margin-top:auto; padding:16px 14px; border-top:2px solid #e8edf5; }
+.logout-btn { display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-radius:var(--radius-sm); font-size:14px; font-weight:700; color:var(--red);
+  cursor:pointer; background:var(--red-bg); border:1.5px solid #fca5a5;
+  width:100%; font-family:'Nunito',sans-serif; transition:all .18s; }
+.logout-btn:hover { background:#fecaca; }
 .sidebar-header { padding:22px 20px 16px; border-bottom:2px solid #f0f4fa; }
 .sidebar-logo { display:flex; align-items:center; gap:12px; }
 .logo-mark { width:42px; height:42px; border-radius:12px; background:var(--purple); color:#fff;
@@ -248,8 +255,10 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <div class="nav-label">Comunicacion</div>
       <button class="nav-item" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
       <button class="nav-item" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
-      <button class="nav-item" onclick="cerrarSesion()"><span class="nav-icon">&#128682;</span> Cerrar Sesion</button>
     </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="cerrarSesion()">&#128682; Cerrar Sesion</button>
+    </div>
   </aside>
 
   <main class="main-content">
@@ -367,7 +376,12 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'grupo'})">% Asistencia por Grupo</button>
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'materia'})">% Asistencia por Materia</button>
       </div>
-      <div class="card" style="margin-top:18px;"><div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div></div>
+      <div class="card" style="margin-top:18px;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="descargarReporteCSV()">&#11015; Descargar CSV</button>
+        </div>
+        <div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div>
+      </div>
     </div>
 
   </main>
@@ -434,7 +448,11 @@ function irTab(id, btn) {
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
 
-function cerrarSesion() { window.location.href = CTX + '/logout'; }
+function cerrarSesion() {
+  showConfirm('¿Desea cerrar sesion?', function() {
+    window.location.href = CTX + '/logout';
+  });
+}
 
 function cargarDashboard() {
   if (!HAY_BD) return;
@@ -903,6 +921,10 @@ function reiniciarModificaciones(inscripcionId, componente) {
   });
 }
 
+var reporteActualData = [];
+var reporteActualKeys = [];
+var reporteActualNombre = 'Reporte';
+
 var REPORTE_COL_LABEL = {
   nombre:'Nombre', codigo:'Codigo', carrera:'Carrera', promedio:'Promedio',
   materias_evaluadas:'Materias Evaluadas', estudiante:'Estudiante', materia:'Materia',
@@ -920,8 +942,15 @@ function cargarReporte(accion, btn, extraParams) {
   var q = 'accion='+accion;
   if (extraParams) Object.keys(extraParams).forEach(function(k){ q += '&'+k+'='+encodeURIComponent(extraParams[k]); });
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    if (!rows.length) { document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>'; return; }
-    var keys = Object.keys(rows[0]);
+    reporteActualData = rows;
+    reporteActualNombre = btn ? btn.textContent.trim() : accion;
+    if (!rows.length) {
+      reporteActualKeys = [];
+      document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>';
+      return;
+    }
+    reporteActualKeys = Object.keys(rows[0]);
+    var keys = reporteActualKeys;
     var html = '<thead><tr>'+keys.map(function(k){ return '<th>'+(REPORTE_COL_LABEL[k]||k)+'</th>'; }).join('')+'</tr></thead><tbody>';
     rows.forEach(function(r) {
       html += '<tr>'+keys.map(function(k){
@@ -936,6 +965,35 @@ function cargarReporte(accion, btn, extraParams) {
     });
     document.getElementById('tblReportes').innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar el reporte.', 'error'); });
+}
+
+function descargarReporteCSV() {
+  if (!reporteActualData.length) { showToast('No hay datos para descargar.', 'info'); return; }
+  var headers = reporteActualKeys.map(function(k) { return REPORTE_COL_LABEL[k] || k; });
+  var filas = [headers];
+  reporteActualData.forEach(function(r) {
+    filas.push(reporteActualKeys.map(function(k) {
+      var v = r[k];
+      if (k === 'porcentaje' && v != null) v = v + '%';
+      return v != null ? String(v) : '';
+    }));
+  });
+  var csv = filas.map(function(fila) {
+    return fila.map(function(celda) {
+      var val = String(celda).replace(/"/g, '""');
+      if (val.indexOf(',') !== -1 || val.indexOf('"') !== -1 || val.indexOf('\n') !== -1) val = '"' + val + '"';
+      return val;
+    }).join(',');
+  }).join('\r\n');
+  var blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = reporteActualNombre.replace(/\s+/g, '_') + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function renderTable(id, headers, rows, mapFn) {
