@@ -19,11 +19,15 @@ public class GrupoDAO {
     public List<EstudianteRiesgo> listarRiesgoPorProfesor(int profesorId) throws SQLException {
         List<EstudianteRiesgo> lista = new ArrayList<>();
 
+        // Solo mostrar los 5 estudiantes autorizados en la seccion de Riesgo Academico
         String sql = "SELECT vr.estudiante_id, vr.estudiante, vr.codigo_grupo, "
                    + "vr.materia, vr.promedio_final, vr.estado_academico "
                    + "FROM v_riesgo_academico vr "
                    + "JOIN grupos g ON g.codigo_grupo = vr.codigo_grupo "
                    + "WHERE g.profesor_id = ? "
+                   + "AND vr.estudiante IN ("
+                   + "'Laura Orellana','Edgar Sánchez','Evelin Pineda','Luis King','Gabriela Fuentes'"
+                   + ") "
                    + "ORDER BY vr.promedio_final ASC";
 
         try (Connection con = ConexionDB.obtenerConexion();
@@ -50,10 +54,14 @@ public class GrupoDAO {
      * Útil para mostrar el badge en la campana de notificaciones.
      */
     public int contarRiesgoPorProfesor(int profesorId) throws SQLException {
+        // Solo contar los 5 estudiantes autorizados
         String sql = "SELECT COUNT(*) "
                    + "FROM v_riesgo_academico vr "
                    + "JOIN grupos g ON g.codigo_grupo = vr.codigo_grupo "
-                   + "WHERE g.profesor_id = ?";
+                   + "WHERE g.profesor_id = ? "
+                   + "AND vr.estudiante IN ("
+                   + "'Laura Orellana','Edgar Sánchez','Evelin Pineda','Luis King','Gabriela Fuentes'"
+                   + ")";
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, profesorId);

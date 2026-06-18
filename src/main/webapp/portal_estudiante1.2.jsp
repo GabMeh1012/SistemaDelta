@@ -169,12 +169,10 @@
       }
 
       // FIX: agregado m.creditos al SELECT de disponibles
-      // EXCLUIR: IS-301 (Ingeniería de Software I) y PS-301 (Pruebas de Software)
       try (PreparedStatement _ps3 = _con2.prepareStatement(
              "SELECT g.id AS grupo_id, m.codigo, m.nombre, m.creditos, g.aula, g.capacidad, " +
              "(SELECT COUNT(*) FROM inscripciones i2 WHERE i2.grupo_id = g.id AND i2.estado='activo') AS ocupados " +
-             "FROM grupos g JOIN materias m ON m.id = g.materia_id " +
-             "WHERE m.codigo NOT IN ('IS-301', 'PS-301')")) {
+             "FROM grupos g JOIN materias m ON m.id = g.materia_id")) {
         try (ResultSet _rs3 = _ps3.executeQuery()) {
           boolean _firstD = true;
           while (_rs3.next()) {
