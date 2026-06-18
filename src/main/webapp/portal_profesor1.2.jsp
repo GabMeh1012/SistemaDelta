@@ -889,14 +889,14 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         <div class="card">
           <div class="card-title">Nuevo Mensaje</div>
           <div class="compose-wrap">
-            <select class="compose-input" id="profMsgTo" style="cursor:pointer;">
-              <option value="">— Selecciona un destinatario —</option>
-              <option value="Laura Orellana">Laura Orellana</option>
-              <option value="Edgar Sánchez">Edgar Sánchez</option>
-              <option value="Evelin Pineda">Evelin Pineda</option>
-              <option value="Luis King">Luis King</option>
-              <option value="Gabriela Fuentes">Gabriela Fuentes</option>
-            </select>
+            <datalist id="estudiantesOpciones">
+              <option value="Laura Orellana">
+              <option value="Edgar Sánchez">
+              <option value="Evelin Pineda">
+              <option value="Luis King">
+              <option value="Gabriela Fuentes">
+            </datalist>
+            <input class="compose-input" id="profMsgTo" type="text" list="estudiantesOpciones" placeholder="Para: selecciona un estudiante...">
             <input class="compose-input" id="profMsgSubj" type="text" placeholder="Asunto...">
             <textarea class="compose-textarea" id="profMsgBody" placeholder="Escribe tu mensaje aquí..."></textarea>
             <div class="compose-footer">
@@ -1238,13 +1238,7 @@ function renderRiesgoDemo(container) {
 function enviarMsgRiesgo(nombre) {
   goTab('mensajes',null);
   setTimeout(()=>{
-    const sel = document.getElementById('profMsgTo');
-    if (sel) {
-      // Buscar la opción que coincida con el nombre y seleccionarla
-      for (let i = 0; i < sel.options.length; i++) {
-        if (sel.options[i].value === nombre) { sel.selectedIndex = i; break; }
-      }
-    }
+    const to=document.getElementById('profMsgTo'); if(to)to.value=nombre;
     const body=document.getElementById('profMsgBody');
     if(body){body.value='Estimado/a '+nombre+',\n\nMe comunico para hablar sobre su situación académica actual...';body.focus();}
   },300);
@@ -2426,14 +2420,14 @@ function sendProfMsg() {
   const to    = document.getElementById('profMsgTo').value.trim();
   const subj  = document.getElementById('profMsgSubj').value.trim() || '(Sin asunto)';
   const body  = document.getElementById('profMsgBody').value.trim();
-  if (!to || !body) { showToast('Selecciona un destinatario y escribe el mensaje.', 'error'); return; }
+  if (!to || !body) { showToast('Complete el destinatario y el mensaje.', 'error'); return; }
   const params = 'accion=enviar&destinatario='+encodeURIComponent(to)+'&asunto='+encodeURIComponent(subj)+'&cuerpo='+encodeURIComponent(body);
   fetch(CTX+'/mensajes', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:params})
     .then(r=>r.json())
     .then(d=>{
       if(d.ok){
         showToast('Mensaje enviado a: ' + to, 'success');
-        document.getElementById('profMsgTo').selectedIndex = 0;
+        document.getElementById('profMsgTo').value='';
         document.getElementById('profMsgSubj').value='';
         document.getElementById('profMsgBody').value='';
         cargarInbox();
@@ -2443,7 +2437,7 @@ function sendProfMsg() {
           profRenderEnviados();
         }
       } else {
-        showToast('Error: ' + (d.error||'No se pudo enviar. Verifica el destinatario.'), 'error');
+        showToast('Error: ' + (d.error||'No se pudo enviar. Verifica el nombre del destinatario.'), 'error');
       }
     }).catch(()=>showToast('Error de conexion al enviar el mensaje.', 'error'));
 }
