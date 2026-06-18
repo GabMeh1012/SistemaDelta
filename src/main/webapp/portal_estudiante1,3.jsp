@@ -1578,35 +1578,10 @@ function renderBandeja() {
           '<div class="msg-dot-unread" style="' + dotStyle + '"></div>';
         div.onclick = function() {
           if (!msg.leido) {
-            fetch(ctx+'/mensajes?accion=marcarLeido', {
-              method:'POST',
-              headers:{'Content-Type':'application/x-www-form-urlencoded'},
-              body:'id='+msg.id
-            })
-            .then(function(r){ return r.json(); })
-            .then(function(d) {
-              msg.leido = true;
-              div.querySelector('.msg-dot-unread').style.display = 'none';
-              div.querySelector('.msg-from').className = 'msg-from leido';
-              // Actualizar todos los contadores con el valor real de la BD
-              var noLeidos   = d.noLeidos || 0;
-              var campanaNum = document.getElementById('campanaCount');
-              var badgeNav   = document.getElementById('badgeMsgNav');
-              var badgeInbox = document.getElementById('badgeInbox');
-              var dot        = document.getElementById('notifDot');
-              if (campanaNum) { campanaNum.textContent = noLeidos; campanaNum.style.display = noLeidos > 0 ? 'flex' : 'none'; }
-              if (badgeNav)   { badgeNav.textContent   = noLeidos; badgeNav.style.display   = noLeidos > 0 ? '' : 'none'; }
-              if (badgeInbox) { badgeInbox.textContent = noLeidos; badgeInbox.style.display = noLeidos > 0 ? '' : 'none'; }
-              if (dot)        { dot.style.display = noLeidos > 0 ? '' : 'none'; }
-              renderMensajesResumen();
-            })
-            .catch(function() {
-              // Fallback: actualizar UI localmente aunque falle la red
-              msg.leido = true;
-              div.querySelector('.msg-dot-unread').style.display = 'none';
-              div.querySelector('.msg-from').className = 'msg-from leido';
-              actualizarBadges();
-            });
+            fetch(ctx+'/mensajes?accion=marcarLeido', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'id='+msg.id});
+            msg.leido = true;
+            div.querySelector('.msg-dot-unread').style.display='none';
+            div.querySelector('.msg-from').className='msg-from leido';
           }
           showInfoModal('De: ' + (msg.remitente||'') + ' — ' + (msg.asunto||''), msg.cuerpo||'');
         };
