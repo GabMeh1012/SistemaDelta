@@ -22,7 +22,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="ctx" content="<%= request.getContextPath() %>">
-<title>Sistema Delta — Portal Administrativo</title>
+<title>PRUEBA123 — Portal Administrativo</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Merriweather:wght@700&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -117,6 +117,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .tag-green { background:#dcfce7; color:#15803d; }
 .tag-amber { background:#fef3c7; color:#b45309; }
 .tag-red { background:#fee2e2; color:#dc2626; }
+.tag-gray { background:#f1f5f9; color:#64748b; }
 .filter-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
 .filter-row input, .filter-row select { padding:9px 12px; border:2px solid #e2e8f0;
   border-radius:8px; font-family:inherit; font-size:14px; }
@@ -146,6 +147,10 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
 .edit-input{width:70px;text-align:center;padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
 .edit-select{padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
+/* MODAL AVISO */
+.aviso-field-label{display:block;font-size:13px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
+.aviso-field-input{width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
+.aviso-field-input:focus{border-color:var(--purple);outline:none;}
 </style>
 </head>
 <body>
@@ -158,6 +163,32 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div class="modal-actions">
       <button class="btn btn-secondary" id="confirmCancelBtn">Cancelar</button>
       <button class="btn btn-primary" id="confirmOkBtn">Aceptar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR AVISO -->
+<div class="modal-overlay hidden" id="editAvisoOverlay">
+  <div class="modal-box" style="max-width:500px;">
+    <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;">Editar Aviso</h3>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Titulo</label>
+      <input type="text" id="editAvisoTitulo" class="aviso-field-input">
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Contenido</label>
+      <textarea id="editAvisoCuerpo" rows="4" class="aviso-field-input" style="resize:vertical;"></textarea>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="aviso-field-label">Estado</label>
+      <select id="editAvisoEstado" class="aviso-field-input" style="width:auto;">
+        <option value="activo">Activo</option>
+        <option value="archivado">Archivado</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cerrarEditarAviso()">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarAviso()">Guardar cambios</button>
     </div>
   </div>
 </div>
@@ -316,6 +347,11 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- AVISOS -->
     <div id="tab-avisos" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Avisos</h2></div>
+      <div class="sub-nav" id="filtrosAvisos">
+        <button class="active" data-estado="todos" onclick="cargarAvisos('todos',this)">Todos</button>
+        <button data-estado="activo" onclick="cargarAvisos('activo',this)">Activos</button>
+        <button data-estado="archivado" onclick="cargarAvisos('archivado',this)">Archivados</button>
+      </div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblAvisos"></table></div></div>
     </div>
 
@@ -429,7 +465,7 @@ function irTab(id, btn) {
   if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
   if (id==='sup-asistencia') cargarSupervisionAsistencia();
-  if (id==='avisos') cargarAvisos();
+  if (id==='avisos') cargarAvisos('todos', document.querySelector('#filtrosAvisos button'));
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
 
@@ -482,7 +518,6 @@ function cargarProfesores() {
 var profesoresParaSelect = [];
 
 function cargarMaterias() {
-  // Cargar lista de profesores (para el selector de reasignacion) y luego las materias
   fetch(CTX+'/admin?accion=profesoresSimple').then(function(r){ return r.json(); }).then(function(profs) {
     profesoresParaSelect = profs;
     return fetch(CTX+'/admin?accion=materias');
@@ -583,7 +618,7 @@ function cargarLimitesSolicitudes() {
         + '<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
         + '<td style="text-align:center;">'+tagInsc+'</td>'
         + '<td style="text-align:center;">'+tagRet+'</td>'
-        + '<td style="text-align:center;"><span class="tag tag-blue">'+r.limite+'</span></td>'
+        + '<td style="text-align:center;"><span class="tag tag-amber">'+r.limite+'</span></td>'
         + '<td><input class="edit-input" type="number" min="1" max="20" id="lim_'+idx+'" value="'+r.limite+'"></td>'
         + '<td><button class="btn btn-primary btn-sm" onclick="guardarLimiteSolicitud('+r.estudianteId+','+r.grupoId+','+idx+')">Guardar</button></td>'
         + '</tr>';
@@ -652,43 +687,111 @@ function resolverSolicitud(id, accion) {
   });
 }
 
-function cargarAvisos() {
-  fetch(CTX+'/admin?accion=avisos').then(function(r){ return r.json(); }).then(function(rows) {
+// ============================================================
+// GESTION DE AVISOS
+// ============================================================
+var avisosData = {};
+
+function cargarAvisos(estado, btn) {
+  if (btn) {
+    document.querySelectorAll('#filtrosAvisos button').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+  }
+  var url = CTX+'/admin?accion=avisos';
+  if (estado && estado !== 'todos') url += '&estado=' + estado;
+  fetch(url).then(function(r){ return r.json(); }).then(function(rows) {
+    avisosData = {};
+    rows.forEach(function(a){ avisosData[a.id] = a; });
     var tbl = document.getElementById('tblAvisos');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td colspan="6" style="text-align:center;color:var(--text-soft);padding:20px;">No hay avisos.</td></tr></tbody>';
+      return;
+    }
     var html = '<thead><tr><th>Titulo</th><th>Profesor</th><th>Grupo</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(a) {
-      var estado = a.activo ? '<span class="tag tag-green">Activo</span>' : '<span class="tag tag-red">Inactivo</span>';
-      html += '<tr><td><strong>'+esc(a.titulo)+'</strong></td><td>'+esc(a.profesor||'Institucional')+'</td>'
-        + '<td>'+esc(a.grupo||'Todos')+'</td><td>'+esc(a.fecha)+'</td><td>'+estado+'</td><td>';
-      if (a.activo) html += '<button class="btn btn-secondary btn-sm" onclick="desactivarAviso('+a.id+')">Desactivar</button> ';
-      html += '<button class="btn btn-danger btn-sm" onclick="eliminarAviso('+a.id+')">Eliminar</button></td></tr>';
+      var esActivo = (a.estado === 'activo');
+      var estadoTag = esActivo
+        ? '<span class="tag tag-green">Activo</span>'
+        : '<span class="tag tag-gray">Archivado</span>';
+      var acciones = '<button class="btn btn-secondary btn-sm" onclick="abrirEditarAviso('+a.id+')">Editar</button> ';
+      if (esActivo) {
+        acciones += '<button class="btn btn-secondary btn-sm" onclick="archivarAviso('+a.id+')">Archivar</button>';
+      } else {
+        acciones += '<button class="btn btn-success btn-sm" onclick="restaurarAviso('+a.id+')">Restaurar</button>';
+      }
+      html += '<tr>'
+        + '<td><strong>'+esc(a.titulo)+'</strong></td>'
+        + '<td>'+esc(a.profesor||'Institucional')+'</td>'
+        + '<td>'+esc(a.grupo||'Todos')+'</td>'
+        + '<td>'+esc(a.fecha)+'</td>'
+        + '<td>'+estadoTag+'</td>'
+        + '<td>'+acciones+'</td></tr>';
     });
     tbl.innerHTML = html + '</tbody>';
+  }).catch(function(){ showToast('Error al cargar los avisos.', 'error'); });
+}
+
+function filtroAvisosActual() {
+  var btn = document.querySelector('#filtrosAvisos button.active');
+  return btn ? (btn.dataset.estado || 'todos') : 'todos';
+}
+
+function archivarAviso(id) {
+  showConfirm('¿Archivar este aviso? Podras restaurarlo despues.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=archivarAviso&id='+id})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso archivado.', 'success'); }
+        else showToast('Error: ' + (d.error || 'No se pudo archivar.'), 'error');
+      })
+      .catch(function(){ showToast('Error de conexion.', 'error'); });
   });
 }
 
-function desactivarAviso(id) {
-  showConfirm('¿Desactivar este aviso?', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=desactivarAviso&id='+id})
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { cargarAvisos(); showToast('Aviso desactivado.', 'success'); }
-        else showToast('Error: ' + (d.error || 'No se pudo desactivar el aviso.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al desactivar el aviso.', 'error'); });
-  });
+function restaurarAviso(id) {
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=restaurarAviso&id='+id})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) { cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso restaurado.', 'success'); }
+      else showToast('Error: ' + (d.error || 'No se pudo restaurar.'), 'error');
+    })
+    .catch(function(){ showToast('Error de conexion.', 'error'); });
 }
 
-function eliminarAviso(id) {
-  showConfirm('¿Eliminar permanentemente este aviso? Esta accion no se puede deshacer.', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=eliminarAviso&id='+id})
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { cargarAvisos(); showToast('Aviso eliminado.', 'success'); }
-        else showToast('Error: ' + (d.error || 'No se pudo eliminar el aviso.'), 'error');
-      })
-      .catch(function(){ showToast('Error de conexion al eliminar el aviso.', 'error'); });
-  });
+function abrirEditarAviso(id) {
+  var a = avisosData[id];
+  if (!a) return;
+  document.getElementById('editAvisoTitulo').value = a.titulo || '';
+  document.getElementById('editAvisoCuerpo').value = a.cuerpo || '';
+  document.getElementById('editAvisoEstado').value = a.estado || 'activo';
+  document.getElementById('editAvisoOverlay').dataset.avisoId = id;
+  document.getElementById('editAvisoOverlay').classList.remove('hidden');
+}
+
+function cerrarEditarAviso() {
+  document.getElementById('editAvisoOverlay').classList.add('hidden');
+}
+
+function guardarAviso() {
+  var overlay = document.getElementById('editAvisoOverlay');
+  var id = overlay.dataset.avisoId;
+  var titulo = document.getElementById('editAvisoTitulo').value.trim();
+  var cuerpo = document.getElementById('editAvisoCuerpo').value.trim();
+  var estado = document.getElementById('editAvisoEstado').value;
+  if (!titulo) { showToast('El titulo no puede estar vacio.', 'error'); return; }
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'accion=actualizarAviso&id='+id+'&titulo='+encodeURIComponent(titulo)+'&cuerpo='+encodeURIComponent(cuerpo)+'&estado='+estado})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        cerrarEditarAviso();
+        cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active'));
+        showToast('Aviso actualizado.', 'success');
+      } else {
+        showToast('Error: ' + (d.error || 'No se pudo guardar.'), 'error');
+      }
+    })
+    .catch(function(){ showToast('Error de conexion.', 'error'); });
 }
 
 // ============================================================
@@ -709,7 +812,7 @@ function cargarSupervisionCalificaciones() {
       var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
       var modTag;
       if (r.modificaciones === 0) {
-        modTag = '<span class="tag tag-blue">0 / '+r.limite+' (sin cambios)</span>';
+        modTag = '<span class="tag tag-green">0 / '+r.limite+' (sin cambios)</span>';
       } else if (r.enLimite) {
         modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
       } else {
@@ -727,7 +830,7 @@ function cargarSupervisionCalificaciones() {
         html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
       }
       if (r.modificaciones > 0) {
-        html += '<button class="btn btn-danger-fill btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
+        html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
       }
       html += '</td></tr>';
     });
@@ -771,7 +874,7 @@ function autorizarModificacion(inscripcionId, componente) {
 
 function reiniciarModificaciones(inscripcionId, componente) {
   var compLabel = COMPONENTE_LABEL[componente] || componente;
-  showConfirm('¿Reiniciar el historial de modificaciones para ' + compLabel + '?\n\nEl profesor volvera a tener el limite completo de ' + 3 + ' modificaciones disponibles.', function() {
+  showConfirm('¿Reiniciar el historial de modificaciones para ' + compLabel + '?\n\nEl profesor volvera a tener el limite completo de 3 modificaciones disponibles.', function() {
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'accion=reiniciarModificaciones&inscripcionId='+inscripcionId+'&componente='+encodeURIComponent(componente)})
       .then(function(r){ return r.json(); })

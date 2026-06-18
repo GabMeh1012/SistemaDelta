@@ -26,9 +26,9 @@ public class AdminDAO {
                 d.put("pendRetiro", 0);
             }
             try {
-                d.put("avisosActivos", scalar(st, "SELECT COUNT(*) FROM avisos WHERE activo=1"));
+                d.put("avisosActivos", scalar(st, "SELECT COUNT(*) FROM avisos WHERE COALESCE(estado,'activo')='activo'"));
             } catch (SQLException ex) {
-                d.put("avisosActivos", scalar(st, "SELECT COUNT(*) FROM avisos"));
+                d.put("avisosActivos", scalar(st, "SELECT COUNT(*) FROM avisos WHERE activo=1"));
             }
         }
         return d;
@@ -197,14 +197,30 @@ public class AdminDAO {
         return lista;
     }
 
+    // ============================================================
+    // GESTION DE AVISOS
+    // ============================================================
+
+    /** Lista avisos sin filtro (compatibilidad con codigo anterior). */
     public List<Map<String, Object>> listarAvisosAdmin() throws SQLException {
+        return listarAvisosAdmin(null);
+    }
+
+    /** Lista avisos con filtro opcional: 'activo', 'archivado' o null/todos. */
+    public List<Map<String, Object>> listarAvisosAdmin(String estadoFiltro) throws SQLException {
+        String whereEstado = "";
+        if (estadoFiltro != null && !estadoFiltro.isEmpty() && !estadoFiltro.equals("todos")) {
+            whereEstado = " WHERE COALESCE(a.estado, CASE WHEN a.activo=1 THEN 'activo' ELSE 'archivado' END) = '"
+                        + (estadoFiltro.equals("archivado") ? "archivado" : "activo") + "'";
+        }
         String sql = "SELECT a.id, a.titulo, a.cuerpo, a.tipo, a.created_at, "
                    + "CONCAT(p.nombre,' ',p.apellido) AS profesor, g.codigo_grupo, "
-                   + "COALESCE(a.activo,1) AS activo "
+                   + "COALESCE(a.estado, CASE WHEN a.activo=1 THEN 'activo' ELSE 'archivado' END) AS estado "
                    + "FROM avisos a "
                    + "LEFT JOIN profesores p ON p.id = a.profesor_id "
-                   + "LEFT JOIN grupos g ON g.id = a.grupo_id "
-                   + "ORDER BY a.created_at DESC";
+                   + "LEFT JOIN grupos g ON g.id = a.grupo_id"
+                   + whereEstado
+                   + " ORDER BY a.created_at DESC";
         List<Map<String, Object>> lista = new ArrayList<>();
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql);
@@ -217,7 +233,7 @@ public class AdminDAO {
                 row.put("tipo", rs.getString("tipo"));
                 row.put("profesor", rs.getString("profesor"));
                 row.put("grupo", rs.getString("codigo_grupo"));
-                row.put("activo", rs.getInt("activo") == 1);
+                row.put("estado", rs.getString("estado"));
                 Timestamp ts = rs.getTimestamp("created_at");
                 row.put("fecha", ts != null ? ts.toString() : "");
                 lista.add(row);
@@ -226,28 +242,54 @@ public class AdminDAO {
         return lista;
     }
 
-    public void desactivarAviso(int avisoId) throws SQLException {
-        try {
-            try (Connection con = ConexionDB.obtenerConexion();
-                 PreparedStatement ps = con.prepareStatement("UPDATE avisos SET activo=0 WHERE id=?")) {
-                ps.setInt(1, avisoId);
-                ps.executeUpdate();
-            }
-        } catch (SQLException ex) {
-            if (ex.getMessage() != null && ex.getMessage().contains("activo")) {
-                throw new SQLException("Columna avisos.activo no existe. Ejecute database/admin_schema.sql");
-            }
-            throw ex;
-        }
-    }
-
-    public void eliminarAviso(int avisoId) throws SQLException {
+    /** Archiva un aviso (no lo elimina, solo cambia su estado). */
+    public void archivarAviso(int avisoId) throws SQLException {
         try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement("DELETE FROM avisos WHERE id=?")) {
+             PreparedStatement ps = con.prepareStatement(
+                 "UPDATE avisos SET estado='archivado', activo=0 WHERE id=?")) {
             ps.setInt(1, avisoId);
             ps.executeUpdate();
         }
     }
+
+    /** Restaura un aviso archivado a estado activo. */
+    public void restaurarAviso(int avisoId) throws SQLException {
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                 "UPDATE avisos SET estado='activo', activo=1 WHERE id=?")) {
+            ps.setInt(1, avisoId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Actualiza titulo, cuerpo y estado de un aviso. */
+    public void actualizarAviso(int avisoId, String titulo, String cuerpo, String estado) throws SQLException {
+        int activo = "activo".equals(estado) ? 1 : 0;
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                 "UPDATE avisos SET titulo=?, cuerpo=?, estado=?, activo=? WHERE id=?")) {
+            ps.setString(1, titulo);
+            ps.setString(2, cuerpo);
+            ps.setString(3, estado);
+            ps.setInt(4, activo);
+            ps.setInt(5, avisoId);
+            ps.executeUpdate();
+        }
+    }
+
+    /** Desactiva un aviso (compatibilidad con codigo anterior - ahora archiva). */
+    public void desactivarAviso(int avisoId) throws SQLException {
+        archivarAviso(avisoId);
+    }
+
+    /** Elimina un aviso (compatibilidad con codigo anterior - ahora archiva). */
+    public void eliminarAviso(int avisoId) throws SQLException {
+        archivarAviso(avisoId);
+    }
+
+    // ============================================================
+    // REPORTES
+    // ============================================================
 
     public List<Map<String, Object>> reportePromedioMateria() throws SQLException {
         String sql = "SELECT m.nombre, ROUND(AVG(vp.promedio_final),1) AS promedio "
@@ -259,7 +301,6 @@ public class AdminDAO {
         return queryList(sql);
     }
 
-    /** Promedio general de notas agrupado por carrera del estudiante. */
     public List<Map<String, Object>> reportePromedioCarrera() throws SQLException {
         String sql = "SELECT e.carrera, ROUND(AVG(vp.promedio_final),1) AS promedio, COUNT(*) AS materias_evaluadas "
                    + "FROM v_promedios vp "
@@ -269,10 +310,6 @@ public class AdminDAO {
         return queryList(sql);
     }
 
-    /**
-     * Materias ordenadas por cantidad de aprobados (promedio >= 71) o reprobados
-     * (promedio < 61), segun el parametro `orden`.
-     */
     public List<Map<String, Object>> reporteAprobadosReprobados(String orden) throws SQLException {
         String orderBy = "reprobados".equals(orden) ? "reprobados DESC" : "aprobados DESC";
         String sql = "SELECT m.nombre, m.codigo, COUNT(*) AS total_evaluados, "
@@ -295,7 +332,6 @@ public class AdminDAO {
         return reporteInscritosMateria("desc");
     }
 
-    /** Materias ordenadas por cantidad de inscritos, ascendente o descendente. */
     public List<Map<String, Object>> reporteInscritosMateria(String orden) throws SQLException {
         String orderBy = "asc".equalsIgnoreCase(orden) ? "inscritos ASC" : "inscritos DESC";
         String sql = "SELECT m.nombre, m.codigo, COUNT(i.id) AS inscritos, g.capacidad "
@@ -306,7 +342,6 @@ public class AdminDAO {
         return queryList(sql);
     }
 
-    /** Cupos disponibles (capacidad - inscritos activos) por materia/grupo. */
     public List<Map<String, Object>> reporteCuposDisponibles() throws SQLException {
         String sql = "SELECT m.nombre, m.codigo, g.codigo_grupo, g.capacidad, COUNT(i.id) AS inscritos, "
                    + "(g.capacidad - COUNT(i.id)) AS cupos_disponibles "
@@ -317,7 +352,6 @@ public class AdminDAO {
         return queryList(sql);
     }
 
-    /** Carga academica de los profesores: grupos asignados, creditos totales y horas semanales. */
     public List<Map<String, Object>> reporteCargaProfesores() throws SQLException {
         String sql = "SELECT CONCAT(p.nombre,' ',p.apellido) AS profesor, p.departamento, "
                    + "COUNT(DISTINCT g.id) AS grupos_asignados, COALESCE(SUM(m.creditos),0) AS creditos_totales, "
@@ -360,11 +394,6 @@ public class AdminDAO {
     // GESTION DE LIMITES DE SOLICITUDES DE MATRICULA
     // ============================================================
 
-    /**
-     * Lista todos los estudiantes con inscripciones activas, mostrando por cada
-     * (estudiante, grupo) cuantas solicitudes han realizado vs el limite actual.
-     * Util para que el admin vea quien se acerca o supero el limite.
-     */
     public List<Map<String, Object>> listarLimitesSolicitudes() throws SQLException {
         String sql = "SELECT e.id AS estudiante_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
                    + "m.nombre AS materia, m.codigo AS materia_codigo, g.id AS grupo_id, "
@@ -399,7 +428,6 @@ public class AdminDAO {
         return lista;
     }
 
-    /** Actualiza el limite de solicitudes para un estudiante/grupo especifico. */
     public void actualizarLimiteSolicitud(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
         new SolicitudMatriculaDAO().actualizarLimite(estudianteId, grupoId, nuevoLimite, adminUsuarioId);
     }
@@ -410,11 +438,6 @@ public class AdminDAO {
 
     private static final int LIMITE_MODIFICACIONES_NOTAS = 3;
 
-    /**
-     * Lista las notas que han sido modificadas al menos una vez, con la cantidad
-     * de modificaciones registradas, el limite efectivo (base + autorizaciones)
-     * y si ya alcanzaron el limite.
-     */
     public List<Map<String, Object>> listarSupervisionCalificaciones() throws SQLException {
         String sql = "SELECT i.id AS inscripcion_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
                    + "m.nombre AS materia, m.codigo AS materia_codigo, g.codigo_grupo, "
@@ -457,7 +480,6 @@ public class AdminDAO {
         return lista;
     }
 
-    /** Otorga +cantidad modificaciones adicionales permitidas para una nota especifica. */
     public void autorizarModificacionNota(int inscripcionId, String componente, int cantidad, int adminUsuarioId) throws SQLException {
         String sql = "INSERT INTO notas_autorizaciones (inscripcion_id, componente, cantidad, admin_usuario_id) VALUES (?,?,?,?)";
         try (Connection con = ConexionDB.obtenerConexion();
@@ -470,11 +492,6 @@ public class AdminDAO {
         }
     }
 
-    /**
-     * Reinicia el contador de modificaciones de una nota: borra el historial
-     * y las autorizaciones previas, dejando la nota como si nunca hubiera
-     * sido modificada (el profesor vuelve a tener el limite completo).
-     */
     public void reiniciarModificaciones(int inscripcionId, String componente) throws SQLException {
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
@@ -495,7 +512,6 @@ public class AdminDAO {
         }
     }
 
-    /** Historial completo de cambios de una nota especifica (para detalle/auditoria). */
     public List<Map<String, Object>> historialNota(int inscripcionId, String componente) throws SQLException {
         String sql = "SELECT nota_anterior, nota_nueva, fecha_cambio FROM notas_historial "
                    + "WHERE inscripcion_id = ? AND componente = ? ORDER BY fecha_cambio ASC";
@@ -523,11 +539,6 @@ public class AdminDAO {
     // SUPERVISION DE ASISTENCIA
     // ============================================================
 
-    /**
-     * Lista registros de asistencia con filtros opcionales por grupo, estudiante
-     * y materia. Si no se pasa ningun filtro, devuelve los registros mas recientes
-     * (limitados) para evitar tablas enormes.
-     */
     public List<Map<String, Object>> listarSupervisionAsistencia(Integer grupoId, Integer estudianteId, Integer materiaId, String fecha) throws SQLException {
         StringBuilder sql = new StringBuilder(
                 "SELECT a.id, a.inscripcion_id, a.fecha, a.estado, a.observacion, "
@@ -571,15 +582,10 @@ public class AdminDAO {
         return lista;
     }
 
-    /** Corrige (upsert) un registro de asistencia existente. */
     public void corregirAsistencia(int inscripcionId, String fecha, String estado, String observacion) throws SQLException {
         new AsistenciaDAO().guardar(inscripcionId, LocalDate.parse(fecha), estado, observacion);
     }
 
-    /**
-     * Porcentaje de asistencia (presente+tardanza / total) agrupado por estudiante,
-     * grupo o materia, segun el parametro `agrupar`.
-     */
     public List<Map<String, Object>> reporteAsistenciaPorcentaje(String agrupar) throws SQLException {
         String campoNombre, campoId, groupBy;
         switch (agrupar == null ? "" : agrupar) {
@@ -589,7 +595,7 @@ public class AdminDAO {
             case "materia":
                 campoNombre = "m.nombre"; campoId = "m.id"; groupBy = "m.id, m.nombre";
                 break;
-            default: // estudiante
+            default:
                 campoNombre = "CONCAT(e.nombre,' ',e.apellido)"; campoId = "e.id"; groupBy = "e.id, e.nombre, e.apellido";
         }
         String sql = "SELECT " + campoNombre + " AS nombre, "

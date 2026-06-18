@@ -1,7 +1,5 @@
 package com.delta.servlet;
-
 import com.delta.dao.AdminDAO;
-
 import javax.servlet.ServletException;
 import javax.servlet.http.*;
 import java.io.IOException;
@@ -9,13 +7,11 @@ import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
-
 /**
  * API administrativa.
  * GET/POST /admin?accion=...
  */
 public class AdminServlet extends HttpServlet {
-
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -26,7 +22,6 @@ public class AdminServlet extends HttpServlet {
         }
         procesar(req, resp);
     }
-
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -38,13 +33,11 @@ public class AdminServlet extends HttpServlet {
         }
         procesar(req, resp);
     }
-
     private void procesar(HttpServletRequest req, HttpServletResponse resp) throws IOException {
         resp.setContentType("application/json;charset=UTF-8");
         String accion = req.getParameter("accion");
         PrintWriter out = resp.getWriter();
         AdminDAO dao = new AdminDAO();
-
         try {
             switch (accion != null ? accion : "") {
                 case "dashboard":
@@ -67,7 +60,7 @@ public class AdminServlet extends HttpServlet {
                     out.print(listToJson(dao.listarProfesoresSimple()));
                     break;
                 case "avisos":
-                    out.print(listToJson(dao.listarAvisosAdmin()));
+                    out.print(listToJson(dao.listarAvisosAdmin(req.getParameter("estado"))));
                     break;
                 case "reportePromedioMateria":
                     out.print(listToJson(dao.reportePromedioMateria()));
@@ -159,12 +152,30 @@ public class AdminServlet extends HttpServlet {
                     out.print("{\"ok\":true}");
                     break;
                 }
+                // ---- AVISOS ----
+                case "archivarAviso":
+                    dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "restaurarAviso":
+                    dao.restaurarAviso(Integer.parseInt(req.getParameter("id")));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "actualizarAviso":
+                    dao.actualizarAviso(
+                        Integer.parseInt(req.getParameter("id")),
+                        req.getParameter("titulo"),
+                        req.getParameter("cuerpo"),
+                        req.getParameter("estado"));
+                    out.print("{\"ok\":true}");
+                    break;
+                // Mantener compatibilidad con codigo anterior
                 case "desactivarAviso":
-                    dao.desactivarAviso(Integer.parseInt(req.getParameter("id")));
+                    dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");
                     break;
                 case "eliminarAviso":
-                    dao.eliminarAviso(Integer.parseInt(req.getParameter("id")));
+                    dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");
                     break;
                 default:
@@ -179,17 +190,14 @@ public class AdminServlet extends HttpServlet {
             out.print("{\"error\":\"" + esc(e.getMessage()) + "\"}");
         }
     }
-
     private boolean esAdmin(HttpServletRequest req) {
         HttpSession s = req.getSession(false);
         return s != null && "admin".equals(s.getAttribute("usuarioRol"));
     }
-
     private Integer parseIntOrNull(String s) {
         if (s == null || s.trim().isEmpty()) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
     }
-
     private String mapToJson(Map<String, Object> map) {
         StringBuilder sb = new StringBuilder("{");
         boolean first = true;
@@ -201,7 +209,6 @@ public class AdminServlet extends HttpServlet {
         sb.append("}");
         return sb.toString();
     }
-
     private String listToJson(List<Map<String, Object>> lista) {
         StringBuilder sb = new StringBuilder("[");
         boolean first = true;
@@ -213,14 +220,13 @@ public class AdminServlet extends HttpServlet {
         sb.append("]");
         return sb.toString();
     }
-
     private String val(Object v) {
         if (v == null) return "null";
         if (v instanceof Number || v instanceof Boolean) return v.toString();
         return "\"" + esc(String.valueOf(v)) + "\"";
     }
-
     private String esc(String s) {
+        if (s == null) return "";
         return s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 }
