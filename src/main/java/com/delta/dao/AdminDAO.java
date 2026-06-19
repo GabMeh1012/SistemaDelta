@@ -154,6 +154,7 @@ public class AdminDAO {
     }
 
     public void actualizarCreditos(int materiaId, int creditos) throws SQLException {
+        if (creditos < 0) throw new SQLException("Los créditos no pueden ser negativos.");
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement("UPDATE materias SET creditos=? WHERE id=?")) {
             ps.setInt(1, creditos);
@@ -163,6 +164,23 @@ public class AdminDAO {
     }
 
     public void actualizarCapacidad(int grupoId, int capacidad) throws SQLException {
+        // Validar que los cupos no sean menores a los inscritos actuales
+        int inscritos = 0;
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT COUNT(*) FROM inscripciones WHERE grupo_id=? AND estado='activo'")) {
+            ps.setInt(1, grupoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) inscritos = rs.getInt(1);
+            }
+        }
+        if (capacidad < inscritos) {
+            throw new SQLException(
+                "No se puede reducir los cupos a " + capacidad +
+                " porque hay " + inscritos + " estudiante(s) actualmente inscritos. " +
+                "El valor mínimo permitido es " + inscritos + "."
+            );
+        }
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement("UPDATE grupos SET capacidad=? WHERE id=?")) {
             ps.setInt(1, capacidad);
@@ -171,13 +189,94 @@ public class AdminDAO {
         }
     }
 
-    public void reasignarProfesor(int grupoId, int profesorId) throws SQLException {
+    /**
+     * Reasigna el profesor de un grupo y registra el cambio en el historial.
+     * Si el nuevo profesor es el mismo que el actual, no hace nada y retorna false.
+     * Si el cambio es real, actualiza grupos y registra historial, retornando true.
+     */
+    public boolean reasignarProfesor(int grupoId, int nuevoProfId, int adminUsuarioId) throws SQLException {
+        // Obtener profesor actual y materia para el historial
+        int profesorActualId = 0;
+        String profesorAnteriorNombre = "";
+        String profesorNuevoNombre = "";
+        String materiaNombre = "";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT g.profesor_id, CONCAT(pa.nombre,' ',pa.apellido) AS prof_ant, m.nombre AS materia "
+                   + "FROM grupos g "
+                   + "LEFT JOIN profesores pa ON pa.id = g.profesor_id "
+                   + "JOIN materias m ON m.id = g.materia_id "
+                   + "WHERE g.id = ?")) {
+            ps.setInt(1, grupoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    profesorActualId = rs.getInt("profesor_id");
+                    profesorAnteriorNombre = rs.getString("prof_ant");
+                    materiaNombre = rs.getString("materia");
+                }
+            }
+        }
+        // Si es el mismo profesor, no hacer nada
+        if (profesorActualId == nuevoProfId) return false;
+
+        // Obtener nombre del nuevo profesor
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                     "SELECT CONCAT(nombre,' ',apellido) AS nombre FROM profesores WHERE id=?")) {
+            ps.setInt(1, nuevoProfId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) profesorNuevoNombre = rs.getString("nombre");
+            }
+        }
+
+        // Actualizar el grupo
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement("UPDATE grupos SET profesor_id=? WHERE id=?")) {
-            ps.setInt(1, profesorId);
+            ps.setInt(1, nuevoProfId);
             ps.setInt(2, grupoId);
             ps.executeUpdate();
         }
+
+        // Registrar en historial
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(
+                     "INSERT INTO historial_asignacion_profesores "
+                   + "(grupo_id, materia_nombre, profesor_anterior, profesor_nuevo, admin_usuario_id) "
+                   + "VALUES (?,?,?,?,?)")) {
+            ps.setInt(1, grupoId);
+            ps.setString(2, materiaNombre);
+            ps.setString(3, profesorAnteriorNombre != null ? profesorAnteriorNombre : "Sin asignar");
+            ps.setString(4, profesorNuevoNombre);
+            ps.setInt(5, adminUsuarioId);
+            ps.executeUpdate();
+        }
+        return true;
+    }
+
+    /** Lista el historial de asignaciones de profesores, más reciente primero. */
+    public List<Map<String, Object>> listarHistorialAsignaciones() throws SQLException {
+        String sql = "SELECT h.id, h.fecha_cambio, h.materia_nombre, h.profesor_anterior, "
+                   + "h.profesor_nuevo, u.username AS admin "
+                   + "FROM historial_asignacion_profesores h "
+                   + "JOIN usuarios u ON u.id = h.admin_usuario_id "
+                   + "ORDER BY h.fecha_cambio DESC LIMIT 200";
+        List<Map<String, Object>> lista = new ArrayList<>();
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql);
+             ResultSet rs = ps.executeQuery()) {
+            while (rs.next()) {
+                Map<String, Object> row = new HashMap<>();
+                row.put("id", rs.getInt("id"));
+                Timestamp ts = rs.getTimestamp("fecha_cambio");
+                row.put("fecha", ts != null ? ts.toString().substring(0, 16) : "");
+                row.put("materia", rs.getString("materia_nombre"));
+                row.put("profesorAnterior", rs.getString("profesor_anterior"));
+                row.put("profesorNuevo", rs.getString("profesor_nuevo"));
+                row.put("admin", rs.getString("admin"));
+                lista.add(row);
+            }
+        }
+        return lista;
     }
 
     /** Lista simple de profesores (id + nombre) para el selector de reasignacion. */

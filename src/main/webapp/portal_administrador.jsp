@@ -248,6 +248,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('estudiantes',this)"><span class="nav-icon">&#127891;</span> Gestion de Estudiantes</button>
       <button class="nav-item" onclick="irTab('profesores',this)"><span class="nav-icon">&#128104;&#8205;&#127979;</span> Gestion de Profesores</button>
       <button class="nav-item" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
+      <button class="nav-item" onclick="irTab('historial-prof',this)"><span class="nav-icon">&#128203;</span> Historial de Profesores</button>
       <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
       <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
       <div class="nav-label">Supervision</div>
@@ -301,6 +302,15 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div id="tab-materias" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Materias</h2></div>
       <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblMaterias"></table></div></div>
+    </div>
+
+    <!-- HISTORIAL DE ASIGNACIÓN DE PROFESORES -->
+    <div id="tab-historial-prof" class="tab-panel">
+      <div class="topbar">
+        <h2 class="page-title">&#128203; Historial de Asignacion de Profesores</h2>
+        <div class="page-subtitle">Registro de todos los cambios de profesor realizados. Solo lectura — no se puede editar ni eliminar.</div>
+      </div>
+      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblHistorialProf"></table></div></div>
     </div>
 
     <!-- MATRICULA -->
@@ -441,6 +451,7 @@ function irTab(id, btn) {
   if (id==='estudiantes') cargarEstudiantes();
   if (id==='profesores') cargarProfesores();
   if (id==='materias') cargarMaterias();
+  if (id==='historial-prof') cargarHistorialAsignaciones();
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
   if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
@@ -504,24 +515,23 @@ function cargarMaterias() {
     var tbl = document.getElementById('tblMaterias');
     var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Cupos</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody>';
     rows.forEach(function(r, idx) {
-      // Creditos: solo lectura (FIX - antes era <input> editable)
-      var creditosCell = '<span style="font-weight:700;">'+r.creditos+'</span>';
+      // Creditos: ahora EDITABLE con input numerico
+      var creditosCell = '<input class="edit-input" type="number" min="1" max="20" style="width:60px;" id="mCred_'+idx+'" value="'+r.creditos+'">';
       var capacidadCell, profesorCell, accionesCell;
       if (r.grupoId != null) {
-        capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'">';
+        capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'"> <span style="font-size:11px;color:var(--text-soft);">min:'+r.inscritos+'</span>';
         var profOptions = '<option value="">— Sin asignar —</option>';
         profesoresParaSelect.forEach(function(p) {
           var sel = (r.profesorId != null && p.id === r.profesorId) ? ' selected' : '';
           profOptions += '<option value="'+p.id+'"'+sel+'>'+esc(p.nombre)+'</option>';
         });
         profesorCell = '<select class="edit-select" id="mProf_'+idx+'">'+profOptions+'</select>';
-        // FIX: botón Guardar solo cuando hay grupo (cupos + profesor)
-        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.grupoId+')">Guardar</button>';
+        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.grupoId+','+r.id+','+r.inscritos+')">Guardar</button>';
       } else {
         capacidadCell = '<span style="color:var(--text-soft);">-</span>';
         profesorCell  = '<span style="color:var(--text-soft);">Sin grupo</span>';
-        // FIX: sin grupo no hay nada editable, no mostrar botón
-        accionesCell  = '<span style="color:var(--text-soft);font-size:13px;">Sin grupo</span>';
+        // Sin grupo: solo se pueden editar créditos
+        accionesCell  = '<button class="btn btn-secondary btn-sm" onclick="guardarSoloCreditos('+idx+','+r.id+')">Guardar Creditos</button>';
       }
       html += '<tr>'
         +'<td>'+esc(r.codigo)+'</td>'
@@ -538,23 +548,42 @@ function cargarMaterias() {
   }).catch(function(){ showToast('Error al cargar materias.', 'error'); });
 }
 
-// FIX: guardarMateria ya NO intenta leer créditos (eran un span, no un input).
-// Solo guarda capacidad y profesor del grupo.
-function guardarMateria(idx, grupoId) {
+// Guarda créditos únicamente (para materias sin grupo asignado)
+function guardarSoloCreditos(idx, materiaId) {
+  var creditos = parseInt(document.getElementById('mCred_'+idx).value, 10);
+  if (isNaN(creditos) || creditos < 1) {
+    showToast('Los creditos deben ser un número mayor o igual a 1.', 'error'); return;
+  }
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'accion=actualizarCreditos&materiaId='+materiaId+'&creditos='+creditos})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) { showToast('Créditos actualizados correctamente.', 'success'); cargarMaterias(); }
+      else showToast('Error: '+(d.error||'No se pudo actualizar los créditos.'), 'error');
+    }).catch(function(){ showToast('Error de conexión.', 'error'); });
+}
+
+function guardarMateria(idx, grupoId, materiaId, inscritosActuales) {
+  var creditos  = parseInt(document.getElementById('mCred_'+idx).value, 10);
   var capacidad = parseInt(document.getElementById('mCap_'+idx).value, 10);
+
+  if (isNaN(creditos) || creditos < 1) {
+    showToast('Los créditos deben ser un número mayor o igual a 1.', 'error'); return;
+  }
   if (isNaN(capacidad) || capacidad < 0) {
-    showToast('Los cupos deben ser un numero mayor o igual a 0.', 'error');
+    showToast('Los cupos deben ser un número mayor o igual a 0.', 'error'); return;
+  }
+  // Validación de cupos en el frontend (reforzada en servidor)
+  if (capacidad < inscritosActuales) {
+    showToast('No se puede reducir los cupos a ' + capacidad +
+      ' porque hay ' + inscritosActuales + ' estudiante(s) actualmente inscritos. ' +
+      'El mínimo permitido es ' + inscritosActuales + '.', 'error');
     return;
   }
 
-  // Advertencia si cupos < inscritos actuales
-  var filaInscritos = document.getElementById('tblMaterias').rows[idx + 1];
-  var inscritosActuales = filaInscritos ? (parseInt(filaInscritos.cells[4].textContent, 10) || 0) : 0;
-  if (capacidad < inscritosActuales) {
-    showToast('Aviso: el cupo ('+capacidad+') es menor a los inscritos actuales ('+inscritosActuales+'). No se retirara a nadie automaticamente.', 'info');
-  }
-
   var peticiones = [
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=actualizarCreditos&materiaId='+materiaId+'&creditos='+creditos}),
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'accion=actualizarCapacidad&grupoId='+grupoId+'&capacidad='+capacidad})
   ];
@@ -570,10 +599,41 @@ function guardarMateria(idx, grupoId) {
     .then(function(results) {
       var error = results.find(function(d){ return !d.ok; });
       if (error) { showToast('Error: '+(error.error||'No se pudo guardar.'), 'error'); return; }
-      showToast('Cambios guardados correctamente.', 'success');
+      // Verificar si hubo cambio de profesor (la tercera petición devuelve cambiado:bool)
+      var resultadoProf = peticiones.length === 3 ? results[2] : null;
+      if (resultadoProf && resultadoProf.cambiado === false) {
+        showToast('Créditos y cupos guardados. ' + (resultadoProf.msg || 'El profesor no cambió.'), 'info');
+      } else if (resultadoProf && resultadoProf.cambiado === true) {
+        showToast('Cambios guardados. Profesor reasignado y registrado en el historial.', 'success');
+      } else {
+        showToast('Cambios guardados correctamente.', 'success');
+      }
       cargarMaterias();
     })
-    .catch(function(){ showToast('Error de conexion al guardar los cambios.', 'error'); });
+    .catch(function(){ showToast('Error de conexión al guardar los cambios.', 'error'); });
+}
+
+// Carga el historial de asignaciones de profesores
+function cargarHistorialAsignaciones() {
+  fetch(CTX+'/admin?accion=historialAsignaciones').then(function(r){ return r.json(); }).then(function(rows) {
+    var tbl = document.getElementById('tblHistorialProf');
+    if (!rows.length) {
+      tbl.innerHTML = '<tbody><tr><td colspan="5" style="text-align:center;color:var(--text-soft);padding:24px;">No hay cambios registrados todavía.</td></tr></tbody>';
+      return;
+    }
+    var html = '<thead><tr><th>Fecha</th><th>Materia</th><th>Profesor Anterior</th><th>Profesor Nuevo</th><th>Administrador</th></tr></thead><tbody>';
+    rows.forEach(function(r, i) {
+      var bg = i % 2 === 0 ? '' : 'style="background:var(--bg);"';
+      html += '<tr '+bg+'>'
+        +'<td style="color:var(--text-soft);white-space:nowrap;">'+esc(r.fecha)+'</td>'
+        +'<td><strong>'+esc(r.materia)+'</strong></td>'
+        +'<td><span class="tag tag-red">'+esc(r.profesorAnterior)+'</span></td>'
+        +'<td><span class="tag tag-green">'+esc(r.profesorNuevo)+'</span></td>'
+        +'<td style="color:var(--text-soft);">'+esc(r.admin)+'</td>'
+        +'</tr>';
+    });
+    tbl.innerHTML = html + '</tbody>';
+  }).catch(function(){ showToast('Error al cargar el historial.', 'error'); });
 }
 
 function cargarLimitesSolicitudes() {

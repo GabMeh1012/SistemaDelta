@@ -27,7 +27,7 @@
 <style>
 :root {
   --purple:#5b21b6; --purple-light:#ede9fe; --purple-dark:#4c1d95;
-  --blue:#1a56a0; --green:#15803d; --amber:#b45309; --red:#dc2626;
+  --blue:#1a56a0; --green:#15803d; --amber:#b45309; --red:#dc2626; --red-bg:#fee2e2;
   --bg:#f4f6fb; --text:#1e2a3b; --text-soft:#6b7e96;
   --radius:14px; --radius-sm:10px;
   --sidebar-w:260px;
@@ -72,7 +72,14 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 /* PORTAL */
 .portal { display:flex; min-height:100vh; }
 .sidebar { width:var(--sidebar-w); background:#fff; border-right:2px solid #e8edf5;
-  position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100; }
+  position:fixed; top:0; left:0; height:100vh; overflow-y:auto; z-index:100;
+  display:flex; flex-direction:column; }
+.sidebar-footer { margin-top:auto; padding:16px 14px; border-top:2px solid #e8edf5; }
+.logout-btn { display:flex; align-items:center; gap:10px; padding:12px 14px;
+  border-radius:var(--radius-sm); font-size:14px; font-weight:700; color:var(--red);
+  cursor:pointer; background:var(--red-bg); border:1.5px solid #fca5a5;
+  width:100%; font-family:'Nunito',sans-serif; transition:all .18s; }
+.logout-btn:hover { background:#fecaca; }
 .sidebar-header { padding:22px 20px 16px; border-bottom:2px solid #f0f4fa; }
 .sidebar-logo { display:flex; align-items:center; gap:12px; }
 .logo-mark { width:42px; height:42px; border-radius:12px; background:var(--purple); color:#fff;
@@ -245,12 +252,13 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
       <div class="nav-label">Supervision</div>
       <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
-      <button class="nav-item" onclick="irTab('sup-asistencia',this)"><span class="nav-icon">&#9989;</span> Asistencia</button>
       <div class="nav-label">Comunicacion</div>
       <button class="nav-item" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
       <button class="nav-item" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
-      <button class="nav-item" onclick="cerrarSesion()"><span class="nav-icon">&#128682;</span> Cerrar Sesion</button>
     </nav>
+    <div class="sidebar-footer">
+      <button class="logout-btn" onclick="cerrarSesion()">&#128682; Cerrar Sesion</button>
+    </div>
   </aside>
 
   <main class="main-content">
@@ -308,38 +316,26 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- LIMITES -->
     <div id="tab-limites" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">&#128273; Limites de Solicitudes</h2>
-        <div class="page-subtitle">Controla cuantas veces puede un estudiante solicitar inscripcion o retiro por materia. El limite por defecto es 2.</div>
+        <h2 class="page-title">&#128273; Oportunidades de Solicitud</h2>
+        <div class="page-subtitle">Oportunidades de cada estudiante.</div>
       </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblLimites"></table></div></div>
+      <div id="limites-container" style="display:flex;flex-direction:column;gap:20px;"></div>
     </div>
 
     <!-- SUPERVISION CALIFICACIONES -->
     <div id="tab-sup-calificaciones" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">Supervision de Calificaciones</h2>
-        <div class="page-subtitle">Notas que han sido modificadas al menos una vez, con su limite de cambios permitidos</div>
+        <h2 class="page-title">Calificaciones — Calidad de Software</h2>
+        <div class="page-subtitle">Notas por componente con historial de modificaciones y autorizaciones</div>
       </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupCalificaciones"></table></div></div>
-      <div class="card" id="historialCard" style="display:none;">
-        <div class="card-title">Historial de cambios <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historialCard').style.display='none';" style="margin-left:auto;">Cerrar</button></div>
+      <div id="contenedorCalificaciones" style="display:flex;flex-direction:column;gap:0;"></div>
+      <div class="card" id="historialCard" style="display:none;margin-top:20px;">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Historial de cambios
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('historialCard').style.display='none';">Cerrar</button>
+        </div>
         <div style="overflow-x:auto;"><table class="delta-table" id="tblHistorialNota"></table></div>
       </div>
-    </div>
-
-    <!-- SUPERVISION ASISTENCIA -->
-    <div id="tab-sup-asistencia" class="tab-panel">
-      <div class="topbar">
-        <h2 class="page-title">Supervision de Asistencia</h2>
-        <div class="page-subtitle">Asistencia registrada por los profesores, con opcion de correccion</div>
-      </div>
-      <div class="filter-row">
-        <select id="fAsistGrupo"><option value="">Todos los grupos</option></select>
-        <select id="fAsistMateria"><option value="">Todas las materias</option></select>
-        <input id="fAsistFecha" type="date">
-        <button class="btn btn-primary btn-sm" onclick="cargarSupervisionAsistencia()">Filtrar</button>
-      </div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblSupAsistencia"></table></div></div>
     </div>
 
     <!-- AVISOS -->
@@ -380,7 +376,12 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'grupo'})">% Asistencia por Grupo</button>
         <button onclick="cargarReporte('reporteAsistenciaPorcentaje',this,{agrupar:'materia'})">% Asistencia por Materia</button>
       </div>
-      <div class="card" style="margin-top:18px;"><div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div></div>
+      <div class="card" style="margin-top:18px;">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+          <button class="btn btn-secondary btn-sm" onclick="descargarReporteCSV()">&#11015; Descargar CSV</button>
+        </div>
+        <div style="overflow-x:auto;"><table class="delta-table" id="tblReportes"></table></div>
+      </div>
     </div>
 
   </main>
@@ -443,12 +444,15 @@ function irTab(id, btn) {
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
   if (id==='limites') cargarLimitesSolicitudes();
   if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
-  if (id==='sup-asistencia') cargarSupervisionAsistencia();
   if (id==='avisos') cargarAvisos('todos', document.querySelector('#filtrosAvisos button'));
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
 }
 
-function cerrarSesion() { window.location.href = CTX + '/logout'; }
+function cerrarSesion() {
+  showConfirm('¿Desea cerrar sesion?', function() {
+    window.location.href = CTX + '/logout';
+  });
+}
 
 function cargarDashboard() {
   if (!HAY_BD) return;
@@ -574,44 +578,88 @@ function guardarMateria(idx, grupoId) {
 
 function cargarLimitesSolicitudes() {
   fetch(CTX+'/admin?accion=limitesSolicitudes').then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblLimites');
+    var container = document.getElementById('limites-container');
     if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay estudiantes con inscripciones activas.</td></tr></tbody>';
+      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay estudiantes con inscripciones activas en este modulo.</div>';
       return;
     }
-    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Solicitudes Inscripcion</th><th>Solicitudes Retiro</th><th>Limite Actual</th><th>Nuevo Limite</th><th>Accion</th></tr></thead><tbody>';
-    rows.forEach(function(r, idx) {
-      var tagInsc = r.solInscripcion >= r.limite
-        ? '<span class="tag tag-red">'+r.solInscripcion+' / '+r.limite+'</span>'
-        : '<span class="tag tag-green">'+r.solInscripcion+' / '+r.limite+'</span>';
-      var tagRet = r.solRetiro >= r.limite
-        ? '<span class="tag tag-red">'+r.solRetiro+' / '+r.limite+'</span>'
-        : '<span class="tag tag-green">'+r.solRetiro+' / '+r.limite+'</span>';
-      html += '<tr>'
-        +'<td><strong>'+esc(r.estudiante)+'</strong></td>'
-        +'<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        +'<td style="text-align:center;">'+tagInsc+'</td>'
-        +'<td style="text-align:center;">'+tagRet+'</td>'
-        +'<td style="text-align:center;"><span class="tag tag-amber">'+r.limite+'</span></td>'
-        +'<td><input class="edit-input" type="number" min="1" max="20" id="lim_'+idx+'" value="'+r.limite+'"></td>'
-        +'<td><button class="btn btn-primary btn-sm" onclick="guardarLimiteSolicitud('+r.estudianteId+','+r.grupoId+','+idx+')">Guardar</button></td>'
-        +'</tr>';
+
+    // Agrupar filas por estudiante
+    var porEstudiante = {};
+    rows.forEach(function(r) {
+      if (!porEstudiante[r.estudianteId]) {
+        porEstudiante[r.estudianteId] = { nombre: r.estudiante, materias: [] };
+      }
+      porEstudiante[r.estudianteId].materias.push(r);
     });
-    tbl.innerHTML = html + '</tbody>';
-  }).catch(function(){ showToast('Error al cargar los limites.', 'error'); });
+
+    var html = '';
+    Object.keys(porEstudiante).forEach(function(estId) {
+      var est = porEstudiante[estId];
+      html += '<div class="card" style="padding:0;overflow:hidden;">';
+      // Cabecera del estudiante
+      html += '<div style="background:var(--purple-bg);padding:16px 20px;border-bottom:2px solid var(--purple);display:flex;align-items:center;gap:12px;">'
+            + '<div style="width:40px;height:40px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;">'
+            + esc(est.nombre.charAt(0)) + '</div>'
+            + '<div><div style="font-weight:800;font-size:16px;color:var(--purple);">'+esc(est.nombre)+'</div>'
+            + '<div style="font-size:12px;color:var(--text-soft);">'+est.materias.length+' materia(s) inscrita(s)</div></div>'
+            + '</div>';
+      // Tabla de materias
+      html += '<div style="padding:16px 20px;">';
+      html += '<table class="delta-table" style="margin-bottom:0;">'
+            + '<thead><tr><th>Materia</th><th style="text-align:center;">Oportunidades Usadas</th><th style="text-align:center;">Disponibles</th><th>Acciones</th></tr></thead><tbody>';
+      est.materias.forEach(function(r) {
+        var usadas = r.usadas || 0;
+        var limite = r.limite || 3;
+        var disponibles = Math.max(0, limite - usadas);
+        var bloqueada = usadas >= limite;
+        var barColor = bloqueada ? 'var(--red)' : (usadas >= limite - 1 ? 'var(--amber)' : 'var(--green)');
+        var tagUsadas = bloqueada
+          ? '<span class="tag tag-red">'+usadas+' / '+limite+' &#128274; Bloqueada</span>'
+          : (usadas > 0
+            ? '<span class="tag tag-amber">'+usadas+' / '+limite+'</span>'
+            : '<span class="tag tag-green">'+usadas+' / '+limite+'</span>');
+        var tagDisp = bloqueada
+          ? '<span class="tag tag-red">0</span>'
+          : '<span class="tag tag-green">'+disponibles+'</span>';
+        html += '<tr>'
+          + '<td><strong>'+esc(r.materia)+'</strong><br><span style="font-size:12px;color:var(--text-soft);">'+esc(r.materiaCodigo)+'</span></td>'
+          + '<td style="text-align:center;">'+tagUsadas+'</td>'
+          + '<td style="text-align:center;">'+tagDisp+'</td>'
+          + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
+          + '<button class="btn btn-secondary btn-sm" title="Reiniciar a 3/3" onclick="reiniciarOportunidades('+r.estudianteId+','+r.grupoId+',\''+esc(est.nombre)+'\',\''+esc(r.materia)+'\')">&#128260; Reiniciar</button>'
+          + '<button class="btn btn-success btn-sm" title="Autorizar +1 oportunidad adicional" onclick="autorizarOportunidad('+r.estudianteId+','+r.grupoId+',\''+esc(est.nombre)+'\',\''+esc(r.materia)+'\')">+1 Autorizar</button>'
+          + '</td>'
+          + '</tr>';
+      });
+      html += '</tbody></table></div></div>';
+    });
+    container.innerHTML = html;
+  }).catch(function(){ showToast('Error al cargar las oportunidades.', 'error'); });
 }
 
-function guardarLimiteSolicitud(estudianteId, grupoId, idx) {
-  var nuevoLimite = parseInt(document.getElementById('lim_'+idx).value, 10);
-  if (isNaN(nuevoLimite) || nuevoLimite < 1) { showToast('El limite debe ser al menos 1.', 'error'); return; }
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'accion=actualizarLimiteSolicitud&estudianteId='+estudianteId+'&grupoId='+grupoId+'&limite='+nuevoLimite})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok) { showToast('Limite actualizado correctamente.', 'success'); cargarLimitesSolicitudes(); }
-      else showToast('Error: '+(d.error||'No se pudo actualizar.'), 'error');
-    })
-    .catch(function(){ showToast('Error de conexion.', 'error'); });
+function reiniciarOportunidades(estudianteId, grupoId, nombreEst, nombreMat) {
+  showConfirm('¿Reiniciar oportunidades de '+nombreEst+' en '+nombreMat+'?\n\nEl contador volvera a 0/3 y se podran hacer nuevas solicitudes.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=reiniciarOportunidades&estudianteId='+estudianteId+'&grupoId='+grupoId})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { showToast('Oportunidades reiniciadas correctamente.', 'success'); cargarLimitesSolicitudes(); }
+        else showToast('Error: '+(d.error||'No se pudo reiniciar.'), 'error');
+      }).catch(function(){ showToast('Error de conexion.', 'error'); });
+  });
+}
+
+function autorizarOportunidad(estudianteId, grupoId, nombreEst, nombreMat) {
+  showConfirm('¿Autorizar +1 oportunidad adicional para '+nombreEst+' en '+nombreMat+'?', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=autorizarOportunidad&estudianteId='+estudianteId+'&grupoId='+grupoId})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { showToast('+1 oportunidad autorizada correctamente.', 'success'); cargarLimitesSolicitudes(); }
+        else showToast('Error: '+(d.error||'No se pudo autorizar.'), 'error');
+      }).catch(function(){ showToast('Error de conexion.', 'error'); });
+  });
 }
 
 var tipoSolicitudActual = 'inscripcion';
@@ -745,32 +793,91 @@ var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Pr
 
 function cargarSupervisionCalificaciones() {
   fetch(CTX+'/admin?accion=supervisionCalificaciones').then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblSupCalificaciones');
+    var container = document.getElementById('contenedorCalificaciones');
     if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td colspan="7" style="text-align:center;color:var(--text-soft);padding:20px;">No hay notas registradas todavia.</td></tr></tbody>';
+      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay notas registradas para Calidad de Software.</div>';
       return;
     }
-    var html = '<thead><tr><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Componente</th><th>Nota Actual</th><th>Modificaciones</th><th>Acciones</th></tr></thead><tbody>';
+
+    // Agrupar por inscripcionId (un estudiante = un grupo de componentes)
+    var porInscripcion = {};
     rows.forEach(function(r) {
-      var notaTxt = (r.notaActual != null && r.notaActual !== 0) ? r.notaActual : (r.notaActual === 0 ? '0' : '-');
-      var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
-      var modTag;
-      if (r.modificaciones === 0) modTag = '<span class="tag tag-green">0 / '+r.limite+' (sin cambios)</span>';
-      else if (r.enLimite) modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' (limite alcanzado)</span>';
-      else modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
-      html += '<tr><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        +'<td>'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</td>'
-        +'<td>'+esc(r.grupo||'-')+'</td>'
-        +'<td>'+esc(compLabel)+'</td>'
-        +'<td><strong>'+notaTxt+'</strong></td>'
-        +'<td>'+modTag+'</td>'
-        +'<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-        +'<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
-      if (r.enLimite) html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
-      if (r.modificaciones > 0) html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
-      html += '</td></tr>';
+      if (!porInscripcion[r.inscripcionId]) {
+        porInscripcion[r.inscripcionId] = {
+          inscripcionId: r.inscripcionId,
+          estudiante: r.estudiante,
+          materia: r.materia,
+          materiaCodigo: r.materiaCodigo,
+          grupo: r.grupo,
+          componentes: []
+        };
+      }
+      porInscripcion[r.inscripcionId].componentes.push(r);
     });
-    tbl.innerHTML = html + '</tbody>';
+
+    var html = '';
+    Object.keys(porInscripcion).forEach(function(inscId) {
+      var est = porInscripcion[inscId];
+      var inicial = esc(est.estudiante.charAt(0).toUpperCase());
+
+      // Calcular promedio visual con los componentes disponibles
+      var notas = {};
+      est.componentes.forEach(function(c) { notas[c.componente] = c.notaActual; });
+      var tieneAlguna = notas.parcial1!=null || notas.parcial2!=null || notas.proyecto!=null || notas.examen_final!=null;
+      var promedio = '-';
+      if (tieneAlguna) {
+        var p = ((notas.parcial1||0)*0.25 + (notas.parcial2||0)*0.25 + (notas.proyecto||0)*0.20 + (notas.examen_final||0)*0.30);
+        promedio = Math.round(p * 10) / 10;
+      }
+
+      html += '<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px;">';
+      // Cabecera del estudiante
+      html += '<div style="background:var(--purple-light);padding:16px 20px;border-bottom:2px solid #e8edf5;display:flex;align-items:center;gap:12px;">'
+            + '<div style="width:42px;height:42px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;">'
+            + inicial + '</div>'
+            + '<div style="flex:1;">'
+            + '<div style="font-weight:800;font-size:16px;color:var(--purple);">'+esc(est.estudiante)+'</div>'
+            + '<div style="font-size:12px;color:var(--text-soft);">'+esc(est.materia)+' ('+esc(est.materiaCodigo)+') &bull; Grupo: '+esc(est.grupo||'-')+'</div>'
+            + '</div>'
+            + '<div style="text-align:right;">'
+            + '<div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Promedio</div>'
+            + '<div style="font-size:22px;font-weight:800;color:var(--purple);">'+promedio+'</div>'
+            + '</div>'
+            + '</div>';
+
+      // Tabla de componentes
+      html += '<div style="padding:16px 20px;">';
+      html += '<table class="delta-table" style="margin-bottom:0;">'
+            + '<thead><tr>'
+            + '<th>Componente</th>'
+            + '<th style="text-align:center;">Nota</th>'
+            + '<th>Modificaciones</th>'
+            + '<th>Acciones</th>'
+            + '</tr></thead><tbody>';
+
+      est.componentes.forEach(function(r) {
+        var notaTxt = (r.notaActual != null) ? r.notaActual : '<span style="color:var(--text-soft);">Sin registrar</span>';
+        var compLabel = COMPONENTE_LABEL[r.componente] || r.componente;
+        var modTag;
+        if (r.modificaciones === 0) modTag = '<span class="tag tag-green">0 / '+r.limite+' sin cambios</span>';
+        else if (r.enLimite) modTag = '<span class="tag tag-red">'+r.modificaciones+' / '+r.limite+' limite alcanzado</span>';
+        else modTag = '<span class="tag tag-amber">'+r.modificaciones+' / '+r.limite+'</span>';
+
+        html += '<tr>'
+          + '<td><strong>'+esc(compLabel)+'</strong></td>'
+          + '<td style="text-align:center;font-weight:800;">'+notaTxt+'</td>'
+          + '<td>'+modTag+'</td>'
+          + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
+          + '<button class="btn btn-secondary btn-sm" onclick="verHistorialNota('+r.inscripcionId+',\''+r.componente+'\')">Ver historial</button>';
+        if (r.enLimite) html += '<button class="btn btn-success btn-sm" onclick="autorizarModificacion('+r.inscripcionId+',\''+r.componente+'\')">Autorizar +1</button>';
+        if (r.modificaciones > 0) html += '<button class="btn btn-danger btn-sm" onclick="reiniciarModificaciones('+r.inscripcionId+',\''+r.componente+'\')">Reiniciar</button>';
+        html += '</td></tr>';
+      });
+
+      html += '</tbody></table></div></div>';
+    });
+
+    container.innerHTML = html;
   }).catch(function(){ showToast('Error al cargar supervision de calificaciones.', 'error'); });
 }
 
@@ -814,70 +921,9 @@ function reiniciarModificaciones(inscripcionId, componente) {
   });
 }
 
-var ESTADO_ASISTENCIA_LABEL = {present:'Presente', late:'Tardanza', absent:'Ausente'};
-var filtrosAsistenciaListos = false;
-
-function poblarFiltrosAsistencia() {
-  if (filtrosAsistenciaListos) return;
-  fetch(CTX+'/admin?accion=materias').then(function(r){ return r.json(); }).then(function(rows) {
-    var gruposVistos = {}, materiasVistas = {};
-    var selGrupo = document.getElementById('fAsistGrupo');
-    var selMateria = document.getElementById('fAsistMateria');
-    rows.forEach(function(r) {
-      if (r.grupoId != null && !gruposVistos[r.grupoId]) {
-        gruposVistos[r.grupoId] = true;
-        var opt = document.createElement('option'); opt.value = r.grupoId; opt.textContent = r.grupo+' - '+r.nombre; selGrupo.appendChild(opt);
-      }
-      if (!materiasVistas[r.id]) {
-        materiasVistas[r.id] = true;
-        var opt2 = document.createElement('option'); opt2.value = r.id; opt2.textContent = r.codigo+' - '+r.nombre; selMateria.appendChild(opt2);
-      }
-    });
-    filtrosAsistenciaListos = true;
-  }).catch(function(){});
-}
-
-function cargarSupervisionAsistencia() {
-  poblarFiltrosAsistencia();
-  var grupoId = document.getElementById('fAsistGrupo').value;
-  var materiaId = document.getElementById('fAsistMateria').value;
-  var fecha = document.getElementById('fAsistFecha').value;
-  var q = 'accion=supervisionAsistencia';
-  if (grupoId) q += '&grupoId='+grupoId;
-  if (materiaId) q += '&materiaId='+materiaId;
-  if (fecha) q += '&fecha='+fecha;
-  fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblSupAsistencia');
-    if (!rows.length) {
-      tbl.innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">No hay registros de asistencia para estos filtros.</td></tr></tbody>';
-      return;
-    }
-    var html = '<thead><tr><th>Fecha</th><th>Estudiante</th><th>Materia</th><th>Grupo</th><th>Estado</th><th>Observacion</th><th>Corregir</th></tr></thead><tbody>';
-    rows.forEach(function(r, idx) {
-      var estadoOptions = ['present','late','absent'].map(function(e){
-        return '<option value="'+e+'"'+(e===r.estado?' selected':'')+'>'+ESTADO_ASISTENCIA_LABEL[e]+'</option>';
-      }).join('');
-      html += '<tr><td>'+esc(r.fecha)+'</td><td><strong>'+esc(r.estudiante)+'</strong></td>'
-        +'<td>'+esc(r.materia)+'</td><td>'+esc(r.grupo)+'</td>'
-        +'<td><select class="edit-select" id="asistEstado_'+idx+'">'+estadoOptions+'</select></td>'
-        +'<td><input class="edit-input" style="width:140px;" type="text" id="asistObs_'+idx+'" value="'+esc(r.observacion||'')+'"></td>'
-        +'<td><button class="btn btn-primary btn-sm" onclick="corregirAsistencia('+r.inscripcionId+',\''+r.fecha+'\','+idx+')">Guardar</button></td></tr>';
-    });
-    tbl.innerHTML = html + '</tbody>';
-  }).catch(function(){ showToast('Error al cargar supervision de asistencia.', 'error'); });
-}
-
-function corregirAsistencia(inscripcionId, fecha, idx) {
-  var estado = document.getElementById('asistEstado_'+idx).value;
-  var observacion = document.getElementById('asistObs_'+idx).value;
-  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body:'accion=corregirAsistencia&inscripcionId='+inscripcionId+'&fecha='+fecha+'&estado='+estado+'&observacion='+encodeURIComponent(observacion)})
-    .then(function(r){ return r.json(); })
-    .then(function(d){
-      if (d.ok) showToast('Registro de asistencia corregido.','success');
-      else showToast('Error: '+(d.error||'No se pudo corregir.'),'error');
-    }).catch(function(){ showToast('Error de conexion.','error'); });
-}
+var reporteActualData = [];
+var reporteActualKeys = [];
+var reporteActualNombre = 'Reporte';
 
 var REPORTE_COL_LABEL = {
   nombre:'Nombre', codigo:'Codigo', carrera:'Carrera', promedio:'Promedio',
@@ -896,8 +942,15 @@ function cargarReporte(accion, btn, extraParams) {
   var q = 'accion='+accion;
   if (extraParams) Object.keys(extraParams).forEach(function(k){ q += '&'+k+'='+encodeURIComponent(extraParams[k]); });
   fetch(CTX+'/admin?'+q).then(function(r){ return r.json(); }).then(function(rows) {
-    if (!rows.length) { document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>'; return; }
-    var keys = Object.keys(rows[0]);
+    reporteActualData = rows;
+    reporteActualNombre = btn ? btn.textContent.trim() : accion;
+    if (!rows.length) {
+      reporteActualKeys = [];
+      document.getElementById('tblReportes').innerHTML = '<tbody><tr><td style="text-align:center;color:var(--text-soft);padding:20px;">Sin datos para este reporte.</td></tr></tbody>';
+      return;
+    }
+    reporteActualKeys = Object.keys(rows[0]);
+    var keys = reporteActualKeys;
     var html = '<thead><tr>'+keys.map(function(k){ return '<th>'+(REPORTE_COL_LABEL[k]||k)+'</th>'; }).join('')+'</tr></thead><tbody>';
     rows.forEach(function(r) {
       html += '<tr>'+keys.map(function(k){
@@ -912,6 +965,35 @@ function cargarReporte(accion, btn, extraParams) {
     });
     document.getElementById('tblReportes').innerHTML = html + '</tbody>';
   }).catch(function(){ showToast('Error al cargar el reporte.', 'error'); });
+}
+
+function descargarReporteCSV() {
+  if (!reporteActualData.length) { showToast('No hay datos para descargar.', 'info'); return; }
+  var headers = reporteActualKeys.map(function(k) { return REPORTE_COL_LABEL[k] || k; });
+  var filas = [headers];
+  reporteActualData.forEach(function(r) {
+    filas.push(reporteActualKeys.map(function(k) {
+      var v = r[k];
+      if (k === 'porcentaje' && v != null) v = v + '%';
+      return v != null ? String(v) : '';
+    }));
+  });
+  var csv = filas.map(function(fila) {
+    return fila.map(function(celda) {
+      var val = String(celda).replace(/"/g, '""');
+      if (val.indexOf(',') !== -1 || val.indexOf('"') !== -1 || val.indexOf('\n') !== -1) val = '"' + val + '"';
+      return val;
+    }).join(',');
+  }).join('\r\n');
+  var blob = new Blob(['﻿' + csv], {type:'text/csv;charset=utf-8;'});
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = reporteActualNombre.replace(/\s+/g, '_') + '.csv';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function renderTable(id, headers, rows, mapFn) {

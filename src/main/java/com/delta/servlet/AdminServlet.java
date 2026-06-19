@@ -93,10 +93,22 @@ public class AdminServlet extends HttpServlet {
                             Integer.parseInt(req.getParameter("capacidad")));
                     out.print("{\"ok\":true}");
                     break;
-                case "reasignarProfesor":
-                    dao.reasignarProfesor(Integer.parseInt(req.getParameter("grupoId")),
-                            Integer.parseInt(req.getParameter("profesorId")));
-                    out.print("{\"ok\":true}");
+                case "reasignarProfesor": {
+                    HttpSession sProf = req.getSession(false);
+                    int adminIdProf = (Integer) sProf.getAttribute("usuarioId");
+                    boolean cambiado = dao.reasignarProfesor(
+                            Integer.parseInt(req.getParameter("grupoId")),
+                            Integer.parseInt(req.getParameter("profesorId")),
+                            adminIdProf);
+                    if (cambiado) {
+                        out.print("{\"ok\":true,\"cambiado\":true}");
+                    } else {
+                        out.print("{\"ok\":true,\"cambiado\":false,\"msg\":\"El profesor seleccionado ya estaba asignado a este grupo. No se realizaron cambios.\"}");
+                    }
+                    break;
+                }
+                case "historialAsignaciones":
+                    out.print(listToJson(dao.listarHistorialAsignaciones()));
                     break;
                 case "supervisionCalificaciones":
                     out.print(listToJson(dao.listarSupervisionCalificaciones()));
