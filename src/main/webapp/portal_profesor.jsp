@@ -1707,7 +1707,8 @@ function sincronizarTablas(origen, destino) {
     const nameCell = row.querySelector('td strong');
     if (!nameCell) return;
     const name = nameCell.textContent.trim();
-    const est = var _gCodigo2 = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : ''); (gruposData[_gCodigo2]||{estudiantes:[]}).estudiantes.find(function(e){ return e.name === name; });
+    var _gCodigo2 = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+    const est = (gruposData[_gCodigo2]||{estudiantes:[]}).estudiantes.find(function(e){ return e.name === name; });
     if (est) {
       est.p1    = parseFloat(inputs[0].value) || 0;
       est.p2    = parseFloat(inputs[1].value) || 0;
