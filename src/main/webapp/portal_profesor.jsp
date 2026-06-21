@@ -138,6 +138,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portal Docente — Sistema Delta UTP</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Merriweather:wght@700&display=swap" rel="stylesheet">
@@ -155,7 +158,7 @@
   --shadow-lg:0 6px 28px rgba(26,86,160,0.14);
   --radius:14px; --radius-sm:9px;
 }
-*{margin:0;padding:0;box-sizing:border-box;}
+*{margin:0;padding:0;box-sizing:border-box;} html,body{width:100%;overflow-x:hidden;}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);font-size:16px;min-height:100vh;}
 .hidden{display:none!important;}
 h1,h2,h3{font-family:'Merriweather',serif;}
@@ -171,7 +174,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .tag-blue{background:var(--blue-light);color:var(--blue);}
 
 /* LOGIN */
-#page-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#dbeafe 0%,#f4f6fb 60%,#e0f2fe 100%);padding:24px;}
+#page-login{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#dbeafe 0%,#f4f6fb 60%,#e0f2fe 100%);padding:24px;z-index:9999;}
 .login-box{background:var(--white);border:1.5px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);width:100%;max-width:420px;padding:48px 40px;animation:popIn 0.4s ease;}
 @keyframes popIn{from{opacity:0;transform:scale(0.96) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .login-logo{text-align:center;margin-bottom:28px;}
@@ -424,7 +427,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 </div>
 
 <!-- LOGIN DOCENTE -->
-<div id="page-login">
+<div id="page-login"<%= hayBD ? " class=\"hidden\"" : "" %>>
   <div class="login-box">
     <div class="login-logo">
       <div class="delta-mark">∆</div>
@@ -522,7 +525,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 </div>
 
 <!-- PORTAL DOCENTE -->
-<div id="page-portal" class="portal hidden">
+<div id="page-portal" class="portal<%= hayBD ? "" : " hidden" %>">
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
@@ -888,7 +891,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     </div>
 
   </main>
-</div><!-- /page-portal -->
+</div>
 
 <!-- Save Toast -->
 <div class="save-toast" id="saveToast" onclick="confirmSaveGrades()">💾 Guardar cambios pendientes</div>
