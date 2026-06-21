@@ -558,7 +558,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     </div>
   </aside>
 
-  <main class="main-content"><!-- /main at line 891 -->
+  <main class="main-content">
 
     <!-- INICIO -->
     <div id="tab-inicio" class="tab-panel active">
@@ -888,7 +888,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     </div>
 
   </main>
-</div>
+</div><!-- /page-portal -->
 
 <!-- Save Toast -->
 <div class="save-toast" id="saveToast" onclick="confirmSaveGrades()">💾 Guardar cambios pendientes</div>
@@ -1150,15 +1150,16 @@ function renderRiesgoTabla(container, lista) {
 }
 
 function renderRiesgoDemo(container) {
-  // Calcular riesgo real desde gruposData['1SF133']
   var lista = [];
-  var _primerGrupo = misGruposBD.length ? misGruposBD[0].codigo : ''; (gruposData[_primerGrupo]||{estudiantes:[]}).estudiantes.forEach(function(est) {
+  var _primerGrupo = misGruposBD.length ? misGruposBD[0].codigo : '';
+  var _gd = gruposData[_primerGrupo] || {estudiantes: []};
+  _gd.estudiantes.forEach(function(est) {
     var nota = calcNotaFinal(est.p1, est.p2, est.proj, est.final);
     if (nota < 70) {
       lista.push({
         nombre: est.name,
         codigoGrupo: _primerGrupo,
-        materia: 'Calidad del Software',
+        materia: _gd.nombre || '',
         promedio: nota,
         estado: nota < 60 ? 'RIESGO' : 'ALERTA'
       });
