@@ -476,24 +476,26 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
           <form id="frmEstudiante" onsubmit="enviarCrearEstudiante(event)" novalidate>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
-                <label class="aviso-field-label">Nombre *</label>
-                <input type="text" name="nombre" id="estNombre" class="aviso-field-input" placeholder="Juan" oninput="limpiarError('errEstNombre',this)">
+                <label class="aviso-field-label">Nombre completo *</label>
+                <input type="text" name="nombre" id="estNombre" class="aviso-field-input" placeholder="Juan Carlos" oninput="limpiarError('errEstNombre',this);autoEmailEstudiante()">
                 <span class="field-error" id="errEstNombre"></span>
               </div>
               <div class="form-group">
-                <label class="aviso-field-label">Apellido *</label>
-                <input type="text" name="apellido" id="estApellido" class="aviso-field-input" placeholder="Perez" oninput="limpiarError('errEstApellido',this)">
+                <label class="aviso-field-label">Apellido completo *</label>
+                <input type="text" name="apellido" id="estApellido" class="aviso-field-input" placeholder="De Leon" oninput="limpiarError('errEstApellido',this);autoEmailEstudiante()">
                 <span class="field-error" id="errEstApellido"></span>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
-                <label class="aviso-field-label">Email *</label>
-                <input type="email" name="email" id="estEmail" class="aviso-field-input" placeholder="juan.perez@utp.ac.pa" oninput="limpiarError('errEstEmail',this)">
+                <label class="aviso-field-label">Correo institucional</label>
+                <input type="text" name="email" id="estEmail" class="aviso-field-input" readonly
+                  style="background:#f8f9fc;color:var(--text-soft);cursor:default;" placeholder="Se genera automaticamente">
                 <span class="field-error" id="errEstEmail"></span>
+                <span style="font-size:11px;color:var(--text-soft);margin-top:3px;display:block;">&#128274; Generado automaticamente: nombre.apellido@delta.edu</span>
               </div>
               <div class="form-group">
-                <label class="aviso-field-label">Telefono</label>
+                <label class="aviso-field-label">Telefono *</label>
                 <input type="text" name="telefono" id="estTelefono" class="aviso-field-input" placeholder="6123-4567" oninput="limpiarError('errEstTel',this)">
                 <span class="field-error" id="errEstTel"></span>
               </div>
@@ -777,13 +779,27 @@ function validarNombreApellido(v) {
   return v && /^[\p{L} ]+$/u.test(v.trim());
 }
 
-function validarEmail(e) {
-  return e && /^[a-zA-Z0-9._%+\-]+@delta\.edu$/i.test(e.trim());
+function validarTelefono(t) {
+  if (!t || t.trim() === '') return false;
+  return /^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$/.test(t.trim());
 }
 
-function validarTelefono(t) {
-  if (!t || t.trim() === '') return false; // obligatorio
-  return /^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$/.test(t.trim());
+function normalizarParaEmail(s) {
+  if (!s) return '';
+  return s.trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/[^a-z0-9 ]/g, '')
+    .trim().replace(/\s+/g, '.');
+}
+
+function autoEmailEstudiante() {
+  var nombre   = document.getElementById('estNombre').value;
+  var apellido = document.getElementById('estApellido').value;
+  var n = normalizarParaEmail(nombre);
+  var a = normalizarParaEmail(apellido);
+  var email = (n && a) ? n + '.' + a + '@delta.edu' : '';
+  document.getElementById('estEmail').value = email;
+  limpiarError('errEstEmail', null);
 }
 
 function marcarError(inputId, errorId, msg) {
@@ -822,6 +838,7 @@ function cerrarCredenciales() {
 
 function resetFormEstudiante() {
   document.getElementById('frmEstudiante').reset();
+  document.getElementById('estEmail').value = '';
   toggleCedulaEstudiante();
   ['errEstNombre','errEstApellido','errEstEmail','errEstTel','errEstCedula'].forEach(function(id){
     var el = document.getElementById(id); if(el) el.textContent = '';
@@ -853,14 +870,15 @@ function enviarCrearEstudiante(e) {
   var telefono = document.getElementById('estTelefono').value.trim();
   var cedula   = document.getElementById('estCedula').value.trim();
 
-  if (!nombre)                       { marcarError('estNombre','errEstNombre','El nombre es obligatorio.'); ok=false; }
-  else if (!validarNombreApellido(nombre))  { marcarError('estNombre','errEstNombre','El nombre solo puede contener letras.'); ok=false; }
-  if (!apellido)                     { marcarError('estApellido','errEstApellido','El apellido es obligatorio.'); ok=false; }
-  else if (!validarNombreApellido(apellido)){ marcarError('estApellido','errEstApellido','El apellido solo puede contener letras.'); ok=false; }
-  if (!email)                        { marcarError('estEmail','errEstEmail','El correo es obligatorio.'); ok=false; }
-  else if (!validarEmail(email))     { marcarError('estEmail','errEstEmail','Debe ingresar un correo institucional @delta.edu.'); ok=false; }
-  if (!telefono)                     { marcarError('estTelefono','errEstTel','El telefono es obligatorio.'); ok=false; }
-  else if (!validarTelefono(telefono)){ marcarError('estTelefono','errEstTel','Formato invalido. Use: 6123-4567 (solo numeros y un guion).'); ok=false; }
+  if (!nombre)                              { marcarError('estNombre','errEstNombre','El nombre es obligatorio.'); ok=false; }
+  else if (!validarNombreApellido(nombre))  { marcarError('estNombre','errEstNombre','El nombre solo puede contener letras y espacios.'); ok=false; }
+  if (!apellido)                            { marcarError('estApellido','errEstApellido','El apellido es obligatorio.'); ok=false; }
+  else if (!validarNombreApellido(apellido)){ marcarError('estApellido','errEstApellido','El apellido solo puede contener letras y espacios.'); ok=false; }
+  if (!email) {
+    marcarError('estEmail','errEstEmail','Ingrese nombre y apellido para generar el correo automaticamente.'); ok=false;
+  }
+  if (!telefono)                            { marcarError('estTelefono','errEstTel','El telefono es obligatorio.'); ok=false; }
+  else if (!validarTelefono(telefono))      { marcarError('estTelefono','errEstTel','Formato invalido. Use: 6123-4567 (solo numeros y un guion).'); ok=false; }
   if (!esExt) {
     if (!cedula)                     { marcarError('estCedula','errEstCedula','La cedula es obligatoria.'); ok=false; }
     else if (!validarCedulaPanamena(cedula)) { marcarError('estCedula','errEstCedula','Formato invalido. Use: 8-1042-245'); ok=false; }
