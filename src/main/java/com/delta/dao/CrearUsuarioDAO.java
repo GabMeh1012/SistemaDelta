@@ -79,6 +79,24 @@ public class CrearUsuarioDAO {
 
     // ── Validaciones ─────────────────────────────────────────────────────
 
+    /** Solo letras (incluyendo tildes, ñ, ü) y espacios simples entre palabras. */
+    public boolean validarNombreApellido(String valor) {
+        if (valor == null || valor.trim().isEmpty()) return false;
+        return valor.trim().matches("^[\\p{L} ]+$");
+    }
+
+    /** Solo acepta dominio @delta.edu */
+    public boolean validarEmailInstitucional(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        return email.trim().toLowerCase().matches("^[a-z0-9._%+\\-]+@delta\\.edu$");
+    }
+
+    /** Teléfono panameño: 4 dígitos, guion, 4 dígitos (ej. 6123-4567) o 7-8 dígitos seguidos. */
+    public boolean validarTelefono(String telefono) {
+        if (telefono == null || telefono.trim().isEmpty()) return false;
+        return telefono.trim().matches("^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$");
+    }
+
     /** Formato cédula panameña: X-XXXX-XXXX (sólo dígitos y guiones). */
     public boolean validarCedulaPanamena(String cedula) {
         if (cedula == null) return false;
@@ -227,15 +245,19 @@ public class CrearUsuarioDAO {
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
             try {
-                // Validaciones
-                if (!esExtranjero && !validarCedulaPanamena(cedula)) {
-                    throw new IllegalArgumentException(
-                        "Formato de cédula panameña inválido. Use: 8-1042-245");
-                }
-                if (existeEmail(con, email)) {
-                    throw new IllegalArgumentException(
-                        "El email ya está registrado en el sistema.");
-                }
+                // Validaciones de datos
+                if (!validarNombreApellido(nombre))
+                    throw new IllegalArgumentException("El nombre solo puede contener letras.");
+                if (!validarNombreApellido(apellido))
+                    throw new IllegalArgumentException("El apellido solo puede contener letras.");
+                if (!validarEmailInstitucional(email))
+                    throw new IllegalArgumentException("Debe ingresar un correo institucional @delta.edu.");
+                if (!validarTelefono(telefono))
+                    throw new IllegalArgumentException("El teléfono es obligatorio. Formato: 6123-4567.");
+                if (!esExtranjero && !validarCedulaPanamena(cedula))
+                    throw new IllegalArgumentException("Formato de cédula panameña inválido. Use: 8-1042-245");
+                if (existeEmail(con, email))
+                    throw new IllegalArgumentException("El correo ya está registrado en el sistema.");
 
                 String idDocumento;
                 if (esExtranjero) {

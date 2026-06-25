@@ -773,13 +773,17 @@ function validarCedulaPanamena(c) {
   return /^[1-9][0-9]*-[0-9]+-[0-9]+$/.test(String(c).trim());
 }
 
+function validarNombreApellido(v) {
+  return v && /^[\p{L} ]+$/u.test(v.trim());
+}
+
 function validarEmail(e) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e).trim());
+  return e && /^[a-zA-Z0-9._%+\-]+@delta\.edu$/i.test(e.trim());
 }
 
 function validarTelefono(t) {
-  if (!t || t.trim() === '') return true; // opcional
-  return /^[0-9\-\+\s]{6,15}$/.test(t.trim());
+  if (!t || t.trim() === '') return false; // obligatorio
+  return /^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$/.test(t.trim());
 }
 
 function marcarError(inputId, errorId, msg) {
@@ -849,13 +853,16 @@ function enviarCrearEstudiante(e) {
   var telefono = document.getElementById('estTelefono').value.trim();
   var cedula   = document.getElementById('estCedula').value.trim();
 
-  if (!nombre)   { marcarError('estNombre','errEstNombre','El nombre es obligatorio.'); ok=false; }
-  if (!apellido) { marcarError('estApellido','errEstApellido','El apellido es obligatorio.'); ok=false; }
-  if (!email)    { marcarError('estEmail','errEstEmail','El correo es obligatorio.'); ok=false; }
-  else if (!validarEmail(email)) { marcarError('estEmail','errEstEmail','Correo electronico invalido.'); ok=false; }
-  if (!validarTelefono(telefono)) { marcarError('estTelefono','errEstTel','Telefono invalido (solo numeros y guiones).'); ok=false; }
+  if (!nombre)                       { marcarError('estNombre','errEstNombre','El nombre es obligatorio.'); ok=false; }
+  else if (!validarNombreApellido(nombre))  { marcarError('estNombre','errEstNombre','El nombre solo puede contener letras.'); ok=false; }
+  if (!apellido)                     { marcarError('estApellido','errEstApellido','El apellido es obligatorio.'); ok=false; }
+  else if (!validarNombreApellido(apellido)){ marcarError('estApellido','errEstApellido','El apellido solo puede contener letras.'); ok=false; }
+  if (!email)                        { marcarError('estEmail','errEstEmail','El correo es obligatorio.'); ok=false; }
+  else if (!validarEmail(email))     { marcarError('estEmail','errEstEmail','Debe ingresar un correo institucional @delta.edu.'); ok=false; }
+  if (!telefono)                     { marcarError('estTelefono','errEstTel','El telefono es obligatorio.'); ok=false; }
+  else if (!validarTelefono(telefono)){ marcarError('estTelefono','errEstTel','Formato invalido. Use: 6123-4567 (solo numeros y un guion).'); ok=false; }
   if (!esExt) {
-    if (!cedula) { marcarError('estCedula','errEstCedula','La cedula es obligatoria.'); ok=false; }
+    if (!cedula)                     { marcarError('estCedula','errEstCedula','La cedula es obligatoria.'); ok=false; }
     else if (!validarCedulaPanamena(cedula)) { marcarError('estCedula','errEstCedula','Formato invalido. Use: 8-1042-245'); ok=false; }
   }
   if (!ok) return;
@@ -882,8 +889,12 @@ function enviarCrearEstudiante(e) {
       } else {
         var msg = d.error || 'Error al crear estudiante';
         showToast(msg, 'error');
-        if (msg.toLowerCase().indexOf('email') !== -1) marcarError('estEmail','errEstEmail', msg);
-        if (msg.toLowerCase().indexOf('cedula') !== -1) marcarError('estCedula','errEstCedula', msg);
+        var ml = msg.toLowerCase();
+        if (ml.indexOf('nombre') !== -1)   marcarError('estNombre','errEstNombre', msg);
+        else if (ml.indexOf('apellido') !== -1) marcarError('estApellido','errEstApellido', msg);
+        else if (ml.indexOf('correo') !== -1 || ml.indexOf('email') !== -1) marcarError('estEmail','errEstEmail', msg);
+        else if (ml.indexOf('tel') !== -1)  marcarError('estTelefono','errEstTel', msg);
+        else if (ml.indexOf('cedula') !== -1) marcarError('estCedula','errEstCedula', msg);
       }
     })
     .catch(function(err) {
