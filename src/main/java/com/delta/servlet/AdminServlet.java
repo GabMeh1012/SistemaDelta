@@ -213,6 +213,9 @@ public class AdminServlet extends HttpServlet {
                     dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");
                     break;
+                case "listarUsuariosCreados":
+                    out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarUsuariosCreados()));
+                    break;
                 case "listarMaterias":
                     out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarMaterias()));
                     break;
@@ -223,7 +226,8 @@ public class AdminServlet extends HttpServlet {
                     com.delta.dao.CrearUsuarioDAO cudEst = new com.delta.dao.CrearUsuarioDAO();
                     String nacEst = req.getParameter("nacionalidad");
                     boolean extEst = nacEst != null && !nacEst.isEmpty()
-                                     && !"panameño".equalsIgnoreCase(nacEst);
+                                     && !"panameño".equalsIgnoreCase(nacEst)
+                                     && !"panameno".equalsIgnoreCase(nacEst);
                     int semEst = 1;
                     try { semEst = Integer.parseInt(req.getParameter("semestre")); } catch (Exception ignored) {}
                     java.util.Map<String,Object> resEst = cudEst.crearEstudiante(
@@ -238,7 +242,8 @@ public class AdminServlet extends HttpServlet {
                     com.delta.dao.CrearUsuarioDAO cudProf = new com.delta.dao.CrearUsuarioDAO();
                     String nacProf = req.getParameter("nacionalidad");
                     boolean extProf = nacProf != null && !nacProf.isEmpty()
-                                      && !"panameño".equalsIgnoreCase(nacProf);
+                                      && !"panameño".equalsIgnoreCase(nacProf)
+                                      && !"panameno".equalsIgnoreCase(nacProf);
                     String matIdsStr = req.getParameter("materiaIds");
                     java.util.List<Integer> mIds = new java.util.ArrayList<>();
                     if (matIdsStr != null && !matIdsStr.isEmpty()) {

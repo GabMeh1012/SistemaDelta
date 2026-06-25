@@ -79,6 +79,24 @@ public class CrearUsuarioDAO {
 
     // ── Validaciones ─────────────────────────────────────────────────────
 
+    /** Solo letras (incluyendo tildes, ñ, ü) y espacios simples entre palabras. */
+    public boolean validarNombreApellido(String valor) {
+        if (valor == null || valor.trim().isEmpty()) return false;
+        return valor.trim().matches("^[\\p{L} ]+$");
+    }
+
+    /** Solo acepta dominio @delta.edu */
+    public boolean validarEmailInstitucional(String email) {
+        if (email == null || email.trim().isEmpty()) return false;
+        return email.trim().toLowerCase().matches("^[a-z0-9._%+\\-]+@delta\\.edu$");
+    }
+
+    /** Teléfono panameño: 4 dígitos, guion, 4 dígitos (ej. 6123-4567) o 7-8 dígitos seguidos. */
+    public boolean validarTelefono(String telefono) {
+        if (telefono == null || telefono.trim().isEmpty()) return false;
+        return telefono.trim().matches("^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$");
+    }
+
     /** Formato cédula panameña: X-XXXX-XXXX (sólo dígitos y guiones). */
     public boolean validarCedulaPanamena(String cedula) {
         if (cedula == null) return false;
@@ -140,6 +158,33 @@ public class CrearUsuarioDAO {
 
     // ── Listados para el formulario ───────────────────────────────────────
 
+    /** Retorna usuarios creados (estudiantes + profesores) ordenados por fecha de creación descendente. */
+    public List<Map<String, Object>> listarUsuariosCreados() throws SQLException {
+        List<Map<String, Object>> lista = new ArrayList<>();
+        String sql =
+            "SELECT u.id, u.username, u.rol, u.activo, e.nombre, e.apellido, e.email, e.cedula AS documento"
+          + "  FROM usuarios u JOIN estudiantes e ON e.usuario_id = u.id"
+          + " UNION ALL"
+          + " SELECT u.id, u.username, u.rol, u.activo, p.nombre, p.apellido, p.email, p.codigo AS documento"
+          + "  FROM usuarios u JOIN profesores p ON p.usuario_id = u.id"
+          + " ORDER BY id DESC LIMIT 100";
+        try (Connection con = ConexionDB.obtenerConexion();
+             Statement st  = con.createStatement();
+             ResultSet rs  = st.executeQuery(sql)) {
+            while (rs.next()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("username",  rs.getString("username"));
+                m.put("nombre",    rs.getString("nombre") + " " + rs.getString("apellido"));
+                m.put("rol",       rs.getString("rol"));
+                m.put("email",     rs.getString("email"));
+                m.put("documento", rs.getString("documento"));
+                m.put("activo",    rs.getInt("activo") == 1);
+                lista.add(m);
+            }
+        }
+        return lista;
+    }
+
     /** Retorna todas las materias ordenadas por nombre. */
     public List<Map<String, Object>> listarMaterias() throws SQLException {
         List<Map<String, Object>> lista = new ArrayList<>();
@@ -200,15 +245,19 @@ public class CrearUsuarioDAO {
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
             try {
-                // Validaciones
-                if (!esExtranjero && !validarCedulaPanamena(cedula)) {
-                    throw new IllegalArgumentException(
-                        "Formato de cédula panameña inválido. Use: 8-1042-245");
-                }
-                if (existeEmail(con, email)) {
-                    throw new IllegalArgumentException(
-                        "El email ya está registrado en el sistema.");
-                }
+                // Validaciones de datos
+                if (!validarNombreApellido(nombre))
+                    throw new IllegalArgumentException("El nombre solo puede contener letras.");
+                if (!validarNombreApellido(apellido))
+                    throw new IllegalArgumentException("El apellido solo puede contener letras.");
+                if (!validarEmailInstitucional(email))
+                    throw new IllegalArgumentException("Debe ingresar un correo institucional @delta.edu.");
+                if (!validarTelefono(telefono))
+                    throw new IllegalArgumentException("El teléfono es obligatorio. Formato: 6123-4567.");
+                if (!esExtranjero && !validarCedulaPanamena(cedula))
+                    throw new IllegalArgumentException("Formato de cédula panameña inválido. Use: 8-1042-245");
+                if (existeEmail(con, email))
+                    throw new IllegalArgumentException("El correo ya está registrado en el sistema.");
 
                 String idDocumento;
                 if (esExtranjero) {
