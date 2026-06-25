@@ -947,6 +947,11 @@ function showToast(mensaje, tipo) {
     timer = setTimeout(quitar, remaining);
   });
 }
+<% if (loginError) { %>
+window.addEventListener('DOMContentLoaded', function() {
+  showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.', 'error');
+});
+<% } %>
 
 function showConfirm(mensaje, onConfirm) {
   var overlay = document.getElementById('confirmOverlay');
@@ -2800,9 +2805,6 @@ window.addEventListener('DOMContentLoaded', function() {
   cargarAvisosPublicados();
   renderFechaHoyProf();
   renderClasesHoy();
-<% if (loginError) { %>
-  showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.', 'error');
-<% } %>
 });
 </script>
 <script>
