@@ -22,8 +22,10 @@ import java.util.List;
  */
 public class AvisosServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 1L;
+
     private static final DateTimeFormatter FECHA_FMT =
-            DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", new java.util.Locale("es","ES"));
+            DateTimeFormatter.ofPattern("d 'de' MMMM yyyy", java.util.Locale.of("es","ES"));
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
