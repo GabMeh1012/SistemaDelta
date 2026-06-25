@@ -213,6 +213,47 @@ public class AdminServlet extends HttpServlet {
                     dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");
                     break;
+                case "listarMaterias":
+                    out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarMaterias()));
+                    break;
+                case "listarGruposDisponibles":
+                    out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarGruposDisponibles()));
+                    break;
+                case "crearEstudiante": {
+                    com.delta.dao.CrearUsuarioDAO cudEst = new com.delta.dao.CrearUsuarioDAO();
+                    String nacEst = req.getParameter("nacionalidad");
+                    boolean extEst = nacEst != null && !nacEst.isEmpty()
+                                     && !"panameño".equalsIgnoreCase(nacEst);
+                    int semEst = 1;
+                    try { semEst = Integer.parseInt(req.getParameter("semestre")); } catch (Exception ignored) {}
+                    java.util.Map<String,Object> resEst = cudEst.crearEstudiante(
+                        req.getParameter("nombre"),   req.getParameter("apellido"),
+                        req.getParameter("cedula"),   req.getParameter("email"),
+                        req.getParameter("telefono"), semEst,
+                        nacEst, extEst);
+                    out.print(mapToJson(resEst));
+                    break;
+                }
+                case "crearProfesor": {
+                    com.delta.dao.CrearUsuarioDAO cudProf = new com.delta.dao.CrearUsuarioDAO();
+                    String nacProf = req.getParameter("nacionalidad");
+                    boolean extProf = nacProf != null && !nacProf.isEmpty()
+                                      && !"panameño".equalsIgnoreCase(nacProf);
+                    String matIdsStr = req.getParameter("materiaIds");
+                    java.util.List<Integer> mIds = new java.util.ArrayList<>();
+                    if (matIdsStr != null && !matIdsStr.isEmpty()) {
+                        for (String s : matIdsStr.split(",")) {
+                            try { mIds.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
+                        }
+                    }
+                    java.util.Map<String,Object> resProf = cudProf.crearProfesor(
+                        req.getParameter("nombre"),       req.getParameter("apellido"),
+                        req.getParameter("cedula"),       req.getParameter("email"),
+                        req.getParameter("telefono"),     req.getParameter("departamento"),
+                        nacProf, extProf, mIds);
+                    out.print(mapToJson(resProf));
+                    break;
+                }
                 default:
                     resp.setStatus(400);
                     out.print("{\"error\":\"accion no valida\"}");
