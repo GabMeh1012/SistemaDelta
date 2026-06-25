@@ -25,7 +25,7 @@
   int    noLeidosMsgs  = 0;
   int    noLeidasNotif = 0;
   int    enRiesgo      = 0;
-  // Cargar notas de TODOS los grupos del profesor (dinámico)
+  // Mapa nombre→{iid, cedula, notas} para el grupo IS-401
   StringBuilder inscripcionesJson = new StringBuilder("{");
   if (hayBD) {
     try {
@@ -38,7 +38,6 @@
     try (Connection _c = ConexionDB.obtenerConexion();
          PreparedStatement _p = _c.prepareStatement(
            "SELECT CONCAT(e.nombre,' ',e.apellido) AS nom, i.id AS iid, e.cedula, e.carrera, " +
-           "g.codigo_grupo, m.nombre AS materia_nombre, " +
            "MAX(CASE WHEN n.componente='parcial1'     THEN n.nota END) AS p1, " +
            "MAX(CASE WHEN n.componente='parcial2'     THEN n.nota END) AS p2, " +
            "MAX(CASE WHEN n.componente='proyecto'     THEN n.nota END) AS proy, " +
@@ -46,38 +45,34 @@
            "FROM inscripciones i JOIN estudiantes e ON e.id=i.estudiante_id " +
            "JOIN grupos g ON g.id=i.grupo_id JOIN materias m ON m.id=g.materia_id " +
            "LEFT JOIN notas n ON n.inscripcion_id=i.id " +
-           "WHERE g.profesor_id=? AND i.estado='activo' " +
-           "GROUP BY e.id, i.id, e.nombre, e.apellido, e.cedula, e.carrera, g.codigo_grupo, m.nombre")) {
-      _p.setInt(1, profesorId_pg);
+           "WHERE m.codigo='IS-401' AND i.estado='activo' " +
+           "GROUP BY e.id, i.id, e.nombre, e.apellido, e.cedula, e.carrera")) {
       ResultSet _r = _p.executeQuery();
       boolean _f = true;
       while (_r.next()) {
         if (!_f) inscripcionesJson.append(",");
         _f = false;
         String _nom = _r.getString("nom") != null ? _r.getString("nom").replace('"', ' ') : "";
-        String _cod = _r.getString("codigo_grupo") != null ? _r.getString("codigo_grupo").replace('"', ' ') : "";
         double _p1   = _r.getDouble("p1");   boolean _np1   = _r.wasNull();
         double _p2   = _r.getDouble("p2");   boolean _np2   = _r.wasNull();
         double _proy = _r.getDouble("proy"); boolean _nproy = _r.wasNull();
         double _ef   = _r.getDouble("ef");   boolean _nef   = _r.wasNull();
-        // Clave compuesta: "codigoGrupo|nombreEstudiante"
-        inscripcionesJson.append("\"").append(_cod).append("|").append(_nom).append("\":{")
+        inscripcionesJson.append("\"").append(_nom).append("\":{")
           .append("\"iid\":").append(_r.getInt("iid"))
           .append(",\"cedula\":\"").append(_r.getString("cedula")).append("\"")
           .append(",\"carrera\":\"").append(_r.getString("carrera") != null ? _r.getString("carrera").replace("\"","") : "").append("\"")
-          .append(",\"grupo\":\"").append(_cod).append("\"")
           .append(",\"p1\":").append(_np1   ? 0 : _p1)
           .append(",\"p2\":").append(_np2   ? 0 : _p2)
           .append(",\"proj\":").append(_nproy ? 0 : _proy)
           .append(",\"final\":").append(_nef  ? 0 : _ef)
           .append("}");
       }
-    } catch (Exception _e2) { /* sin notas */ }
+    } catch (Exception _e2) {}
   } else {
     noLeidosMsgs  = 2;
     noLeidasNotif = 2;
     enRiesgo      = 4;
-    profNombre_pg = "Prof. Demo";
+    profNombre_pg = "Prof. María Mosquera";
   }
   inscripcionesJson.append("}");
 
@@ -138,9 +133,6 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Portal Docente — Sistema Delta UTP</title>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Merriweather:wght@700&display=swap" rel="stylesheet">
@@ -158,7 +150,7 @@
   --shadow-lg:0 6px 28px rgba(26,86,160,0.14);
   --radius:14px; --radius-sm:9px;
 }
-*{margin:0;padding:0;box-sizing:border-box;} html,body{width:100%;overflow-x:hidden;}
+*{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);font-size:16px;min-height:100vh;}
 .hidden{display:none!important;}
 h1,h2,h3{font-family:'Merriweather',serif;}
@@ -166,7 +158,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .btn-primary{background:var(--blue);color:#fff;} .btn-primary:hover{background:var(--blue-mid);box-shadow:var(--shadow);}
 .btn-secondary{background:var(--white);color:var(--blue);border:2px solid var(--blue);} .btn-secondary:hover{background:var(--blue-pale);}
 .btn-sm{padding:9px 18px;font-size:14px;} .btn-full{width:100%;}
-.card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow);min-width:0;}
+.card{background:var(--white);border:1.5px solid var(--border);border-radius:var(--radius);padding:26px;box-shadow:var(--shadow);}
 .tag{display:inline-block;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:700;}
 .tag-green{background:var(--green-bg);color:var(--green);}
 .tag-red{background:var(--red-bg);color:var(--red);}
@@ -174,7 +166,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .tag-blue{background:var(--blue-light);color:var(--blue);}
 
 /* LOGIN */
-#page-login{position:fixed;top:0;left:0;width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#dbeafe 0%,#f4f6fb 60%,#e0f2fe 100%);padding:24px;z-index:9999;}
+#page-login{min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(145deg,#dbeafe 0%,#f4f6fb 60%,#e0f2fe 100%);padding:24px;}
 .login-box{background:var(--white);border:1.5px solid var(--border);border-radius:20px;box-shadow:var(--shadow-lg);width:100%;max-width:420px;padding:48px 40px;animation:popIn 0.4s ease;}
 @keyframes popIn{from{opacity:0;transform:scale(0.96) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .login-logo{text-align:center;margin-bottom:28px;}
@@ -197,8 +189,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .login-switch a{color:var(--blue);font-weight:700;text-decoration:none;}
 
 /* PORTAL LAYOUT */
-.portal{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh;}
-.sidebar{width:270px;min-height:100vh;max-height:100vh;flex-shrink:0;background:var(--white);border-right:2px solid var(--border);display:flex;flex-direction:column;position:sticky;top:0;z-index:100;overflow-y:auto;box-shadow:3px 0 16px rgba(26,86,160,0.07);}
+.portal{display:flex;min-height:100vh;}
+.sidebar{width:270px;flex-shrink:0;background:var(--white);border-right:2px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;overflow-y:auto;box-shadow:3px 0 16px rgba(26,86,160,0.07);}
 .sidebar-header{padding:24px 22px 18px;border-bottom:2px solid var(--border);background:#92400e;}
 .sidebar-logo{display:flex;align-items:center;gap:12px;}
 .logo-mark{width:46px;height:46px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-family:'Merriweather',serif;font-size:22px;color:#fff;border:2px solid rgba(255,255,255,0.3);}
@@ -219,8 +211,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .sidebar-footer{margin-top:auto;padding:16px 14px;}
 .logout-btn{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);font-size:15px;font-weight:700;color:var(--red);cursor:pointer;background:var(--red-bg);border:1.5px solid #fca5a5;width:100%;font-family:'Nunito',sans-serif;transition:all 0.18s;}
 .logout-btn:hover{background:#fecaca;}
-.main-content{width:100%;max-width:100%;padding:32px 36px;min-height:100vh;min-width:0;overflow-x:hidden;position:relative;z-index:1;}
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:30px;padding-bottom:24px;border-bottom:2px solid var(--border);}
+.main-content{margin-left:270px;flex:1;padding:32px 36px;min-height:100vh;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:30px;padding-bottom:24px;border-bottom:2px solid var(--border);}
 .page-title{font-size:28px;color:var(--text);}
 .page-subtitle{font-size:15px;color:var(--text-soft);margin-top:4px;font-family:'Nunito',sans-serif;}
 .topbar-right{display:flex;align-items:center;gap:12px;}
@@ -247,8 +239,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .notif-panel-item .npi-unread-dot{width:8px;height:8px;background:var(--blue);border-radius:50%;margin-top:5px;flex-shrink:0;}
 .notif-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.15);z-index:499;}
 
-.tab-panel{display:none;animation:fadeIn 0.3s ease;min-width:0;max-width:100%;width:100%;}
-.tab-panel.active{display:block!important;position:relative;z-index:1;}
+.tab-panel{display:none;animation:fadeIn 0.3s ease;}
+.tab-panel.active{display:block;}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
 .stats-row{display:grid;gap:18px;margin-bottom:26px;}
 .stats-4{grid-template-columns:repeat(4,1fr);}
@@ -260,8 +252,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .stat-label{font-size:13px;color:var(--text-soft);font-weight:600;text-transform:uppercase;letter-spacing:0.8px;}
 .stat-value{font-family:'Merriweather',serif;font-size:30px;color:var(--text);line-height:1.1;margin:4px 0;}
 .stat-sub{font-size:13px;color:var(--text-soft);}
-.grid-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px;margin-bottom:22px;min-width:0;width:100%;}
-.grid-21{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:22px;margin-bottom:22px;min-width:0;width:100%;}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-bottom:22px;}
+.grid-21{display:grid;grid-template-columns:2fr 1fr;gap:22px;margin-bottom:22px;}
 .card-title{font-family:'Merriweather',serif;font-size:18px;color:var(--text);margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;}
 .card-title a{font-family:'Nunito',sans-serif;font-size:13px;color:var(--blue);font-weight:700;text-decoration:none;cursor:pointer;}
 .sched-item{display:flex;gap:14px;padding:14px 0;border-bottom:1.5px solid var(--bg2);align-items:flex-start;}
@@ -271,7 +263,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .sched-subject{font-size:16px;font-weight:800;color:var(--text);}
 .sched-prof{font-size:14px;color:var(--text-soft);margin-top:3px;}
 .sched-room{display:inline-block;margin-top:6px;font-size:13px;font-weight:700;background:var(--bg2);color:var(--text-mid);padding:3px 10px;border-radius:6px;}
-.delta-table{width:100%;border-collapse:collapse;table-layout:auto;}
+.delta-table{width:100%;border-collapse:collapse;}
 .delta-table th{font-size:13px;font-weight:800;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-soft);padding:10px 14px;text-align:left;background:var(--bg2);border-bottom:2px solid var(--border);}
 .delta-table td{padding:13px 14px;font-size:15px;border-bottom:1.5px solid var(--bg2);vertical-align:middle;color:var(--text);}
 .delta-table tr:last-child td{border-bottom:none;}
@@ -303,7 +295,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .msg-item:last-child{border-bottom:none;}
 .msg-av{width:42px;height:42px;border-radius:12px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:1.5px solid var(--border);}
 .msg-from{font-size:15px;font-weight:800;}
-.msg-preview{font-size:14px;color:var(--text-soft);margin-top:3px;overflow-wrap:anywhere;}
+.msg-preview{font-size:14px;color:var(--text-soft);margin-top:3px;}
 .msg-unread{width:9px;height:9px;background:#92400e;border-radius:50%;margin-top:7px;flex-shrink:0;}
 .msg-read .msg-unread{display:none;}
 .msg-read .msg-from{font-weight:600;color:var(--text-soft);}
@@ -322,7 +314,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .ann-item:last-child{margin-bottom:0;}
 .ann-item.amber{border-color:var(--amber);background:var(--amber-bg);}
 .ann-title{font-size:15px;font-weight:800;color:var(--text);}
-.ann-body{font-size:14px;color:var(--text-mid);margin-top:4px;line-height:1.5;overflow-wrap:anywhere;}
+.ann-body{font-size:14px;color:var(--text-mid);margin-top:4px;line-height:1.5;}
 .ann-date{font-size:12px;font-weight:700;color:var(--blue);margin-top:6px;}
 .compose-wrap{border:2px solid var(--border);border-radius:var(--radius-sm);overflow:hidden;}
 .compose-input{width:100%;padding:13px 16px;border:none;border-bottom:1.5px solid var(--border);font-family:'Nunito',sans-serif;font-size:16px;color:var(--text);background:var(--bg);}
@@ -331,13 +323,13 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .compose-textarea{width:100%;padding:14px 16px;border:none;font-family:'Nunito',sans-serif;font-size:15px;color:var(--text);background:var(--bg);min-height:100px;resize:vertical;}
 .compose-textarea::placeholder{color:var(--text-soft);}
 .compose-textarea:focus{outline:none;background:#fff;}
-.compose-footer{padding:12px 16px;background:var(--bg2);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;}
-.report-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:10px;cursor:pointer;transition:all 0.18s;min-width:0;}
+.compose-footer{padding:12px 16px;background:var(--bg2);display:flex;justify-content:flex-end;gap:10px;}
+.report-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--bg);margin-bottom:10px;cursor:pointer;transition:all 0.18s;}
 .report-row:hover{border-color:#d97706;background:var(--amber-bg);}
 .report-icon{font-size:28px;}
 .report-name{font-size:15px;font-weight:800;}
-.report-desc{font-size:13px;color:var(--text-soft);margin-top:2px;overflow-wrap:anywhere;}
-.report-btn{margin-left:auto;white-space:nowrap;flex-shrink:0;}
+.report-desc{font-size:13px;color:var(--text-soft);margin-top:2px;}
+.report-btn{margin-left:auto;}
 .save-toast{position:fixed;bottom:28px;right:32px;background:var(--blue);color:#fff;border-radius:12px;padding:14px 24px;font-size:16px;font-weight:700;cursor:pointer;display:none;align-items:center;gap:10px;box-shadow:0 6px 24px rgba(26,86,160,0.35);z-index:999;}
 .save-toast.show{display:flex;}
 
@@ -399,8 +391,8 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 @keyframes modal-fade-in{from{opacity:0;}to{opacity:1;}}
 
 
-@media(max-width:1100px){.stats-4{grid-template-columns:1fr 1fr;}.grid-2,.grid-21{grid-template-columns:minmax(0,1fr);}}
-@media(max-width:760px){.portal{grid-template-columns:220px minmax(0,1fr);}.sidebar{width:220px;}.main-content{width:100%;max-width:100%;padding:20px;}.notif-panel{width:min(380px,100vw);}.report-row{align-items:flex-start;flex-wrap:wrap;}.report-row>div:nth-child(2){flex:1 1 180px;min-width:0;}.report-btn{width:100%;margin-left:0;}.topbar-right{flex-wrap:wrap;}}
+@media(max-width:1100px){.stats-4{grid-template-columns:1fr 1fr;}.grid-2,.grid-21{grid-template-columns:1fr;}}
+@media(max-width:760px){.sidebar{width:220px;}.main-content{margin-left:220px;padding:20px;}}
 </style>
 </head>
 <body>
@@ -427,7 +419,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 </div>
 
 <!-- LOGIN DOCENTE -->
-<div id="page-login"<%= hayBD ? " class=\"hidden\"" : "" %>>
+<div id="page-login">
   <div class="login-box">
     <div class="login-logo">
       <div class="delta-mark">∆</div>
@@ -453,7 +445,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.','error'); });</script>
     <% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
-    <div class="login-hint">Ingrese con su usuario y contraseña institucional</div>
+    <div class="login-hint">Demo: usuario <strong>profesor</strong> · clave <strong>1234</strong></div>
     <div class="login-switch">¿Es estudiante? <a href="index.jsp">Ir al Portal Estudiantil →</a></div>
   </div>
 </div>
@@ -479,7 +471,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       <div class="npi-icon" style="background:var(--amber-bg);">⚠️</div>
       <div style="flex:1;">
         <div class="npi-title">4 estudiantes en riesgo académico</div>
-        <div class="npi-body">Estudiantes con promedio menor a 60. Se recomienda intervención.</div>
+        <div class="npi-body">Grupo 1SF133 — Promedio menor a 60. Se recomienda intervención.</div>
         <div class="npi-time">Hace 1 hora</div>
       </div>
       <div class="npi-unread-dot"></div>
@@ -525,7 +517,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 </div>
 
 <!-- PORTAL DOCENTE -->
-<div id="page-portal" class="portal<%= hayBD ? "" : " hidden" %>">
+<div id="page-portal" class="portal hidden">
   <aside class="sidebar">
     <div class="sidebar-header">
       <div class="sidebar-logo">
@@ -537,9 +529,10 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
     </div>
     <div class="sidebar-user">
-      <div class="user-avatar"><%= (profNombre_pg != null && profNombre_pg.length() > 0) ? String.valueOf(profNombre_pg.charAt(profNombre_pg.indexOf(" ")+1)).toUpperCase() : "P" %></div>
+      <div class="user-avatar">M</div>
       <div>
-        <div class="user-name"><%= profNombre_pg != null ? profNombre_pg : "Docente" %></div>
+        <div class="user-name">Prof. María Mosquera</div>
+        <div class="user-id">ID: DOC-0142</div>
         <div class="user-role-tag">Docente</div>
       </div>
     </div>
@@ -567,7 +560,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
     <div id="tab-inicio" class="tab-panel active">
       <div class="topbar">
         <div>
-          <h2 class="page-title">Bienvenido/a, <%= profNombre_pg != null ? profNombre_pg.split(" ")[profNombre_pg.split(" ").length-1] : "Docente" %> </h2>
+          <h2 class="page-title">Bienvenida, Profesora Mosquera </h2>
           <div class="page-subtitle" id="fechaHoyProf">Cargando...</div>
         </div>
         <div class="topbar-right">
@@ -592,7 +585,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
         <div class="card">
           <div class="card-title">Notificaciones Recientes</div>
-          <div class="notif-item"><div class="notif-icon-box" style="background:var(--amber-bg);">⚠️</div><div><div class="notif-title" id="riesgoNotifTitle"><%= enRiesgo %> estudiantes en riesgo académico</div><div class="notif-body">Estudiantes con promedio menor a 70.</div><div class="notif-time">Actualizado</div></div></div>
+          <div class="notif-item"><div class="notif-icon-box" style="background:var(--amber-bg);">⚠️</div><div><div class="notif-title" id="riesgoNotifTitle"><%= enRiesgo %> estudiantes en riesgo académico</div><div class="notif-body">Grupo 1SF133 — Promedio menor a 70.</div><div class="notif-time">Actualizado</div></div></div>
           <div class="notif-item"><div class="notif-icon-box" style="background:var(--green-bg);">✅</div><div><div class="notif-title">Sistema Delta</div><div class="notif-body">Versión 1.2 implementada. Nuevas funciones disponibles.</div><div class="notif-time">Ayer, 3:00 PM</div></div></div>
           <div id="inicioMsgList"></div>
         </div>
@@ -609,8 +602,26 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
       <div class="card">
         <div class="card-title">Grupos Activos</div>
-        <div id="misGruposCards">
-          <div style="text-align:center;padding:20px;color:var(--text-soft);">Cargando grupos...</div>
+        <!-- Grupo 1SF133: 5 estudiantes -->
+        <div class="class-row">
+          <div class="class-bar" style="background:var(--blue);"></div>
+          <div style="flex:1;"><div class="class-name">Calidad del Software</div><div class="class-meta">Grupo 1SF133 · Mar y Jue · 7:00 AM · Aula 3B</div></div>
+          <div class="class-right"><div class="class-count" id="cnt1SF133">5 est.</div><div class="class-avg">Prom: <span id="prom1SF133">--</span></div></div>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF133')">Ver Estudiantes</button>
+        </div>
+        <!-- Grupo 1SF131: 4 estudiantes -->
+        <div class="class-row">
+          <div class="class-bar" style="background:var(--green);"></div>
+          <div style="flex:1;"><div class="class-name">Ingeniería de Software I</div><div class="class-meta">Grupo 1SF131 · Lun y Mié · 9:00 AM · Aula 4A</div></div>
+          <div class="class-right"><div class="class-count" id="cnt1SF131">4 est.</div><div class="class-avg">Prom: <span id="prom1SF131">--</span></div></div>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('1SF131')">Ver Estudiantes</button>
+        </div>
+        <!-- Grupo 2SF241: 3 estudiantes -->
+        <div class="class-row">
+          <div class="class-bar" style="background:var(--purple);"></div>
+          <div style="flex:1;"><div class="class-name">Pruebas de Software</div><div class="class-meta">Grupo 2SF241 · Vie · 11:00 AM · Lab 2</div></div>
+          <div class="class-right"><div class="class-count" id="cnt2SF241">3 est.</div><div class="class-avg">Prom: <span id="prom2SF241">--</span></div></div>
+          <button class="btn btn-secondary btn-sm" onclick="openGrupoGrades('2SF241')">Ver Estudiantes</button>
         </div>
       </div>
 
@@ -656,21 +667,24 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
     </div>
 
-    <!-- CALIFICACIONES (dinámico desde BD) -->
+    <!-- CALIFICACIONES (Grupo 1SF133 default) -->
     <div id="tab-calificaciones" class="tab-panel">
       <div class="topbar">
         <div>
           <h2 class="page-title">📊 Registro de Calificaciones</h2>
-          <div class="page-subtitle" id="calSubtitle">Selecciona un grupo</div>
+          <div class="page-subtitle">Grupo 1SF133 — Calidad del Software</div>
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           <select id="calGrupoSelect" style="padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);background:var(--bg);" onchange="renderCalificaciones()">
+            <option value="1SF133">1SF133 — Calidad del Software</option>
+            <option value="1SF131">1SF131 — Ingeniería de Software I</option>
+            <option value="2SF241">2SF241 — Pruebas de Software</option>
           </select>
           <button class="btn btn-secondary" onclick="exportarCalificacionesExcel()">📥 Exportar a Excel</button>
         </div>
       </div>
       <div class="card">
-        <div class="card-title" id="calCardTitle">Lista de Estudiantes</div>
+        <div class="card-title" id="calCardTitle">Lista de Estudiantes — 1SF133</div>
         <table class="delta-table">
           <thead><tr><th>Estudiante</th><th>Cédula</th><th>Parcial 1</th><th>Parcial 2</th><th>Proyecto</th><th>Final</th><th>Nota Final</th><th>Estado</th></tr></thead>
           <tbody id="calTableBody"></tbody>
@@ -690,6 +704,9 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
         <div style="display:flex;gap:10px;align-items:center;">
           <select id="attGrupoSelect" style="padding:10px 14px;border:2px solid var(--border);border-radius:var(--radius-sm);font-family:'Nunito',sans-serif;font-size:15px;font-weight:700;color:var(--text);background:var(--bg);" onchange="renderAttendance()">
+            <option value="1SF133">1SF133 — Calidad del Software</option>
+            <option value="1SF131">1SF131 — Ingeniería de Software I</option>
+            <option value="2SF241">2SF241 — Pruebas de Software</option>
           </select>
         </div>
       </div>
@@ -719,7 +736,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       <div class="card">
         <div class="card-title">
           📊 Asistencia de la Semana
-          <span style="font-size:13px;font-family:'Nunito',sans-serif;color:var(--text-soft);font-weight:600;" id="attSemGrupoLabel">Grupo</span>
+          <span style="font-size:13px;font-family:'Nunito',sans-serif;color:var(--text-soft);font-weight:600;" id="attSemGrupoLabel">Grupo 1SF133 · Martes y Jueves</span>
         </div>
         <div style="display:flex;gap:18px;margin-bottom:22px;flex-wrap:wrap;">
           <div style="background:var(--green-bg);border:1.5px solid #86efac;border-radius:var(--radius-sm);padding:14px 20px;flex:1;min-width:110px;text-align:center;">
@@ -752,19 +769,78 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 
     <!-- HORARIO -->
     <div id="tab-horario" class="tab-panel">
-      <div class="topbar"><div><h2 class="page-title">🗓️ Mi Horario</h2><div class="page-subtitle" id="horarioSubtitle">I Semestre 2026</div></div></div>
+      <div class="topbar"><div><h2 class="page-title">🗓️ Mi Horario</h2><div class="page-subtitle">I Semestre 2026 — Prof. María Mosquera</div></div></div>
       <div class="card" style="margin-bottom:22px;">
         <div class="card-title">Horario Semanal del Semestre</div>
         <div style="overflow-x:auto;">
-          <div id="horarioGrid" style="min-width:600px;"></div>
+          <div class="horario-grid" style="min-width:600px;">
+            <!-- Headers -->
+            <div class="horario-header">Hora</div>
+            <div class="horario-header">Lunes</div>
+            <div class="horario-header">Martes</div>
+            <div class="horario-header">Miércoles</div>
+            <div class="horario-header">Jueves</div>
+            <div class="horario-header">Viernes</div>
+            <!-- 7:00 AM -->
+            <div class="horario-cell horario-time">7:00<br>8:00</div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#dbeafe;color:#1a56a0;border:1.5px solid #93c5fd;">Calidad del Software<br><small>1SF133 · Aula 3B</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#dbeafe;color:#1a56a0;border:1.5px solid #93c5fd;">Calidad del Software<br><small>1SF133 · Aula 3B</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <!-- 8:00 AM -->
+            <div class="horario-cell horario-time">8:00<br>9:00</div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#dbeafe;color:#1a56a0;border:1.5px solid #93c5fd;">Calidad del Software<br><small>1SF133 · Aula 3B</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#dbeafe;color:#1a56a0;border:1.5px solid #93c5fd;">Calidad del Software<br><small>1SF133 · Aula 3B</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <!-- 9:00 AM -->
+            <div class="horario-cell horario-time">9:00<br>10:00</div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <!-- 10:00 AM -->
+            <div class="horario-cell horario-time">10:00<br>11:00</div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#bbf7d0;color:#14532d;border:1.5px solid #86efac;">Ingeniería de Software I<br><small>1SF131 · Aula 4A</small></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <!-- 11:00 AM -->
+            <div class="horario-cell horario-time">11:00<br>12:00</div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
+            <!-- 12:00 PM -->
+            <div class="horario-cell horario-time">12:00<br>1:00</div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>
+            <div class="horario-cell"><div class="horario-class" style="background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;">Pruebas de Software<br><small>2SF241 · Lab 2</small></div></div>
+          </div>
         </div>
-        <div id="horarioLeyenda" style="display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;"></div>
+        <div style="display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#1a56a0;"></div> Calidad del Software (1SF133)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#bbf7d0;border:1.5px solid #86efac;"></div> Ingeniería de Software I (1SF131)</div>
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;"><div style="width:16px;height:16px;border-radius:4px;background:#ede9fe;border:1.5px solid #c4b5fd;"></div> Pruebas de Software (2SF241)</div>
+        </div>
       </div>
+      <div class="grid-2">
         <div class="card">
           <div class="card-title">Detalle de Grupos</div>
           <table class="delta-table">
             <thead><tr><th>Grupo</th><th>Materia</th><th>Días</th><th>Aula</th><th>Estudiantes</th></tr></thead>
-            <tbody id="horarioDetalleBody"></tbody>
+            <tbody>
+              <tr><td><strong>1SF133</strong></td><td>Calidad del Software</td><td>Mar · Jue</td><td>Aula 3B P2</td><td><span class="tag tag-blue">5</span></td></tr>
+              <tr><td><strong>1SF131</strong></td><td>Ingeniería de Software I</td><td>Lun · Mié</td><td>Aula 4A P2</td><td><span class="tag tag-blue">4</span></td></tr>
+              <tr><td><strong>2SF241</strong></td><td>Pruebas de Software</td><td>Viernes</td><td>Lab 2</td><td><span class="tag tag-blue">3</span></td></tr>
+            </tbody>
           </table>
         </div>
         <div class="card">
@@ -874,13 +950,13 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         <div class="card-title">Reportes Disponibles</div>
         <div class="report-row">
           <div class="report-icon">📊</div>
-          <div><div class="report-name">Calificaciones por Grupo</div><div class="report-desc">Notas parciales y finales de todos los estudiantes</div></div>
-          <button class="btn btn-primary btn-sm report-btn" onclick="exportarCalificacionesExcel(document.getElementById('calGrupoSelect')?.value || '')">📊 Exportar a Excel</button>
+          <div><div class="report-name">Calificaciones — 1SF133</div><div class="report-desc">Notas parciales y finales de todos los estudiantes</div></div>
+          <button class="btn btn-primary btn-sm report-btn" onclick="exportarCalificacionesExcel('1SF133')">📊 Exportar a Excel</button>
         </div>
         <div class="report-row">
           <div class="report-icon">✅</div>
-          <div><div class="report-name">Asistencia Semanal por Grupo</div><div class="report-desc">Registro de asistencia de la semana actual</div></div>
-          <button class="btn btn-primary btn-sm report-btn" onclick="exportarAsistenciaExcel(document.getElementById('attGrupoSelect')?.value || '')">📊 Exportar a Excel</button>
+          <div><div class="report-name">Asistencia Semanal — 1SF133</div><div class="report-desc">Registro de asistencia de la semana actual</div></div>
+          <button class="btn btn-primary btn-sm report-btn" onclick="exportarAsistenciaExcel('1SF133')">📊 Exportar a Excel</button>
         </div>
         <div class="report-row">
           <div class="report-icon">⚠️</div>
@@ -900,15 +976,6 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 <script type="application/json" id="mis-grupos-json"><%= misGruposJson %></script>
 
 <script>
-// misGruposBD primero — requerido por gruposData, gruposAttConfig y renderRiesgoDemo
-const misGruposBD = (function(){
-  try {
-    var tag = document.getElementById('mis-grupos-json');
-    var json = tag ? tag.textContent : '[]';
-    return JSON.parse(json || '[]');
-  } catch(e) { return []; }
-})();
-
 // ============================================================
 // TOASTS Y MODALES (reemplazo de alert/confirm nativos)
 // ============================================================
@@ -989,14 +1056,11 @@ const ATT_HAY_BD = '<%= hayBD %>' === 'true';
 window._grupoIS401Id = (function(){
   try {
     var ids = <%
-      // Ya no se usa un grupo fijo - misGruposBD tiene todos los grupoIds
-      // Este valor se mantiene por compatibilidad pero no se usa activamente
       int _gid = 0;
-      if (hayBD && profesorId_pg > 0) {
+      if (hayBD) {
         try (Connection _gc = ConexionDB.obtenerConexion();
              PreparedStatement _gp = _gc.prepareStatement(
-               "SELECT g.id FROM grupos g WHERE g.profesor_id=? LIMIT 1")) {
-          _gp.setInt(1, profesorId_pg);
+               "SELECT g.id FROM grupos g JOIN materias m ON m.id=g.materia_id WHERE m.codigo='IS-401' LIMIT 1")) {
           ResultSet _gr = _gp.executeQuery();
           if (_gr.next()) _gid = _gr.getInt(1);
         } catch(Exception _ge){}
@@ -1131,7 +1195,7 @@ function cargarRiesgoAcademico() {
 }
 
 // Mapa codigo_grupo BD → codigo display del portal profesor
-// GRUPO_BD_A_FRONTEND se construye dinámicamente arriba desde misGruposBD
+var GRUPO_BD_A_FRONTEND = {'GRP-IS-401':'1SF133','GRP-IS-301':'1SF131','GRP-PS-301':'2SF241'};
 
 function renderRiesgoTabla(container, lista) {
   if(lista.length===0){container.innerHTML='<div style="text-align:center;padding:24px;color:var(--green);font-weight:700;">✅ Ningún estudiante en riesgo académico actualmente.</div>';document.getElementById('riesgoBadge').textContent='0';return;}
@@ -1153,16 +1217,15 @@ function renderRiesgoTabla(container, lista) {
 }
 
 function renderRiesgoDemo(container) {
+  // Calcular riesgo real desde gruposData['1SF133']
   var lista = [];
-  var _primerGrupo = misGruposBD.length ? misGruposBD[0].codigo : '';
-  var _gd = gruposData[_primerGrupo] || {estudiantes: []};
-  _gd.estudiantes.forEach(function(est) {
+  gruposData['1SF133'].estudiantes.forEach(function(est) {
     var nota = calcNotaFinal(est.p1, est.p2, est.proj, est.final);
     if (nota < 70) {
       lista.push({
         nombre: est.name,
-        codigoGrupo: _primerGrupo,
-        materia: _gd.nombre || '',
+        codigoGrupo: '1SF133',
+        materia: 'Calidad del Software',
         promedio: nota,
         estado: nota < 60 ? 'RIESGO' : 'ALERTA'
       });
@@ -1193,46 +1256,61 @@ function enviarMsgRiesgo(nombre) {
 
 function escHtml(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
-
-// Mapa de inscripciones desde BD: clave = "codigoGrupo|nombreEstudiante"
+// ==================== DATA ====================
+// Mapa de inscripciones desde BD: {nombre: {iid, cedula}}
 const inscripcionesBD = (function(){
   try { return JSON.parse('<%= inscripcionesJson %>'); } catch(e){ return {}; }
 })();
 
-// Construir gruposData dinámicamente desde misGruposBD y inscripcionesBD
-const gruposData = (function() {
-  var data = {};
-  var colores = ['var(--blue)', 'var(--green)', 'var(--purple)', 'var(--amber)', 'var(--red)'];
-  misGruposBD.forEach(function(g, idx) {
-    var codigo = g.codigo;
-    // Filtrar inscripciones de este grupo desde el mapa de BD
-    var estudiantesBD = Object.keys(inscripcionesBD)
-      .filter(function(k) { return k.startsWith(codigo + '|'); })
-      .map(function(k) {
-        var bd = inscripcionesBD[k];
-        var nombre = k.substring(codigo.length + 1);
-        return {
-          name:         nombre,
-          id:           bd.cedula  || '',
-          carrera:      bd.carrera || '',
-          inscripcionId: bd.iid,
-          p1:    bd.p1    || 0,
-          p2:    bd.p2    || 0,
-          proj:  bd.proj  || 0,
-          final: bd.final || 0
-        };
-      });
-    data[codigo] = {
-      nombre:      g.materia,
-      aula:        g.aula,
-      grupoId:     g.grupoId,
-      color:       colores[idx % colores.length],
-      horarios:    g.horarios || [],
-      estudiantes: estudiantesBD
-    };
-  });
-  return data;
-})();
+const gruposData = {
+  '1SF133': {
+    nombre: 'Calidad del Software',
+    estudiantes: (function(){
+      // Si hay datos de BD, usarlos directamente con nombres y notas reales
+      const bdKeys = Object.keys(inscripcionesBD);
+      if (bdKeys.length > 0) {
+        return bdKeys.map(function(nom) {
+          var bd = inscripcionesBD[nom];
+          return {
+            name: nom,
+            id: bd.cedula || '',
+            carrera: bd.carrera || '',
+            inscripcionId: bd.iid,
+            p1:    bd.p1    || 0,
+            p2:    bd.p2    || 0,
+            proj:  bd.proj  || 0,
+            final: bd.final || 0
+          };
+        });
+      }
+      // Demo si no hay BD
+      return [
+        {name:'Laura Orellana',     id:'8-123-456',  p1:90, p2:88, proj:95, final:94},
+        {name:'Edgar Sanchez',   id:'8-234-567',  p1:72, p2:68, proj:75, final:70},
+        {name:'Evelin Pineda', id:'8-345-678',  p1:91, p2:93, proj:95, final:92},
+        {name:'Luis King',       id:'8-456-789',  p1:65, p2:58, proj:62, final:60},
+        {name:'Gabriela Fuentes',   id:'8-567-890',  p1:78, p2:82, proj:80, final:79},
+      ];
+    })()
+  },
+  '1SF131': {
+    nombre: 'Ingeniería de Software I',
+    estudiantes: [
+      {name:'Ana Cedeño',        id:'8-1028-441',   p1:88, p2:84, proj:90, final:86},
+      {name:'Roberto Flores',    id:'8-1035-772',   p1:76, p2:73, proj:80, final:77},
+      {name:'María Ríos',        id:'8-1041-559',   p1:95, p2:93, proj:97, final:96},
+      {name:'Carlos Mendoza',    id:'8-1019-334',   p1:62, p2:58, proj:64, final:61},
+    ]
+  },
+  '2SF241': {
+    nombre: 'Pruebas de Software',
+    estudiantes: [
+      {name:'Daniela Vega',      id:'8-1038-992',   p1:90, p2:92, proj:88, final:91},
+      {name:'Fernando Castro',   id:'8-1044-117',   p1:78, p2:82, proj:79, final:80},
+      {name:'Silvia Núñez',      id:'8-1027-663',   p1:85, p2:88, proj:86, final:87},
+    ]
+  }
+};
 
 // ==================== LOGIN ====================
 function togglePasswordVisibility() {
@@ -1306,7 +1384,7 @@ function updateGroupCounts() {
   var bdCountMap = {};
   if (typeof misGruposBD !== 'undefined') {
     misGruposBD.forEach(function(g) {
-      var fe = g.codigo; // usar el codigo directamente, ya es el mismo en BD y frontend
+      var fe = {'GRP-IS-401':'1SF133','GRP-IS-301':'1SF131','GRP-PS-301':'2SF241'}[g.codigo] || g.codigo;
       bdCountMap[fe] = g.numEstudiantes || 0;
     });
   }
@@ -1350,7 +1428,7 @@ function getEstadoTexto(nota) {
 }
 
 function exportarCalificacionesExcel(grupoParam) {
-  const grupo = grupoParam || document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = grupoParam || document.getElementById('calGrupoSelect')?.value || '1SF133';
   const g = gruposData[grupo];
   if (!g) { showToast('No hay datos para exportar.', 'error'); return; }
 
@@ -1387,7 +1465,7 @@ function exportarCalificacionesExcel(grupoParam) {
 }
 
 function exportarRiesgoExcel() {
-  const grupo = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = '1SF133';
   const g = gruposData[grupo];
   if (!g) { showToast('No hay datos para exportar.', 'error'); return; }
 
@@ -1430,7 +1508,7 @@ function exportarRiesgoExcel() {
 }
 
 function exportarAsistenciaExcel(grupoParam) {
-  const grupo = grupoParam || document.getElementById('attGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = grupoParam || document.getElementById('attGrupoSelect')?.value || '1SF133';
   const g = gruposData[grupo];
   if (!g) { showToast('No hay datos de asistencia para exportar.', 'error'); return; }
   initAttSemStates(grupo);
@@ -1568,7 +1646,7 @@ function updateRowFinal(tbodyId, grupo, i) {
     }
   }
   // Actualizar badge de riesgo en inicio
-  var _allEsts = []; Object.values(gruposData).forEach(function(gd){ _allEsts = _allEsts.concat(gd.estudiantes||[]); }); const totalRiesgo = _allEsts.filter(function(e){
+  const totalRiesgo = gruposData['1SF133'].estudiantes.filter(function(e){
     return calcNotaFinal(e.p1,e.p2,e.proj,e.final) < 70;
   }).length;
   const rb = document.getElementById('riesgoBadge');
@@ -1583,7 +1661,7 @@ function guardarNotasEnBD(tbodyId, grupo) {
   const g = gruposData[grupo];
   if (!g) return;
   // Solo guardar si es grupo 1SF133 (vinculado a BD)
-  if (!gruposData[grupo] || !gruposData[grupo].estudiantes.length) {
+  if (grupo !== '1SF133') {
     document.getElementById('saveToast').classList.remove('show');
     showToast('Calificaciones guardadas correctamente.', 'success');
     return;
@@ -1622,7 +1700,7 @@ function guardarNotasEnBD(tbodyId, grupo) {
 }
 
 function renderCalificaciones() {
-  const grupo = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = document.getElementById('calGrupoSelect')?.value || '1SF133';
   const g = gruposData[grupo];
   const titleEl = document.getElementById('calCardTitle');
   if (titleEl) titleEl.textContent = `Lista de Estudiantes — ${grupo}`;
@@ -1637,7 +1715,7 @@ function recargarNotasBD() {
     .then(function(lista) {
       if (!Array.isArray(lista)) return;
       lista.forEach(function(row) {
-        var est = (gruposData[_gCodigo]||{estudiantes:[]}).estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
+        var est = gruposData['1SF133'].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
         if (est) {
           if (row.p1   !== null) est.p1    = row.p1;
           if (row.p2   !== null) est.p2    = row.p2;
@@ -1663,7 +1741,7 @@ function confirmSaveGrades() {
 }
 
 function saveCalificaciones() {
-  const grupo = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = document.getElementById('calGrupoSelect')?.value || '1SF133';
   guardarNotasEnBD('calTableBody', grupo);
 }
 
@@ -1711,8 +1789,7 @@ function sincronizarTablas(origen, destino) {
     const nameCell = row.querySelector('td strong');
     if (!nameCell) return;
     const name = nameCell.textContent.trim();
-    var _gCodigo2 = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
-    const est = (gruposData[_gCodigo2]||{estudiantes:[]}).estudiantes.find(function(e){ return e.name === name; });
+    const est = gruposData['1SF133'].estudiantes.find(function(e){ return e.name === name; });
     if (est) {
       est.p1    = parseFloat(inputs[0].value) || 0;
       est.p2    = parseFloat(inputs[1].value) || 0;
@@ -1723,36 +1800,35 @@ function sincronizarTablas(origen, destino) {
   // Re-renderizar tabla destino
   if (destino === 'calTableBody') {
     const sel = document.getElementById('calGrupoSelect');
-    if (sel && misGruposBD.length) sel.value = misGruposBD[0].codigo;
+    if (sel) sel.value = '1SF133';
     renderCalificaciones();
   } else {
-    var _gSync = document.getElementById('calGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : ''); renderGradesTable(destino, _gSync, true, true);
+    renderGradesTable(destino, '1SF133', true, true);
   }
 }
 
 // ==================== ATTENDANCE ====================
-// Per-group semester class-day config — construido dinámicamente desde misGruposBD
-const ASISTENCIA_COLORES = ['#1a56a0','#15803d','#7c3aed','#92400e','#991b1b'];
-const gruposAttConfig = (function() {
-  var cfg = {};
-  // Mapa dia string → número JS (0=Dom,1=Lun,2=Mar,3=Mie,4=Jue,5=Vie,6=Sab)
-  var diaNum = {lunes:1, martes:2, miercoles:3, jueves:4, viernes:5, sabado:6};
-  misGruposBD.forEach(function(g, idx) {
-    var classDays = [];
-    (g.horarios||[]).forEach(function(h) {
-      var n = diaNum[h.dia];
-      if (n !== undefined && !classDays.includes(n)) classDays.push(n);
-    });
-    classDays.sort();
-    cfg[g.codigo] = {
-      label: 'Grupo ' + g.codigo + ' · ' + g.materia,
-      classDays: classDays,
-      startDate: new Date(2026, 2, 3),
-      color: ASISTENCIA_COLORES[idx % ASISTENCIA_COLORES.length]
-    };
-  });
-  return cfg;
-})();
+// Per-group semester class-day config
+const gruposAttConfig = {
+  '1SF133': {
+    label: 'Grupo 1SF133 · Martes y Jueves',
+    classDays: [2, 4], // Tue=2, Thu=4
+    startDate: new Date(2026, 2, 3),
+    color: '#1a56a0'
+  },
+  '1SF131': {
+    label: 'Grupo 1SF131 · Lunes y Miércoles',
+    classDays: [1, 3], // Mon=1, Wed=3
+    startDate: new Date(2026, 2, 2),
+    color: '#15803d'
+  },
+  '2SF241': {
+    label: 'Grupo 2SF241 · Viernes',
+    classDays: [5], // Fri=5
+    startDate: new Date(2026, 2, 6),
+    color: '#7c3aed'
+  }
+};
 
 // Day-attendance state per group per student: attDayStates[grupo][studentIdx] = 'present'|'late'|'absent'
 const attDayStates = {};
@@ -1785,8 +1861,27 @@ function buildWeekDates(grupo) {
   return result;
 }
 
-// Patrones de asistencia semestral — inicializados vacíos (se cargan desde BD o BD de asistencia)
-const semInitPatterns = {};
+// Seed initial semester attendance data for a group
+const semInitPatterns = {
+  '1SF133': {
+    0: ['present','present','late','present','absent','present','present','present','late','present','present','present','absent','present','present','present','present','present'],
+    1: ['present','present','present','late','present','present','absent','present','present','present','present','late','present','present','present','present','present','present'],
+    2: ['present','late','present','present','present','absent','present','present','present','present','present','present','present','absent','present','present','present','present'],
+    3: ['present','present','present','present','late','present','present','present','present','absent','present','present','present','present','present','present','present','late'],
+    4: ['absent','present','present','present','present','late','present','absent','present','present','present','present','present','present','late','present','present','present'],
+  },
+  '1SF131': {
+    0: ['present','present','present','present','late','present','present','present','absent','present','present','present','present','present','present','present'],
+    1: ['present','late','present','present','present','absent','present','present','present','present','late','present','present','present','present','present'],
+    2: ['present','present','present','late','present','present','present','present','present','present','present','absent','present','present','present','present'],
+    3: ['late','present','absent','present','present','present','present','late','present','present','present','present','absent','present','present','present'],
+  },
+  '2SF241': {
+    0: ['present','present','late','present','present','present','present','present','absent','present','present','present','present','present','present'],
+    1: ['present','late','present','present','absent','present','present','present','present','present','late','present','present','present','present'],
+    2: ['present','present','present','present','present','late','absent','present','present','present','present','present','present','late','present'],
+  }
+};
 
 function initAttSemStates(grupo) {
   if (attSemStates[grupo]) return;
@@ -1817,9 +1912,9 @@ function initAttDayStates(grupo) {
     attDayStates[grupo] = {};
     gruposData[grupo].estudiantes.forEach((s, i) => {
       const defaults = {
-        // demo data removed - attDayStates is initialized empty and populated from BD
-        
-        
+        '1SF133': ['present','present','late','present','absent'],
+        '1SF131': ['present','present','present','late'],
+        '2SF241': ['present','late','present']
       };
       attDayStates[grupo][i] = (defaults[grupo] || [])[i] || 'present';
     });
@@ -1896,7 +1991,7 @@ function guardarAsistenciaBD(grupo, inscripcionId, fechaKey, estadoFrontend) {
 }
 
 function renderAttendance() {
-  const grupo = document.getElementById('attGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = document.getElementById('attGrupoSelect')?.value || '1SF133';
   const cfg = gruposAttConfig[grupo];
   const g = gruposData[grupo];
   const today = new Date();
@@ -1992,7 +2087,7 @@ function updateAttSummary(grupo) {
 
 /**
  * Actualiza el stat card "Asistencia Hoy" en el Dashboard de inicio
- * basándose en attDayStates del grupo que tiene clase hoy.
+ * basándose en attDayStates del grupo que tiene clase hoy (1SF133 por defecto).
  */
 function actualizarStatAsistenciaHoy() {
   var elVal = document.getElementById('statAsistenciaHoy');
@@ -2004,7 +2099,8 @@ function actualizarStatAsistenciaHoy() {
   var grupoHoy = null;
   misGruposBD.forEach(function(g) {
     if (!grupoHoy && (g.horarios||[]).some(function(h){ return h.dia === diaHoy; })) {
-      grupoHoy = g.codigo; // usar el codigo directamente desde BD
+      // Mapear codigo BD al codigo frontend
+      if (g.codigo === 'GRP-IS-401') grupoHoy = '1SF133';
     }
   });
 
@@ -2108,7 +2204,7 @@ function renderSemesterList(grupo) {
 }
 
 function saveAttendance() {
-  const grupo = document.getElementById('attGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
+  const grupo = document.getElementById('attGrupoSelect')?.value || '1SF133';
   const todayKey = new Date().toISOString().slice(0,10);
   const g = gruposData[grupo];
 
@@ -2415,157 +2511,16 @@ function profRenderEnviados() {
 }
 
 // ==================== AVISOS ====================
-// misGruposBD ya fue definido al inicio del bloque de datos (antes de gruposData)
+const misGruposBD = (function(){
+  try {
+    var tag = document.getElementById('mis-grupos-json');
+    var json = tag ? tag.textContent : '[]';
+    return JSON.parse(json || '[]');
+  } catch(e) { return []; }
+})();
 
 // Mapa de codigo de grupo (frontend) -> codigo_grupo real en BD, para Asistencia
-// Mapa dinámico: codigo_grupo BD → codigo frontend (se construye desde misGruposBD)
-// Para riesgo académico y asistencia
-var GRUPO_BD_A_FRONTEND = {};
-var ATT_CODIGO_BD = {};  // codigo frontend → codigo BD (para asistencia)
-misGruposBD.forEach(function(g) {
-  GRUPO_BD_A_FRONTEND[g.codigo] = g.codigo;  // ya son los mismos
-  ATT_CODIGO_BD[g.codigo] = g.codigo;
-});
-
-// Paleta de colores para grupos
-var GRUPO_COLORES = [
-  {bg:'#dbeafe', color:'#1a56a0', border:'#93c5fd'},
-  {bg:'#bbf7d0', color:'#14532d', border:'#86efac'},
-  {bg:'#ede9fe', color:'#5b21b6', border:'#c4b5fd'},
-  {bg:'#fef3c7', color:'#92400e', border:'#fcd34d'},
-  {bg:'#fee2e2', color:'#991b1b', border:'#fca5a5'},
-];
-
-// Poblar todos los selectores de grupo (calificaciones, asistencia) desde misGruposBD
-function poblarSelectores() {
-  var selCal = document.getElementById('calGrupoSelect');
-  var selAtt = document.getElementById('attGrupoSelect');
-  if (!selCal || !selAtt) return;
-  selCal.innerHTML = '';
-  selAtt.innerHTML = '';
-  if (!misGruposBD.length) {
-    selCal.innerHTML = '<option value="">Sin grupos asignados</option>';
-    selAtt.innerHTML = '<option value="">Sin grupos asignados</option>';
-    return;
-  }
-  misGruposBD.forEach(function(g) {
-    var opt = '<option value="'+escHtml(g.codigo)+'">'+escHtml(g.codigo)+' — '+escHtml(g.materia)+'</option>';
-    selCal.innerHTML += opt;
-    selAtt.innerHTML += opt;
-  });
-}
-
-// Renderizar cards de Mis Grupos desde misGruposBD
-function renderMisGruposCards() {
-  var cont = document.getElementById('misGruposCards');
-  if (!cont) return;
-  if (!misGruposBD.length) {
-    cont.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text-soft);">No tienes grupos asignados actualmente.</div>';
-    return;
-  }
-  var html = '';
-  misGruposBD.forEach(function(g, idx) {
-    var pal = GRUPO_COLORES[idx % GRUPO_COLORES.length];
-    // Días del horario
-    var dias = (g.horarios||[]).map(function(h){ return h.dia.charAt(0).toUpperCase()+h.dia.slice(1); });
-    var diasStr = [...new Set(dias)].join(' · ') || 'Sin horario';
-    var horaStr = g.horarios && g.horarios.length ? g.horarios[0].horaInicio.substring(0,5)+' – '+g.horarios[0].horaFin.substring(0,5) : '';
-    var cnt = (typeof bdCountMap !== 'undefined' && bdCountMap[g.codigo] !== undefined)
-              ? bdCountMap[g.codigo] : (gruposData[g.codigo] ? gruposData[g.codigo].estudiantes.length : g.numEstudiantes);
-    html += '<div class="class-row">'
-      + '<div class="class-bar" style="background:'+pal.color+';"></div>'
-      + '<div style="flex:1;"><div class="class-name">'+escHtml(g.materia)+'</div>'
-      + '<div class="class-meta">Grupo '+escHtml(g.codigo)+' · '+diasStr+(horaStr?' · '+horaStr:'')+' · '+escHtml(g.aula)+'</div></div>'
-      + '<div class="class-right"><div class="class-count" id="cnt'+escHtml(g.codigo)+'">'+cnt+' est.</div>'
-      + '<div class="class-avg">Prom: <span id="prom'+escHtml(g.codigo)+'">--</span></div></div>'
-      + '<button class="btn btn-secondary btn-sm" onclick="openGrupoGrades(\''+escHtml(g.codigo)+'\')">Ver Estudiantes</button>'
-      + '</div>';
-  });
-  cont.innerHTML = html;
-}
-
-// Renderizar horario semanal desde misGruposBD
-function renderHorario() {
-  var grid = document.getElementById('horarioGrid');
-  var leyenda = document.getElementById('horarioLeyenda');
-  var detalle = document.getElementById('horarioDetalleBody');
-  if (!grid) return;
-
-  // Determinar rango de horas desde los horarios de todos los grupos
-  var horasSet = new Set();
-  misGruposBD.forEach(function(g) {
-    (g.horarios||[]).forEach(function(h) {
-      var ini = parseInt(h.horaInicio.split(':')[0]);
-      var fin = parseInt(h.horaFin.split(':')[0]);
-      for (var hh = ini; hh < fin; hh++) horasSet.add(hh);
-    });
-  });
-  var horas = Array.from(horasSet).sort(function(a,b){return a-b;});
-  if (!horas.length) horas = [7,8,9,10,11,12];
-
-  var dias = ['lunes','martes','miercoles','jueves','viernes'];
-  var diasLabel = ['Lunes','Martes','Miércoles','Jueves','Viernes'];
-
-  // Mapa: dia+hora → grupo
-  var celdaMap = {};
-  misGruposBD.forEach(function(g, idx) {
-    (g.horarios||[]).forEach(function(h) {
-      var ini = parseInt(h.horaInicio.split(':')[0]);
-      var fin = parseInt(h.horaFin.split(':')[0]);
-      for (var hh = ini; hh < fin; hh++) {
-        celdaMap[h.dia+'_'+hh] = { g: g, idx: idx };
-      }
-    });
-  });
-
-  var html = '<div class="horario-grid" style="min-width:600px;">';
-  html += '<div class="horario-header">Hora</div>';
-  diasLabel.forEach(function(d){ html += '<div class="horario-header">'+d+'</div>'; });
-
-  horas.forEach(function(h) {
-    var label = (h<10?'0'+h:h)+':00<br>'+(h+1<10?'0'+(h+1):(h+1))+':00';
-    html += '<div class="horario-cell horario-time">'+label+'</div>';
-    dias.forEach(function(dia) {
-      var entry = celdaMap[dia+'_'+h];
-      if (entry) {
-        var pal = GRUPO_COLORES[entry.idx % GRUPO_COLORES.length];
-        html += '<div class="horario-cell"><div class="horario-class" style="background:'+pal.bg+';color:'+pal.color+';border:1.5px solid '+pal.border+';">'
-          + escHtml(entry.g.materia)+'<br><small>'+escHtml(entry.g.codigo)+' · '+escHtml(entry.g.aula)+'</small></div></div>';
-      } else {
-        html += '<div class="horario-cell"><div class="horario-empty" style="padding:10px;border-radius:8px;height:100%;"></div></div>';
-      }
-    });
-  });
-  html += '</div>';
-  grid.innerHTML = html;
-
-  // Leyenda
-  var leyHtml = '';
-  misGruposBD.forEach(function(g, idx) {
-    var pal = GRUPO_COLORES[idx % GRUPO_COLORES.length];
-    leyHtml += '<div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;">'
-      + '<div style="width:16px;height:16px;border-radius:4px;background:'+pal.bg+';border:1.5px solid '+pal.border+';"></div>'
-      + escHtml(g.materia)+' ('+escHtml(g.codigo)+')</div>';
-  });
-  if (leyenda) leyenda.innerHTML = leyHtml;
-
-  // Tabla detalle
-  if (detalle) {
-    var detHtml = '';
-    misGruposBD.forEach(function(g) {
-      var dias2 = [...new Set((g.horarios||[]).map(function(h){
-        return h.dia.charAt(0).toUpperCase()+h.dia.slice(1);
-      }))].join(' · ') || 'Sin horario';
-      var cnt = g.numEstudiantes || 0;
-      detHtml += '<tr><td><strong>'+escHtml(g.codigo)+'</strong></td>'
-        +'<td>'+escHtml(g.materia)+'</td>'
-        +'<td>'+dias2+'</td>'
-        +'<td>'+escHtml(g.aula)+'</td>'
-        +'<td><span class="tag tag-blue">'+cnt+'</span></td></tr>';
-    });
-    detalle.innerHTML = detHtml || '<tr><td colspan="5" style="text-align:center;color:var(--text-soft);">Sin grupos</td></tr>';
-  }
-}
+const ATT_CODIGO_BD = { '1SF133': 'GRP-IS-401' };
 
 // Devuelve el grupoId real de BD para un codigo de grupo del frontend, o null
 function obtenerGrupoIdBD(grupo) {
@@ -2745,50 +2700,41 @@ function publicarAviso() {
 
 // ==================== INIT ====================
 window.addEventListener('DOMContentLoaded', function() {
-  // 1. Poblar selectores de grupo desde misGruposBD
-  poblarSelectores();
-  renderMisGruposCards();
-
   cargarInbox();
-
-  // 2. Cargar notas de TODOS los grupos del profesor desde BD
-  if (typeof CTX !== 'undefined' && misGruposBD.length > 0) {
-    var promesas = misGruposBD.map(function(g) {
-      return fetch(CTX+'/notas?grupoId=' + g.grupoId)
-        .then(function(r){ return r.json(); })
-        .then(function(lista) {
-          if (!Array.isArray(lista)) return;
-          lista.forEach(function(row) {
-            var codigo = g.codigo;
-            if (!gruposData[codigo]) return;
-            var est = gruposData[codigo].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
-            if (est) {
-              if (row.p1   !== null) est.p1    = row.p1;
-              if (row.p2   !== null) est.p2    = row.p2;
-              if (row.proy !== null) est.proj  = row.proy;
-              if (row.ef   !== null) est.final = row.ef;
-              est.modP1   = row.modP1   || 0;
-              est.modP2   = row.modP2   || 0;
-              est.modProy = row.modProy || 0;
-              est.modEf   = row.modEf   || 0;
-            }
-          });
-        }).catch(function(){});
-    });
-    Promise.all(promesas).then(function() {
-      updateGroupCounts();
-      renderCalificaciones();
-    });
+  // Cargar notas reales de BD para grupo 1SF133
+  if (typeof CTX !== 'undefined') {
+    fetch(CTX+'/notas?grupoId=' + (window._grupoIS401Id||0))
+      .then(r=>r.json())
+      .then(function(lista){
+        if (!Array.isArray(lista) || !lista.length) return;
+        lista.forEach(function(row) {
+          var est = gruposData['1SF133'].estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
+          if (est) {
+            if (row.p1   !== null) est.p1    = row.p1;
+            if (row.p2   !== null) est.p2    = row.p2;
+            if (row.proy !== null) est.proj  = row.proy;
+            if (row.ef   !== null) est.final = row.ef;
+            // Conteo de modificaciones por componente (para bloquear inputs al limite)
+            est.modP1   = row.modP1   || 0;
+            est.modP2   = row.modP2   || 0;
+            est.modProy = row.modProy || 0;
+            est.modEf   = row.modEf   || 0;
+          }
+        });
+        updateGroupCounts();
+        renderCalificaciones();
+      }).catch(function(){ updateGroupCounts(); renderCalificaciones(); });
   } else {
     updateGroupCounts();
     renderCalificaciones();
   }
-
-  renderHorario();
   renderAttendance();
+  // Sincronizar badges al cargar
   refreshBadgesFromBD();
+  // Avisos
   poblarSelectGruposAviso();
   cargarAvisosPublicados();
+  // Inicio: fecha y clases de hoy
   renderFechaHoyProf();
   renderClasesHoy();
 });
