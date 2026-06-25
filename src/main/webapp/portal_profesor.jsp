@@ -760,6 +760,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
         <div id="horarioLeyenda" style="display:flex;gap:16px;margin-top:18px;flex-wrap:wrap;"></div>
       </div>
+      <div class="grid-2">
         <div class="card">
           <div class="card-title">Detalle de Grupos</div>
           <table class="delta-table">
@@ -815,11 +816,6 @@ h1,h2,h3{font-family:'Merriweather',serif;}
           <div class="compose-wrap">
             <select class="compose-input" id="profMsgTo" style="cursor:pointer;">
               <option value="">— Selecciona un destinatario —</option>
-              <option value="Laura Orellana">Laura Orellana</option>
-              <option value="Edgar Sánchez">Edgar Sánchez</option>
-              <option value="Evelin Pineda">Evelin Pineda</option>
-              <option value="Luis King">Luis King</option>
-              <option value="Gabriela Fuentes">Gabriela Fuentes</option>
             </select>
             <input class="compose-input" id="profMsgSubj" type="text" placeholder="Asunto...">
             <textarea class="compose-textarea" id="profMsgBody" placeholder="Escribe tu mensaje aquí..."></textarea>
@@ -1197,6 +1193,22 @@ function escHtml(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').repla
 // Mapa de inscripciones desde BD: clave = "codigoGrupo|nombreEstudiante"
 const inscripcionesBD = (function(){
   try { return JSON.parse('<%= inscripcionesJson %>'); } catch(e){ return {}; }
+})();
+
+// Poblar selector de destinatarios en Mensajes solo con estudiantes del profesor
+(function() {
+  var sel = document.getElementById('profMsgTo');
+  if (!sel) return;
+  var nombres = [];
+  Object.keys(inscripcionesBD).forEach(function(k) {
+    var nombre = k.substring(k.indexOf('|') + 1);
+    if (nombre && nombres.indexOf(nombre) === -1) nombres.push(nombre);
+  });
+  nombres.sort().forEach(function(n) {
+    var opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
 })();
 
 // Construir gruposData dinámicamente desde misGruposBD y inscripcionesBD
