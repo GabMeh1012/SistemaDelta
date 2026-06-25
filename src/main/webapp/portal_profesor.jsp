@@ -448,10 +448,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         <button type="button" class="password-toggle" id="togglePass" onclick="togglePasswordVisibility()" aria-label="Mostrar contraseña" title="Mostrar contraseña">👁</button>
       </div>
     </div>
-    <div class="login-error" id="loginError" style="display:none;">Usuario o contraseña incorrecto.</div>
-    <% if (loginError) { %>
-    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.','error'); });</script>
-    <% } %>
+    <div class="login-error" id="loginError"<% if (!loginError) { %> style="display:none;"<% } %>>Usuario o contraseña incorrecto.</div>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Ingrese con su usuario y contraseña institucional</div>
     <div class="login-switch">¿Es estudiante? <a href="index.jsp">Ir al Portal Estudiantil →</a></div>
@@ -950,6 +947,10 @@ function showToast(mensaje, tipo) {
     timer = setTimeout(quitar, remaining);
   });
 }
+
+<% if (loginError) { %>
+showToast('Usuario o contraseña incorrecto. Verifique sus credenciales.', 'error');
+<% } %>
 
 function showConfirm(mensaje, onConfirm) {
   var overlay = document.getElementById('confirmOverlay');
