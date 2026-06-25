@@ -157,6 +157,10 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .aviso-field-label{display:block;font-size:13px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
 .aviso-field-input{width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
 .aviso-field-input:focus{border-color:var(--purple);outline:none;}
+.aviso-field-input.input-error{border-color:var(--red)!important;}
+.field-error{display:block;font-size:12px;color:var(--red);font-weight:700;margin-top:4px;min-height:16px;}
+.cu-card-home{cursor:pointer;transition:box-shadow .2s,transform .15s;}
+.cu-card-home:hover{box-shadow:0 6px 24px rgba(91,33,182,.15);transform:translateY(-2px);}
 </style>
 </head>
 <body>
@@ -251,7 +255,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('historial-prof',this)"><span class="nav-icon">&#128203;</span> Historial de Profesores</button>
       <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
       <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
-      <button class="nav-item" onclick="irTab('crear-usuarios',this)"><span class="nav-icon">&#128100;</span> Crear Usuarios</button>
+      <button class="nav-item" onclick="irTab('crear-usuarios',this)"><span class="nav-icon">&#128101;</span> Gestion de Usuarios</button>
       <div class="nav-label">Supervision</div>
       <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
       <div class="nav-label">Comunicacion</div>
@@ -395,169 +399,229 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       </div>
     </div>
 
-    <!-- CREAR USUARIOS -->
+    <!-- GESTIÓN DE USUARIOS -->
     <div id="tab-crear-usuarios" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">&#128100; Crear Usuarios</h2>
+        <h2 class="page-title">&#128101; Gestion de Usuarios</h2>
         <div class="page-subtitle">Registrar nuevos estudiantes y profesores en el sistema</div>
       </div>
 
       <!-- Modal credenciales generadas -->
       <div class="modal-overlay hidden" id="credencialesOverlay">
         <div class="modal-box" style="max-width:460px;">
-          <h3 style="margin-bottom:16px;font-size:17px;font-weight:800;">&#10003; Usuario creado exitosamente</h3>
-          <div id="credencialesContenido" style="background:#f8f9fc;border-radius:10px;padding:16px;font-size:14px;line-height:2;margin-bottom:20px;"></div>
+          <h3 style="margin-bottom:4px;font-size:17px;font-weight:800;">&#10003; Usuario creado exitosamente</h3>
+          <p style="font-size:13px;color:var(--text-soft);margin-bottom:16px;">Guarde estas credenciales antes de cerrar.</p>
+          <div id="credencialesContenido" style="background:#f8f9fc;border-radius:10px;padding:16px;font-size:14px;line-height:2.1;margin-bottom:20px;border:2px solid #e8edf5;"></div>
           <div class="modal-actions">
-            <button class="btn btn-primary" onclick="document.getElementById('credencialesOverlay').classList.add('hidden')">Cerrar</button>
+            <button class="btn btn-primary" onclick="cerrarCredenciales()">Entendido</button>
           </div>
         </div>
       </div>
 
-      <!-- Sub-tabs: Estudiante / Profesor -->
-      <div class="sub-nav" style="margin-bottom:20px;">
-        <button class="active" id="btnTabEstudiante" onclick="switchCrearTab('estudiante',this)">&#127891; Crear Estudiante</button>
-        <button id="btnTabProfesor" onclick="switchCrearTab('profesor',this)">&#128104;&#8205;&#127979; Crear Profesor</button>
+      <!-- Pantalla inicio: dos tarjetas -->
+      <div id="cuHomeUsuarios">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:680px;margin-bottom:32px;">
+          <div class="card" style="cursor:pointer;transition:box-shadow .2s;text-align:center;padding:32px 20px;"
+               onmouseenter="this.style.boxShadow='0 6px 24px rgba(91,33,182,.13)'"
+               onmouseleave="this.style.boxShadow=''"
+               onclick="abrirFormCrear('estudiante')">
+            <div style="font-size:48px;margin-bottom:12px;">&#127891;</div>
+            <div style="font-weight:800;font-size:16px;margin-bottom:6px;">Registrar Estudiante</div>
+            <div style="font-size:13px;color:var(--text-soft);">Crear cuenta para nuevo alumno de la facultad</div>
+          </div>
+          <div class="card" style="cursor:pointer;transition:box-shadow .2s;text-align:center;padding:32px 20px;"
+               onmouseenter="this.style.boxShadow='0 6px 24px rgba(91,33,182,.13)'"
+               onmouseleave="this.style.boxShadow=''"
+               onclick="abrirFormCrear('profesor')">
+            <div style="font-size:48px;margin-bottom:12px;">&#128104;&#8205;&#127979;</div>
+            <div style="font-weight:800;font-size:16px;margin-bottom:6px;">Registrar Profesor</div>
+            <div style="font-size:13px;color:var(--text-soft);">Crear cuenta docente con asignacion de materias</div>
+          </div>
+        </div>
+
+        <!-- Listado de usuarios creados -->
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+            <div class="card-title" style="margin-bottom:0;">Usuarios registrados recientemente</div>
+            <button class="btn btn-secondary btn-sm" onclick="cargarListaUsuarios()">&#8635; Actualizar</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="delta-table" id="tblUsuariosCreados">
+              <thead><tr>
+                <th>Nombre</th><th>Tipo</th><th>Usuario generado</th>
+                <th>Correo</th><th>Documento</th><th>Estado</th>
+              </tr></thead>
+              <tbody id="tbodyUsuariosCreados">
+                <tr><td colspan="6" style="text-align:center;color:var(--text-soft);padding:24px;">Cargando...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
-      <!-- ===== FORMULARIO ESTUDIANTE ===== -->
-      <div id="subCrearEstudiante" class="card" style="max-width:640px;">
-        <div class="card-title">Nuevo Estudiante</div>
-        <form id="frmEstudiante" onsubmit="enviarCrearEstudiante(event)">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Nombre *</label>
-              <input type="text" name="nombre" required class="aviso-field-input" placeholder="Juan">
-            </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Apellido *</label>
-              <input type="text" name="apellido" required class="aviso-field-input" placeholder="Pérez">
-            </div>
+      <!-- Panel formularios (oculto por defecto) -->
+      <div id="cuForms" class="hidden">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+          <button class="btn btn-secondary btn-sm" onclick="volverHomeUsuarios()">&#8592; Volver</button>
+          <!-- Sub-tabs -->
+          <div class="sub-nav" style="margin-bottom:0;">
+            <button class="active" id="btnTabEstudiante" onclick="switchCrearTab('estudiante',this)">&#127891; Estudiante</button>
+            <button id="btnTabProfesor" onclick="switchCrearTab('profesor',this)">&#128104;&#8205;&#127979; Profesor</button>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Email *</label>
-              <input type="email" name="email" required class="aviso-field-input" placeholder="juan.perez@utp.ac.pa">
-            </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Teléfono</label>
-              <input type="text" name="telefono" class="aviso-field-input" placeholder="6123-4567">
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Semestre</label>
-              <select name="semestre" class="aviso-field-input">
-                <option value="1">1° Semestre</option>
-                <option value="2">2° Semestre</option>
-                <option value="3">3° Semestre</option>
-                <option value="4">4° Semestre</option>
-                <option value="5">5° Semestre</option>
-                <option value="6">6° Semestre</option>
-                <option value="7">7° Semestre</option>
-                <option value="8">8° Semestre</option>
-                <option value="9">9° Semestre</option>
-                <option value="10">10° Semestre</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Nacionalidad</label>
-              <select name="nacionalidad" id="estNacionalidad" class="aviso-field-input" onchange="toggleCedulaEstudiante()">
-                <option value="panameño">Panameño</option>
-                <option value="cubano">Cubano</option>
-                <option value="colombiano">Colombiano</option>
-                <option value="venezolano">Venezolano</option>
-                <option value="costarricense">Costarricense</option>
-                <option value="dominicano">Dominicano</option>
-                <option value="mexicano">Mexicano</option>
-                <option value="estadounidense">Estadounidense</option>
-              </select>
-            </div>
-          </div>
-          <div id="estCedulaGrupo" class="form-group">
-            <label class="aviso-field-label">Cédula *</label>
-            <input type="text" name="cedula" id="estCedula" class="aviso-field-input" placeholder="8-1042-245">
-          </div>
-          <div id="estExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
-            &#128161; Se generará un ID institucional automático: <strong>E-8-XXXX</strong>
-          </div>
-          <div class="form-group" style="margin-bottom:14px;">
-            <label class="aviso-field-label">Carrera</label>
-            <div style="padding:10px 12px;background:#f8f9fc;border-radius:8px;font-size:14px;color:#6b7e96;border:2px solid #e2e8f0;">
-              Ingeniería en Sistemas Computacionales — Facultad de Sistemas
-            </div>
-          </div>
-          <div style="margin-top:8px;">
-            <button type="submit" class="btn btn-primary" style="min-width:180px;">Crear Estudiante</button>
-          </div>
-        </form>
-      </div>
+        </div>
 
-      <!-- ===== FORMULARIO PROFESOR ===== -->
-      <div id="subCrearProfesor" class="card hidden" style="max-width:640px;">
-        <div class="card-title">Nuevo Profesor</div>
-        <form id="frmProfesor" onsubmit="enviarCrearProfesor(event)">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Nombre *</label>
-              <input type="text" name="nombre" required class="aviso-field-input" placeholder="María">
+        <!-- ===== FORMULARIO ESTUDIANTE ===== -->
+        <div id="subCrearEstudiante" class="card" style="max-width:680px;">
+          <div class="card-title">Nuevo Estudiante</div>
+          <form id="frmEstudiante" onsubmit="enviarCrearEstudiante(event)" novalidate>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Nombre *</label>
+                <input type="text" name="nombre" id="estNombre" class="aviso-field-input" placeholder="Juan" oninput="limpiarError('errEstNombre',this)">
+                <span class="field-error" id="errEstNombre"></span>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Apellido *</label>
+                <input type="text" name="apellido" id="estApellido" class="aviso-field-input" placeholder="Perez" oninput="limpiarError('errEstApellido',this)">
+                <span class="field-error" id="errEstApellido"></span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Email *</label>
+                <input type="email" name="email" id="estEmail" class="aviso-field-input" placeholder="juan.perez@utp.ac.pa" oninput="limpiarError('errEstEmail',this)">
+                <span class="field-error" id="errEstEmail"></span>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Telefono</label>
+                <input type="text" name="telefono" id="estTelefono" class="aviso-field-input" placeholder="6123-4567" oninput="limpiarError('errEstTel',this)">
+                <span class="field-error" id="errEstTel"></span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Semestre</label>
+                <select name="semestre" class="aviso-field-input">
+                  <option value="1">1 Semestre</option>
+                  <option value="2">2 Semestre</option>
+                  <option value="3">3 Semestre</option>
+                  <option value="4">4 Semestre</option>
+                  <option value="5">5 Semestre</option>
+                  <option value="6">6 Semestre</option>
+                  <option value="7">7 Semestre</option>
+                  <option value="8">8 Semestre</option>
+                  <option value="9">9 Semestre</option>
+                  <option value="10">10 Semestre</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Nacionalidad</label>
+                <select name="nacionalidad" id="estNacionalidad" class="aviso-field-input" onchange="toggleCedulaEstudiante()">
+                  <option value="panameno">Panameno</option>
+                  <option value="cubano">Cubano</option>
+                  <option value="colombiano">Colombiano</option>
+                  <option value="venezolano">Venezolano</option>
+                  <option value="costarricense">Costarricense</option>
+                  <option value="dominicano">Dominicano</option>
+                  <option value="mexicano">Mexicano</option>
+                  <option value="estadounidense">Estadounidense</option>
+                </select>
+              </div>
+            </div>
+            <div id="estCedulaGrupo" class="form-group">
+              <label class="aviso-field-label">Cedula *</label>
+              <input type="text" name="cedula" id="estCedula" class="aviso-field-input" placeholder="8-1042-245" oninput="limpiarError('errEstCedula',this)">
+              <span class="field-error" id="errEstCedula"></span>
+            </div>
+            <div id="estExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
+              &#128161; Se generara un ID institucional automatico: <strong>E-8-XXXX</strong>
+            </div>
+            <div class="form-group" style="margin-bottom:18px;">
+              <label class="aviso-field-label">Carrera (asignada automaticamente)</label>
+              <div style="padding:10px 12px;background:#f8f9fc;border-radius:8px;font-size:14px;color:#6b7e96;border:2px solid #e2e8f0;">
+                &#127979; Ingenieria en Sistemas Computacionales — Facultad de Sistemas
+              </div>
+            </div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <button type="submit" id="btnCrearEst" class="btn btn-primary" style="min-width:180px;">Crear Estudiante</button>
+              <button type="button" class="btn btn-secondary" onclick="resetFormEstudiante()">Limpiar</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- ===== FORMULARIO PROFESOR ===== -->
+        <div id="subCrearProfesor" class="card hidden" style="max-width:680px;">
+          <div class="card-title">Nuevo Profesor</div>
+          <form id="frmProfesor" onsubmit="enviarCrearProfesor(event)" novalidate>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Nombre *</label>
+                <input type="text" name="nombre" id="profNombre" class="aviso-field-input" placeholder="Maria" oninput="limpiarError('errProfNombre',this)">
+                <span class="field-error" id="errProfNombre"></span>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Apellido *</label>
+                <input type="text" name="apellido" id="profApellido" class="aviso-field-input" placeholder="Gonzalez" oninput="limpiarError('errProfApellido',this)">
+                <span class="field-error" id="errProfApellido"></span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Email *</label>
+                <input type="email" name="email" id="profEmail" class="aviso-field-input" placeholder="mgonzalez@utp.ac.pa" oninput="limpiarError('errProfEmail',this)">
+                <span class="field-error" id="errProfEmail"></span>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Telefono</label>
+                <input type="text" name="telefono" id="profTelefono" class="aviso-field-input" placeholder="6123-4567" oninput="limpiarError('errProfTel',this)">
+                <span class="field-error" id="errProfTel"></span>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Departamento</label>
+                <select name="departamento" class="aviso-field-input">
+                  <option value="Sistemas">Sistemas</option>
+                  <option value="Redes">Redes</option>
+                  <option value="Tecnologia">Tecnologia</option>
+                  <option value="Negocios">Negocios</option>
+                  <option value="Etica">Etica</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Nacionalidad</label>
+                <select name="nacionalidad" id="profNacionalidad" class="aviso-field-input" onchange="toggleCedulaProfesor()">
+                  <option value="panameno">Panameno</option>
+                  <option value="cubano">Cubano</option>
+                  <option value="colombiano">Colombiano</option>
+                  <option value="venezolano">Venezolano</option>
+                  <option value="costarricense">Costarricense</option>
+                  <option value="dominicano">Dominicano</option>
+                  <option value="mexicano">Mexicano</option>
+                  <option value="estadounidense">Estadounidense</option>
+                </select>
+              </div>
+            </div>
+            <div id="profCedulaGrupo" class="form-group">
+              <label class="aviso-field-label">Cedula</label>
+              <input type="text" name="cedula" id="profCedula" class="aviso-field-input" placeholder="8-1042-245" oninput="limpiarError('errProfCedula',this)">
+              <span class="field-error" id="errProfCedula"></span>
+            </div>
+            <div id="profExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
+              &#128161; Se generara un ID institucional automatico: <strong>E-8-XXXX</strong>
             </div>
             <div class="form-group">
-              <label class="aviso-field-label">Apellido *</label>
-              <input type="text" name="apellido" required class="aviso-field-input" placeholder="González">
+              <label class="aviso-field-label">Materias que imparte</label>
+              <div id="listaMaterias" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;background:#f8f9fc;border:2px solid #e2e8f0;border-radius:8px;max-height:220px;overflow-y:auto;">
+                <span style="color:#6b7e96;font-size:13px;">Cargando materias...</span>
+              </div>
             </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Email *</label>
-              <input type="email" name="email" required class="aviso-field-input" placeholder="mgonzalez@utp.ac.pa">
+            <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
+              <button type="submit" id="btnCrearProf" class="btn btn-primary" style="min-width:180px;">Crear Profesor</button>
+              <button type="button" class="btn btn-secondary" onclick="resetFormProfesor()">Limpiar</button>
             </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Teléfono</label>
-              <input type="text" name="telefono" class="aviso-field-input" placeholder="6123-4567">
-            </div>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
-            <div class="form-group">
-              <label class="aviso-field-label">Departamento</label>
-              <select name="departamento" class="aviso-field-input">
-                <option value="Sistemas">Sistemas</option>
-                <option value="Redes">Redes</option>
-                <option value="Tecnología">Tecnología</option>
-                <option value="Negocios">Negocios</option>
-                <option value="Ética">Ética</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Nacionalidad</label>
-              <select name="nacionalidad" id="profNacionalidad" class="aviso-field-input" onchange="toggleCedulaProfesor()">
-                <option value="panameño">Panameño</option>
-                <option value="cubano">Cubano</option>
-                <option value="colombiano">Colombiano</option>
-                <option value="venezolano">Venezolano</option>
-                <option value="costarricense">Costarricense</option>
-                <option value="dominicano">Dominicano</option>
-                <option value="mexicano">Mexicano</option>
-                <option value="estadounidense">Estadounidense</option>
-              </select>
-            </div>
-          </div>
-          <div id="profCedulaGrupo" class="form-group">
-            <label class="aviso-field-label">Cédula</label>
-            <input type="text" name="cedula" id="profCedula" class="aviso-field-input" placeholder="8-1042-245">
-          </div>
-          <div id="profExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
-            &#128161; Se generará un ID institucional automático: <strong>E-8-XXXX</strong>
-          </div>
-          <div class="form-group">
-            <label class="aviso-field-label">Materias que imparte</label>
-            <div id="listaMaterias" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;background:#f8f9fc;border:2px solid #e2e8f0;border-radius:8px;max-height:200px;overflow-y:auto;">
-              <span style="color:#6b7e96;font-size:13px;">Cargando materias...</span>
-            </div>
-          </div>
-          <div style="margin-top:8px;">
-            <button type="submit" class="btn btn-primary" style="min-width:180px;">Crear Profesor</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
     </div>
 
@@ -627,10 +691,32 @@ function irTab(id, btn) {
   if (id==='crear-usuarios') inicializarCrearUsuarios();
 }
 
-// ── CREAR USUARIOS ────────────────────────────────────────────────────────
+// ── GESTIÓN DE USUARIOS ───────────────────────────────────────────────────
+
+function inicializarCrearUsuarios() {
+  document.getElementById('cuHomeUsuarios').classList.remove('hidden');
+  document.getElementById('cuForms').classList.add('hidden');
+  cargarListaUsuarios();
+}
+
+function abrirFormCrear(tipo) {
+  document.getElementById('cuHomeUsuarios').classList.add('hidden');
+  document.getElementById('cuForms').classList.remove('hidden');
+  if (tipo === 'profesor') {
+    switchCrearTab('profesor', document.getElementById('btnTabProfesor'));
+  } else {
+    switchCrearTab('estudiante', document.getElementById('btnTabEstudiante'));
+  }
+}
+
+function volverHomeUsuarios() {
+  document.getElementById('cuForms').classList.add('hidden');
+  document.getElementById('cuHomeUsuarios').classList.remove('hidden');
+  cargarListaUsuarios();
+}
 
 function switchCrearTab(tipo, btn) {
-  document.querySelectorAll('#tab-crear-usuarios .sub-nav button').forEach(function(b){ b.classList.remove('active'); });
+  document.querySelectorAll('#cuForms .sub-nav button').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   if (tipo === 'estudiante') {
     document.getElementById('subCrearEstudiante').classList.remove('hidden');
@@ -642,32 +728,23 @@ function switchCrearTab(tipo, btn) {
   }
 }
 
-function inicializarCrearUsuarios() {
-  // Mostrar sub-tab estudiante por defecto
-  document.getElementById('subCrearEstudiante').classList.remove('hidden');
-  document.getElementById('subCrearProfesor').classList.add('hidden');
-  document.getElementById('btnTabEstudiante').classList.add('active');
-  document.getElementById('btnTabProfesor').classList.remove('active');
-}
-
 function toggleCedulaEstudiante() {
   var nac = document.getElementById('estNacionalidad').value;
-  var esPanameno = (nac === 'panameño');
-  document.getElementById('estCedulaGrupo').style.display   = esPanameno ? '' : 'none';
+  var esPanameno = (nac === 'panameno');
+  document.getElementById('estCedulaGrupo').style.display = esPanameno ? '' : 'none';
   document.getElementById('estExtranjeroInfo').classList.toggle('hidden', esPanameno);
-  document.getElementById('estCedula').required = esPanameno;
 }
 
 function toggleCedulaProfesor() {
   var nac = document.getElementById('profNacionalidad').value;
-  var esPanameno = (nac === 'panameño');
-  document.getElementById('profCedulaGrupo').style.display   = esPanameno ? '' : 'none';
+  var esPanameno = (nac === 'panameno');
+  document.getElementById('profCedulaGrupo').style.display = esPanameno ? '' : 'none';
   document.getElementById('profExtranjeroInfo').classList.toggle('hidden', esPanameno);
 }
 
 var _materiasCache = null;
 function cargarMateriasCheckboxes() {
-  if (_materiasCache !== null) return; // ya cargadas
+  if (_materiasCache !== null) return;
   fetch(CTX + '/admin?accion=listarMaterias')
     .then(function(r){ return r.json(); })
     .then(function(materias) {
@@ -678,13 +755,13 @@ function cargarMateriasCheckboxes() {
         return;
       }
       cont.innerHTML = materias.map(function(m) {
-        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;">'
-             + '<input type="checkbox" name="materia_' + m.id + '" value="' + m.id + '" style="accent-color:var(--purple);">'
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0;">'
+             + '<input type="checkbox" value="' + m.id + '" style="accent-color:var(--purple);width:16px;height:16px;">'
              + '<span><strong>' + escHtml(m.codigo) + '</strong> — ' + escHtml(m.nombre) + '</span>'
              + '</label>';
       }).join('');
     })
-    .catch(function(){ document.getElementById('listaMaterias').innerHTML = '<span style="color:#dc2626;font-size:13px;">Error cargando materias.</span>'; });
+    .catch(function(){ document.getElementById('listaMaterias').innerHTML = '<span style="color:#dc2626;font-size:13px;">Error al cargar materias.</span>'; });
 }
 
 function escHtml(s) {
@@ -693,36 +770,95 @@ function escHtml(s) {
 }
 
 function validarCedulaPanamena(c) {
-  return /^[1-9][0-9]*-[0-9]+-[0-9]+$/.test(c);
+  return /^[1-9][0-9]*-[0-9]+-[0-9]+$/.test(String(c).trim());
 }
 
-function mostrarCredenciales(data, tipo) {
+function validarEmail(e) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e).trim());
+}
+
+function validarTelefono(t) {
+  if (!t || t.trim() === '') return true; // opcional
+  return /^[0-9\-\+\s]{6,15}$/.test(t.trim());
+}
+
+function marcarError(inputId, errorId, msg) {
+  var inp = document.getElementById(inputId);
+  var err = document.getElementById(errorId);
+  if (inp) inp.classList.add('input-error');
+  if (err) err.textContent = msg;
+  return false;
+}
+
+function limpiarError(errorId, input) {
+  var err = document.getElementById(errorId);
+  if (err) err.textContent = '';
+  if (input) input.classList.remove('input-error');
+}
+
+function limpiarTodosErrores(prefix, ids) {
+  ids.forEach(function(id){ limpiarError(id, document.getElementById(id.replace('err','').toLowerCase())); });
+}
+
+function mostrarCredenciales(data) {
   var html = '';
   html += '<div><strong>Usuario:</strong> ' + escHtml(data.username) + '</div>';
-  html += '<div><strong>Contraseña inicial:</strong> ' + escHtml(data.passwordInicial) + '</div>';
-  if (data.codigo) html += '<div><strong>Código docente:</strong> ' + escHtml(data.codigo) + '</div>';
+  html += '<div><strong>Contrasena inicial:</strong> <code style="background:#e8edf5;padding:2px 8px;border-radius:5px;">' + escHtml(data.passwordInicial) + '</code></div>';
+  if (data.codigo) html += '<div><strong>Codigo docente:</strong> ' + escHtml(data.codigo) + '</div>';
   html += '<div><strong>ID documento:</strong> ' + escHtml(data.idDocumento)
         + (data.tipoId === 'extranjero' ? ' <span class="tag tag-amber">ID Institucional</span>' : '') + '</div>';
-  html += '<div style="margin-top:8px;font-size:12px;color:#6b7e96;">El usuario debe cambiar su contraseña en el primer inicio de sesión.</div>';
+  html += '<div style="margin-top:10px;font-size:12px;color:#6b7e96;">Entregue estas credenciales al usuario. Podra cambiar su contrasena en el primer inicio de sesion.</div>';
   document.getElementById('credencialesContenido').innerHTML = html;
   document.getElementById('credencialesOverlay').classList.remove('hidden');
 }
 
+function cerrarCredenciales() {
+  document.getElementById('credencialesOverlay').classList.add('hidden');
+}
+
+function resetFormEstudiante() {
+  document.getElementById('frmEstudiante').reset();
+  toggleCedulaEstudiante();
+  ['errEstNombre','errEstApellido','errEstEmail','errEstTel','errEstCedula'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.textContent = '';
+  });
+  document.querySelectorAll('#frmEstudiante .input-error').forEach(function(el){ el.classList.remove('input-error'); });
+}
+
+function resetFormProfesor() {
+  document.getElementById('frmProfesor').reset();
+  toggleCedulaProfesor();
+  ['errProfNombre','errProfApellido','errProfEmail','errProfTel','errProfCedula'].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.textContent = '';
+  });
+  document.querySelectorAll('#frmProfesor .input-error').forEach(function(el){ el.classList.remove('input-error'); });
+  if (document.getElementById('listaMaterias'))
+    document.getElementById('listaMaterias').querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
+}
+
 function enviarCrearEstudiante(e) {
   e.preventDefault();
-  var frm  = document.getElementById('frmEstudiante');
-  var data = new FormData(frm);
-  var nac  = document.getElementById('estNacionalidad').value;
-  var esExt = (nac !== 'panameño');
+  var frm   = document.getElementById('frmEstudiante');
+  var nac   = document.getElementById('estNacionalidad').value;
+  var esExt = (nac !== 'panameno');
+  var ok    = true;
 
-  // Validar cédula panameña
+  var nombre   = document.getElementById('estNombre').value.trim();
+  var apellido = document.getElementById('estApellido').value.trim();
+  var email    = document.getElementById('estEmail').value.trim();
+  var telefono = document.getElementById('estTelefono').value.trim();
+  var cedula   = document.getElementById('estCedula').value.trim();
+
+  if (!nombre)   { marcarError('estNombre','errEstNombre','El nombre es obligatorio.'); ok=false; }
+  if (!apellido) { marcarError('estApellido','errEstApellido','El apellido es obligatorio.'); ok=false; }
+  if (!email)    { marcarError('estEmail','errEstEmail','El correo es obligatorio.'); ok=false; }
+  else if (!validarEmail(email)) { marcarError('estEmail','errEstEmail','Correo electronico invalido.'); ok=false; }
+  if (!validarTelefono(telefono)) { marcarError('estTelefono','errEstTel','Telefono invalido (solo numeros y guiones).'); ok=false; }
   if (!esExt) {
-    var ced = (frm.querySelector('[name=cedula]') || {value:''}).value.trim();
-    if (!validarCedulaPanamena(ced)) {
-      showToast('Formato de cédula inválido. Use: 8-1042-245', 'error');
-      return;
-    }
+    if (!cedula) { marcarError('estCedula','errEstCedula','La cedula es obligatoria.'); ok=false; }
+    else if (!validarCedulaPanamena(cedula)) { marcarError('estCedula','errEstCedula','Formato invalido. Use: 8-1042-245'); ok=false; }
   }
+  if (!ok) return;
 
   var params = new URLSearchParams();
   params.set('accion', 'crearEstudiante');
@@ -731,7 +867,7 @@ function enviarCrearEstudiante(e) {
     if (el) params.set(k, el.value);
   });
 
-  var btn = frm.querySelector('button[type=submit]');
+  var btn = document.getElementById('btnCrearEst');
   btn.disabled = true; btn.textContent = 'Creando...';
 
   fetch(CTX + '/admin', { method:'POST', body: params,
@@ -740,37 +876,47 @@ function enviarCrearEstudiante(e) {
     .then(function(d) {
       btn.disabled = false; btn.textContent = 'Crear Estudiante';
       if (d.ok) {
-        frm.reset(); toggleCedulaEstudiante();
-        mostrarCredenciales(d, 'estudiante');
-        showToast('Estudiante creado correctamente', 'success');
+        resetFormEstudiante();
+        mostrarCredenciales(d);
+        showToast('Estudiante registrado correctamente', 'success');
       } else {
-        showToast(d.error || 'Error al crear estudiante', 'error');
+        var msg = d.error || 'Error al crear estudiante';
+        showToast(msg, 'error');
+        if (msg.toLowerCase().indexOf('email') !== -1) marcarError('estEmail','errEstEmail', msg);
+        if (msg.toLowerCase().indexOf('cedula') !== -1) marcarError('estCedula','errEstCedula', msg);
       }
     })
     .catch(function(err) {
       btn.disabled = false; btn.textContent = 'Crear Estudiante';
-      showToast('Error de red: ' + err.message, 'error');
+      showToast('Error de conexion: ' + err.message, 'error');
     });
 }
 
 function enviarCrearProfesor(e) {
   e.preventDefault();
-  var frm  = document.getElementById('frmProfesor');
-  var nac  = document.getElementById('profNacionalidad').value;
-  var esExt = (nac !== 'panameño');
+  var frm   = document.getElementById('frmProfesor');
+  var nac   = document.getElementById('profNacionalidad').value;
+  var esExt = (nac !== 'panameno');
+  var ok    = true;
 
-  // Validar cédula panameña si aplica
-  if (!esExt) {
-    var cedP = (frm.querySelector('[name=cedula]') || {value:''}).value.trim();
-    if (cedP && !validarCedulaPanamena(cedP)) {
-      showToast('Formato de cédula inválido. Use: 8-1042-245', 'error');
-      return;
-    }
+  var nombre   = document.getElementById('profNombre').value.trim();
+  var apellido = document.getElementById('profApellido').value.trim();
+  var email    = document.getElementById('profEmail').value.trim();
+  var telefono = document.getElementById('profTelefono').value.trim();
+  var cedula   = document.getElementById('profCedula').value.trim();
+
+  if (!nombre)   { marcarError('profNombre','errProfNombre','El nombre es obligatorio.'); ok=false; }
+  if (!apellido) { marcarError('profApellido','errProfApellido','El apellido es obligatorio.'); ok=false; }
+  if (!email)    { marcarError('profEmail','errProfEmail','El correo es obligatorio.'); ok=false; }
+  else if (!validarEmail(email)) { marcarError('profEmail','errProfEmail','Correo electronico invalido.'); ok=false; }
+  if (!validarTelefono(telefono)) { marcarError('profTelefono','errProfTel','Telefono invalido (solo numeros y guiones).'); ok=false; }
+  if (!esExt && cedula && !validarCedulaPanamena(cedula)) {
+    marcarError('profCedula','errProfCedula','Formato invalido. Use: 8-1042-245'); ok=false;
   }
+  if (!ok) return;
 
-  // Recolectar materias seleccionadas
   var mIds = [];
-  frm.querySelectorAll('input[type=checkbox]:checked').forEach(function(cb){ mIds.push(cb.value); });
+  document.querySelectorAll('#listaMaterias input[type=checkbox]:checked').forEach(function(cb){ mIds.push(cb.value); });
 
   var params = new URLSearchParams();
   params.set('accion', 'crearProfesor');
@@ -780,7 +926,7 @@ function enviarCrearProfesor(e) {
   });
   params.set('materiaIds', mIds.join(','));
 
-  var btn = frm.querySelector('button[type=submit]');
+  var btn = document.getElementById('btnCrearProf');
   btn.disabled = true; btn.textContent = 'Creando...';
 
   fetch(CTX + '/admin', { method:'POST', body: params,
@@ -789,18 +935,52 @@ function enviarCrearProfesor(e) {
     .then(function(d) {
       btn.disabled = false; btn.textContent = 'Crear Profesor';
       if (d.ok) {
-        frm.reset(); toggleCedulaProfesor();
-        // Desmarcar checkboxes
-        frm.querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
-        mostrarCredenciales(d, 'profesor');
-        showToast('Profesor creado correctamente', 'success');
+        resetFormProfesor();
+        mostrarCredenciales(d);
+        showToast('Profesor registrado correctamente', 'success');
       } else {
-        showToast(d.error || 'Error al crear profesor', 'error');
+        var msg = d.error || 'Error al crear profesor';
+        showToast(msg, 'error');
+        if (msg.toLowerCase().indexOf('email') !== -1) marcarError('profEmail','errProfEmail', msg);
+        if (msg.toLowerCase().indexOf('cedula') !== -1) marcarError('profCedula','errProfCedula', msg);
       }
     })
     .catch(function(err) {
       btn.disabled = false; btn.textContent = 'Crear Profesor';
-      showToast('Error de red: ' + err.message, 'error');
+      showToast('Error de conexion: ' + err.message, 'error');
+    });
+}
+
+function cargarListaUsuarios() {
+  var tbody = document.getElementById('tbodyUsuariosCreados');
+  if (!tbody) return;
+  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-soft);padding:20px;">Cargando...</td></tr>';
+  fetch(CTX + '/admin?accion=listarUsuariosCreados')
+    .then(function(r){ return r.json(); })
+    .then(function(rows) {
+      if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--text-soft);padding:24px;">No hay usuarios registrados aun.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = rows.map(function(u) {
+        var rolTag = u.rol === 'estudiante'
+          ? '<span class="tag tag-green">Estudiante</span>'
+          : '<span class="tag" style="background:#dbeafe;color:#1e40af;">Profesor</span>';
+        var estadoTag = u.activo
+          ? '<span class="tag tag-green">Activo</span>'
+          : '<span class="tag tag-gray">Inactivo</span>';
+        return '<tr>'
+          + '<td><strong>' + escHtml(u.nombre) + '</strong></td>'
+          + '<td>' + rolTag + '</td>'
+          + '<td><code style="background:#f1f5f9;padding:2px 8px;border-radius:5px;font-size:13px;">' + escHtml(u.username) + '</code></td>'
+          + '<td>' + escHtml(u.email) + '</td>'
+          + '<td>' + escHtml(u.documento) + '</td>'
+          + '<td>' + estadoTag + '</td>'
+          + '</tr>';
+      }).join('');
+    })
+    .catch(function() {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--red);padding:20px;">Error al cargar usuarios.</td></tr>';
     });
 }
 

@@ -140,6 +140,33 @@ public class CrearUsuarioDAO {
 
     // ── Listados para el formulario ───────────────────────────────────────
 
+    /** Retorna usuarios creados (estudiantes + profesores) ordenados por fecha de creación descendente. */
+    public List<Map<String, Object>> listarUsuariosCreados() throws SQLException {
+        List<Map<String, Object>> lista = new ArrayList<>();
+        String sql =
+            "SELECT u.id, u.username, u.rol, u.activo, e.nombre, e.apellido, e.email, e.cedula AS documento"
+          + "  FROM usuarios u JOIN estudiantes e ON e.usuario_id = u.id"
+          + " UNION ALL"
+          + " SELECT u.id, u.username, u.rol, u.activo, p.nombre, p.apellido, p.email, p.codigo AS documento"
+          + "  FROM usuarios u JOIN profesores p ON p.usuario_id = u.id"
+          + " ORDER BY id DESC LIMIT 100";
+        try (Connection con = ConexionDB.obtenerConexion();
+             Statement st  = con.createStatement();
+             ResultSet rs  = st.executeQuery(sql)) {
+            while (rs.next()) {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("username",  rs.getString("username"));
+                m.put("nombre",    rs.getString("nombre") + " " + rs.getString("apellido"));
+                m.put("rol",       rs.getString("rol"));
+                m.put("email",     rs.getString("email"));
+                m.put("documento", rs.getString("documento"));
+                m.put("activo",    rs.getInt("activo") == 1);
+                lista.add(m);
+            }
+        }
+        return lista;
+    }
+
     /** Retorna todas las materias ordenadas por nombre. */
     public List<Map<String, Object>> listarMaterias() throws SQLException {
         List<Map<String, Object>> lista = new ArrayList<>();
