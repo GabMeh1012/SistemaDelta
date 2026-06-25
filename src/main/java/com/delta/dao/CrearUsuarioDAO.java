@@ -47,14 +47,14 @@ public class CrearUsuarioDAO {
         }
     }
 
-    /** Genera el siguiente código de profesor: DOC-0001, DOC-0002, … */
+    /** Genera el siguiente código de profesor: PROF-009, PROF-010, … */
     public String generarCodigoProfesor(Connection con) throws SQLException {
-        String sql = "SELECT IFNULL(MAX(CAST(SUBSTRING(codigo,5) AS UNSIGNED)),0)+1 "
-                   + "FROM profesores WHERE codigo LIKE 'DOC-%'";
+        String sql = "SELECT IFNULL(MAX(CAST(SUBSTRING(codigo,6) AS UNSIGNED)),0)+1 "
+                   + "FROM profesores WHERE codigo LIKE 'PROF-%'";
         try (Statement st = con.createStatement();
              ResultSet rs = st.executeQuery(sql)) {
             rs.next();
-            return String.format("DOC-%04d", rs.getInt(1));
+            return String.format("PROF-%03d", rs.getInt(1));
         }
     }
 
