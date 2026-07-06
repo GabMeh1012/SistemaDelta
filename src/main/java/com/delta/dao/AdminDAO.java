@@ -490,23 +490,20 @@ public class AdminDAO {
     }
 
     // ============================================================
-    // GESTION DE LIMITES DE SOLICITUDES DE MATRICULA
+    // GESTION DE MATERIAS RETIRADAS (bloqueadas para re-inscripcion)
     // ============================================================
 
-    public List<Map<String, Object>> listarLimitesSolicitudes() throws SQLException {
-        // Solo los 5 estudiantes autorizados para el modulo de solicitudes
+    public List<Map<String, Object>> listarMateriasRetiradas() throws SQLException {
+        // Excluye las cuentas antiguas (username EST-xxxx), que no participan de este modulo.
         String sql = "SELECT e.id AS estudiante_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
                    + "m.nombre AS materia, m.codigo AS materia_codigo, g.id AS grupo_id, "
-                   + "COALESCE(ls.limite, 3) AS limite, "
-                   + "(SELECT COUNT(*) FROM solicitudes_matricula s "
-                   + " WHERE s.estudiante_id = e.id AND s.grupo_id = g.id) AS usadas "
-                   + "FROM estudiantes e "
-                   + "JOIN inscripciones i ON i.estudiante_id = e.id AND i.estado = 'activo' "
-                   + "JOIN grupos g ON g.id = i.grupo_id "
+                   + "mb.fecha_retiro AS fecha_retiro "
+                   + "FROM materias_bloqueadas mb "
+                   + "JOIN estudiantes e ON e.id = mb.estudiante_id "
+                   + "JOIN usuarios u ON u.id = e.usuario_id "
+                   + "JOIN grupos g ON g.id = mb.grupo_id "
                    + "JOIN materias m ON m.id = g.materia_id "
-                   + "LEFT JOIN limites_solicitudes ls ON ls.estudiante_id = e.id AND ls.grupo_id = g.id "
-                   + "WHERE CONCAT(e.nombre,' ',e.apellido) IN "
-                   + "('Gabriela Fuentes','Laura Orellana','Evelin Pineda','Edgar Sánchez','Luis King') "
+                   + "WHERE u.username NOT LIKE 'EST-%' "
                    + "ORDER BY e.apellido, e.nombre, m.codigo";
         List<Map<String, Object>> lista = new ArrayList<>();
         try (Connection con = ConexionDB.obtenerConexion();
@@ -519,16 +516,15 @@ public class AdminDAO {
                 row.put("materia",       rs.getString("materia"));
                 row.put("materiaCodigo", rs.getString("materia_codigo"));
                 row.put("grupoId",       rs.getInt("grupo_id"));
-                row.put("limite",        rs.getInt("limite"));
-                row.put("usadas",        rs.getInt("usadas"));
+                row.put("fechaRetiro",   String.valueOf(rs.getTimestamp("fecha_retiro")));
                 lista.add(row);
             }
         }
         return lista;
     }
 
-    public void actualizarLimiteSolicitud(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
-        new SolicitudMatriculaDAO().actualizarLimite(estudianteId, grupoId, nuevoLimite, adminUsuarioId);
+    public void desbloquearMateria(int estudianteId, int grupoId) throws SQLException {
+        new SolicitudMatriculaDAO().desbloquearMateria(estudianteId, grupoId);
     }
 
     // ============================================================

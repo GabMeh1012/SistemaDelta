@@ -10,16 +10,8 @@ import java.util.List;
 
 public class SolicitudMatriculaDAO {
 
-    /** Limite base de oportunidades por (estudiante, grupo) — combinando inscripcion y retiro. */
-    private static final int LIMITE_DEFAULT = 3;
-
-    /** IDs de cédula de los 5 estudiantes autorizados para este módulo. */
-    private static final java.util.Set<String> ESTUDIANTES_PERMITIDOS = new java.util.HashSet<>(
-        java.util.Arrays.asList(
-            "Gabriela Fuentes", "Laura Orellana", "Evelin Pineda",
-            "Edgar Sánchez", "Luis King"
-        )
-    );
+    /** Prefijo de username de las cuentas antiguas (EST-2024xxxx), excluidas de este modulo. */
+    private static final String PREFIJO_ESTUDIANTE_ANTIGUO = "EST-";
 
     private static final String SELECT_BASE =
             "SELECT s.id, s.estudiante_id, s.grupo_id, s.tipo, s.estado, s.inscripcion_id, "
@@ -35,7 +27,11 @@ public class SolicitudMatriculaDAO {
         verificarEstudiantePermitido(estudianteId);
         int grupoId = obtenerGrupoIdPorCodigo(codigoMateria);
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
-        verificarLimite(estudianteId, grupoId);
+        if (estaBloqueada(estudianteId, grupoId)) {
+            throw new SQLException(
+                "Esta materia fue retirada previamente y no puede volver a inscribirse. "
+              + "Debe ser desbloqueada por un administrador.");
+        }
         if (tienePendiente(estudianteId, grupoId, "inscripcion")) {
             throw new SQLException("Ya existe una solicitud de inscripcion pendiente para esta materia.");
         }
@@ -51,7 +47,6 @@ public class SolicitudMatriculaDAO {
         if (grupoId == -1) throw new SQLException("materia/grupo no encontrado");
         Integer inscripcionId = obtenerInscripcionActiva(estudianteId, codigoMateria);
         if (inscripcionId == null) throw new SQLException("inscripcion no encontrada");
-        verificarLimite(estudianteId, grupoId);
         if (tienePendiente(estudianteId, grupoId, "retiro")) {
             throw new SQLException("Ya existe una solicitud de retiro pendiente para esta materia.");
         }
@@ -114,7 +109,7 @@ public class SolicitudMatriculaDAO {
                 if ("inscripcion".equals(sol.getTipo())) {
                     MatriculaHelper.ejecutarInscripcion(con, sol.getEstudianteId(), sol.getMateriaCodigo());
                 } else {
-                    MatriculaHelper.ejecutarRetiro(con, sol.getEstudianteId(), sol.getMateriaCodigo());
+                    MatriculaHelper.ejecutarRetiro(con, sol.getEstudianteId(), sol.getMateriaCodigo(), adminUsuarioId);
                 }
                 resolver(con, solicitudId, adminUsuarioId, "aprobada");
                 notificarEstudiante(con, sol, true);
@@ -246,6 +241,30 @@ public class SolicitudMatriculaDAO {
         }
     }
 
+    /** True si esta materia fue retirada previamente y sigue bloqueada para re-inscripcion. */
+    private boolean estaBloqueada(int estudianteId, int grupoId) throws SQLException {
+        String sql = "SELECT 1 FROM materias_bloqueadas WHERE estudiante_id = ? AND grupo_id = ?";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next();
+            }
+        }
+    }
+
+    /** Quita el bloqueo permanente de re-inscripcion para un (estudiante, grupo). */
+    public void desbloquearMateria(int estudianteId, int grupoId) throws SQLException {
+        String sql = "DELETE FROM materias_bloqueadas WHERE estudiante_id = ? AND grupo_id = ?";
+        try (Connection con = ConexionDB.obtenerConexion();
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            ps.executeUpdate();
+        }
+    }
+
     private Integer obtenerInscripcionActiva(int estudianteId, String codigoMateria) throws SQLException {
         String sql = "SELECT i.id FROM inscripciones i "
                    + "JOIN grupos g ON g.id = i.grupo_id "
@@ -297,106 +316,22 @@ public class SolicitudMatriculaDAO {
         return s;
     }
 
-    // ──────────────────────────────────────────────────────────
-    // Control de oportunidades por materia (inscripcion + retiro combinados)
-    // ──────────────────────────────────────────────────────────
-
-    /** Verifica que el estudiante sea uno de los 5 permitidos. */
+    /** Verifica que el estudiante no sea una cuenta antigua (username EST-xxxx), excluida de este modulo. */
     private void verificarEstudiantePermitido(int estudianteId) throws SQLException {
-        String sql = "SELECT CONCAT(nombre,' ',apellido) AS nombre FROM estudiantes WHERE id = ?";
+        String sql = "SELECT u.username FROM estudiantes e JOIN usuarios u ON u.id = e.usuario_id WHERE e.id = ?";
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql)) {
             ps.setInt(1, estudianteId);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
-                    String nombre = rs.getString("nombre");
-                    if (!ESTUDIANTES_PERMITIDOS.contains(nombre)) {
+                    String username = rs.getString("username");
+                    if (username != null && username.startsWith(PREFIJO_ESTUDIANTE_ANTIGUO)) {
                         throw new SQLException("Este estudiante no esta habilitado para realizar solicitudes academicas.");
                     }
                 } else {
                     throw new SQLException("Estudiante no encontrado.");
                 }
             }
-        }
-    }
-
-    /**
-     * Verifica que el estudiante no haya superado el limite de oportunidades
-     * para este grupo (contando inscripcion + retiro juntos).
-     */
-    private void verificarLimite(int estudianteId, int grupoId) throws SQLException {
-        int usadas = contarOportunidadesUsadas(estudianteId, grupoId);
-        int limite = obtenerLimite(estudianteId, grupoId);
-        if (usadas >= limite) {
-            throw new SQLException(
-                "Ha alcanzado el limite de solicitudes permitidas para esta materia. "
-                + "Contacte al administrador para obtener autorizacion adicional."
-            );
-        }
-    }
-
-    /** Cuenta TODAS las solicitudes (inscripcion + retiro, cualquier estado) para un (estudiante, grupo). */
-    public int contarOportunidadesUsadas(int estudianteId, int grupoId) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM solicitudes_matricula "
-                   + "WHERE estudiante_id = ? AND grupo_id = ?";
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, estudianteId);
-            ps.setInt(2, grupoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
-            }
-        }
-        return 0;
-    }
-
-    /** Devuelve el limite configurado. Si no hay fila, devuelve LIMITE_DEFAULT (3). */
-    public int obtenerLimite(int estudianteId, int grupoId) throws SQLException {
-        String sql = "SELECT limite FROM limites_solicitudes WHERE estudiante_id = ? AND grupo_id = ?";
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, estudianteId);
-            ps.setInt(2, grupoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) return rs.getInt(1);
-            }
-        }
-        return LIMITE_DEFAULT;
-    }
-
-    /** Reinicia oportunidades: resetea limite a 3 y borra historial de solicitudes. */
-    public void reiniciarOportunidades(int estudianteId, int grupoId, int adminUsuarioId) throws SQLException {
-        String upsert = "INSERT INTO limites_solicitudes (estudiante_id, grupo_id, limite, admin_usuario_id) "
-                      + "VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE limite=?, admin_usuario_id=VALUES(admin_usuario_id)";
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(upsert)) {
-            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
-            ps.setInt(3, LIMITE_DEFAULT); ps.setInt(4, adminUsuarioId); ps.setInt(5, LIMITE_DEFAULT);
-            ps.executeUpdate();
-        }
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(
-                     "DELETE FROM solicitudes_matricula WHERE estudiante_id = ? AND grupo_id = ?")) {
-            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
-            ps.executeUpdate();
-        }
-    }
-
-    /** Agrega +1 oportunidad adicional para un (estudiante, grupo). */
-    public void autorizarOportunidad(int estudianteId, int grupoId, int adminUsuarioId) throws SQLException {
-        int nuevoLimite = obtenerLimite(estudianteId, grupoId) + 1;
-        actualizarLimite(estudianteId, grupoId, nuevoLimite, adminUsuarioId);
-    }
-
-    /** Actualiza (o crea) el limite de solicitudes para un (estudiante, grupo). */
-    public void actualizarLimite(int estudianteId, int grupoId, int nuevoLimite, int adminUsuarioId) throws SQLException {
-        String sql = "INSERT INTO limites_solicitudes (estudiante_id, grupo_id, limite, admin_usuario_id) "
-                   + "VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE limite=VALUES(limite), admin_usuario_id=VALUES(admin_usuario_id)";
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, estudianteId); ps.setInt(2, grupoId);
-            ps.setInt(3, nuevoLimite); ps.setInt(4, adminUsuarioId);
-            ps.executeUpdate();
         }
     }
 }

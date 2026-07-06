@@ -24,15 +24,17 @@
   String est_inicial  = "E";
   String est_semestre = "";
   String est_carrera  = "";
+  int    est_estudianteId = -1;
 
   if (est_hayBD) {
     try (Connection _con = ConexionDB.obtenerConexion();
          PreparedStatement _ps = _con.prepareStatement(
-           "SELECT e.nombre, e.apellido, e.cedula, e.semestre, e.carrera " +
+           "SELECT e.id, e.nombre, e.apellido, e.cedula, e.semestre, e.carrera " +
            "FROM estudiantes e WHERE e.usuario_id = ?")) {
       _ps.setInt(1, est_usuarioId);
       try (ResultSet _rs = _ps.executeQuery()) {
         if (_rs.next()) {
+          est_estudianteId = _rs.getInt("id");
           est_nombre   = _rs.getString("nombre")   != null ? _rs.getString("nombre")   : "";
           est_apellido = _rs.getString("apellido") != null ? _rs.getString("apellido") : "";
           est_cedula   = _rs.getString("cedula")   != null ? _rs.getString("cedula")   : "";
@@ -84,6 +86,16 @@
         _psC.setInt(1, est_usuarioId);
         try (ResultSet _rsC = _psC.executeQuery()) {
           while (_rsC.next()) _codigosInscritos.add(_rsC.getString("codigo"));
+        }
+      }
+
+      // Materias retiradas previamente: quedan bloqueadas para re-inscripcion.
+      java.util.Set<Integer> _gruposBloqueados = new java.util.HashSet<>();
+      try (PreparedStatement _psB = _con2.prepareStatement(
+             "SELECT grupo_id FROM materias_bloqueadas WHERE estudiante_id = ?")) {
+        _psB.setInt(1, est_estudianteId);
+        try (ResultSet _rsB = _psB.executeQuery()) {
+          while (_rsB.next()) _gruposBloqueados.add(_rsB.getInt("grupo_id"));
         }
       }
 
@@ -213,7 +225,8 @@
               .append("\"creditos\":").append(_creditos).append(",") // FIX: valor real de BD
               .append("\"horario\":\"").append(_horarioTexto).append("\",")
               .append("\"aula\":\"").append(_aula).append("\",")
-              .append("\"cupos\":\"").append(_ocupados).append("/").append(_capacidad).append("\"")
+              .append("\"cupos\":\"").append(_ocupados).append("/").append(_capacidad).append("\",")
+              .append("\"bloqueada\":").append(_gruposBloqueados.contains(_grupoId))
               .append("}");
           }
         }
@@ -719,6 +732,7 @@ function enriquecerMateria(m) {
     aula:     m.aula     || '',
     docente:  m.docente  || 'Por asignar',
     cupos:    m.cupos    || '30/30',
+    bloqueada: !!m.bloqueada,
     p1:       m.p1   || 0,
     p2:       m.p2   || 0,
     proj:     m.proj || 0,
@@ -1025,8 +1039,16 @@ function renderDisponibles() {
   for(var i=0;i<materiasDisponibles.length;i++){
     (function(m){
       var inscPend=tieneSolicitudPendiente(m.codigo,'inscripcion');
+      var accionHtml;
+      if (m.bloqueada) {
+        accionHtml = '<button class="btn btn-sm" disabled title="Esta materia fue retirada y no puede volver a inscribirse." style="background:#cbd5e1;color:#64748b;cursor:not-allowed;">Agregar</button>';
+      } else if (inscPend) {
+        accionHtml = '<span class="tag tag-amber">Pendiente</span>';
+      } else {
+        accionHtml = '<button class="btn btn-primary btn-sm" onclick="inscribirMateria(\''+m.codigo+'\')">Agregar</button>';
+      }
       var tr=document.createElement('tr');
-      tr.innerHTML='<td>'+m.codigo+'</td><td><strong>'+m.nombre+'</strong></td><td>'+m.creditos+'</td><td>'+m.cupos+'</td><td>'+m.horario+'</td><td>'+(inscPend?'<span class="tag tag-amber">Pendiente</span>':'<button class="btn btn-primary btn-sm" onclick="inscribirMateria(\''+m.codigo+'\')">Agregar</button>')+'</td>';
+      tr.innerHTML='<td>'+m.codigo+'</td><td><strong>'+m.nombre+'</strong></td><td>'+m.creditos+'</td><td>'+m.cupos+'</td><td>'+m.horario+'</td><td>'+accionHtml+'</td>';
       tbody.appendChild(tr);
     })(materiasDisponibles[i]);
   }
@@ -1043,8 +1065,9 @@ function actualizarContadoresInscripcion() {
 function inscribirMateria(codigo) {
   var idx=-1; for(var i=0;i<materiasDisponibles.length;i++){ if(materiasDisponibles[i].codigo===codigo){idx=i;break;} }
   if(idx===-1) return;
-  if(materiasInscritas.length>=6){ showToast('Ha alcanzado el limite de 6 materias.','error'); return; }
   var m=materiasDisponibles[idx];
+  if(m.bloqueada){ showToast('Esta materia fue retirada y no puede volver a inscribirse.','error'); return; }
+  if(materiasInscritas.length>=6){ showToast('Ha alcanzado el limite de 6 materias.','error'); return; }
   showConfirm('Desea solicitar la inscripcion de: '+m.nombre+'?', function(){
     var ctx=document.querySelector('meta[name="ctx"]')?document.querySelector('meta[name="ctx"]').content:'';
     fetch(ctx+'/notas',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:'accion=inscribir&codigoMateria='+encodeURIComponent(codigo)})

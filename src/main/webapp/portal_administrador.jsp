@@ -63,6 +63,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .btn-secondary { background:#e2e8f0; color:var(--text); }
 .btn-success { background:var(--green); color:#fff; }
 .btn-danger { background:var(--red); color:#fff; }
+.btn-warning { background:var(--amber); color:#fff; }
 .btn-sm { padding:6px 12px; font-size:12px; }
 .btn-full { width:100%; padding:13px; font-size:15px; }
 .login-hint { text-align:center; font-size:12px; color:var(--text-soft); margin-top:14px; }
@@ -254,7 +255,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
       <button class="nav-item" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
       <button class="nav-item" onclick="irTab('historial-prof',this)"><span class="nav-icon">&#128203;</span> Historial de Profesores</button>
       <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
-      <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Limites de Solicitudes</button>
+      <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Materias Retiradas</button>
       <button class="nav-item" onclick="irTab('crear-usuarios',this)"><span class="nav-icon">&#128101;</span> Gestion de Usuarios</button>
       <div class="nav-label">Supervision</div>
       <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
@@ -331,8 +332,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- LIMITES -->
     <div id="tab-limites" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">&#128273; Oportunidades de Solicitud</h2>
-        <div class="page-subtitle">Oportunidades de cada estudiante.</div>
+        <h2 class="page-title">&#128273; Materias Retiradas</h2>
+        <div class="page-subtitle">Materias que un estudiante retiro y no puede volver a inscribir, salvo que se desbloqueen.</div>
       </div>
       <div id="limites-container" style="display:flex;flex-direction:column;gap:20px;"></div>
     </div>
@@ -1191,10 +1192,10 @@ function cargarHistorialAsignaciones() {
 }
 
 function cargarLimitesSolicitudes() {
-  fetch(CTX+'/admin?accion=limitesSolicitudes').then(function(r){ return r.json(); }).then(function(rows) {
+  fetch(CTX+'/admin?accion=materiasRetiradas').then(function(r){ return r.json(); }).then(function(rows) {
     var container = document.getElementById('limites-container');
     if (!rows.length) {
-      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay estudiantes con inscripciones activas en este modulo.</div>';
+      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay materias retiradas actualmente.</div>';
       return;
     }
 
@@ -1216,62 +1217,33 @@ function cargarLimitesSolicitudes() {
             + '<div style="width:40px;height:40px;border-radius:50%;background:var(--purple);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;">'
             + esc(est.nombre.charAt(0)) + '</div>'
             + '<div><div style="font-weight:800;font-size:16px;color:var(--purple);">'+esc(est.nombre)+'</div>'
-            + '<div style="font-size:12px;color:var(--text-soft);">'+est.materias.length+' materia(s) inscrita(s)</div></div>'
+            + '<div style="font-size:12px;color:var(--text-soft);">'+est.materias.length+' materia(s) retirada(s)</div></div>'
             + '</div>';
       // Tabla de materias
       html += '<div style="padding:16px 20px;">';
       html += '<table class="delta-table" style="margin-bottom:0;">'
-            + '<thead><tr><th>Materia</th><th style="text-align:center;">Oportunidades Usadas</th><th style="text-align:center;">Disponibles</th><th>Acciones</th></tr></thead><tbody>';
+            + '<thead><tr><th>Materia</th><th style="text-align:center;">Re-inscripcion</th><th>Acciones</th></tr></thead><tbody>';
       est.materias.forEach(function(r) {
-        var usadas = r.usadas || 0;
-        var limite = r.limite || 3;
-        var disponibles = Math.max(0, limite - usadas);
-        var bloqueada = usadas >= limite;
-        var barColor = bloqueada ? 'var(--red)' : (usadas >= limite - 1 ? 'var(--amber)' : 'var(--green)');
-        var tagUsadas = bloqueada
-          ? '<span class="tag tag-red">'+usadas+' / '+limite+' &#128274; Bloqueada</span>'
-          : (usadas > 0
-            ? '<span class="tag tag-amber">'+usadas+' / '+limite+'</span>'
-            : '<span class="tag tag-green">'+usadas+' / '+limite+'</span>');
-        var tagDisp = bloqueada
-          ? '<span class="tag tag-red">0</span>'
-          : '<span class="tag tag-green">'+disponibles+'</span>';
         html += '<tr>'
           + '<td><strong>'+esc(r.materia)+'</strong><br><span style="font-size:12px;color:var(--text-soft);">'+esc(r.materiaCodigo)+'</span></td>'
-          + '<td style="text-align:center;">'+tagUsadas+'</td>'
-          + '<td style="text-align:center;">'+tagDisp+'</td>'
-          + '<td style="display:flex;gap:6px;flex-wrap:wrap;">'
-          + '<button class="btn btn-secondary btn-sm" title="Reiniciar a 3/3" onclick="reiniciarOportunidades('+r.estudianteId+','+r.grupoId+',\''+esc(est.nombre)+'\',\''+esc(r.materia)+'\')">&#128260; Reiniciar</button>'
-          + '<button class="btn btn-success btn-sm" title="Autorizar +1 oportunidad adicional" onclick="autorizarOportunidad('+r.estudianteId+','+r.grupoId+',\''+esc(est.nombre)+'\',\''+esc(r.materia)+'\')">+1 Autorizar</button>'
-          + '</td>'
+          + '<td style="text-align:center;"><span class="tag tag-red">&#128274; Retirada</span></td>'
+          + '<td><button class="btn btn-warning btn-sm" title="Permitir volver a inscribir esta materia" onclick="desbloquearMateria('+r.estudianteId+','+r.grupoId+',\''+esc(est.nombre)+'\',\''+esc(r.materia)+'\')">&#128275; Desbloquear</button></td>'
           + '</tr>';
       });
       html += '</tbody></table></div></div>';
     });
     container.innerHTML = html;
-  }).catch(function(){ showToast('Error al cargar las oportunidades.', 'error'); });
+  }).catch(function(){ showToast('Error al cargar las materias retiradas.', 'error'); });
 }
 
-function reiniciarOportunidades(estudianteId, grupoId, nombreEst, nombreMat) {
-  showConfirm('¿Reiniciar oportunidades de '+nombreEst+' en '+nombreMat+'?\n\nEl contador volvera a 0/3 y se podran hacer nuevas solicitudes.', function() {
+function desbloquearMateria(estudianteId, grupoId, nombreEst, nombreMat) {
+  showConfirm('¿Permitir que '+nombreEst+' vuelva a inscribir '+nombreMat+'?\n\nEsta materia fue retirada previamente. Al desbloquearla podra volver a solicitar la inscripcion.', function() {
     fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'accion=reiniciarOportunidades&estudianteId='+estudianteId+'&grupoId='+grupoId})
+      body:'accion=desbloquearMateria&estudianteId='+estudianteId+'&grupoId='+grupoId})
       .then(function(r){ return r.json(); })
       .then(function(d) {
-        if (d.ok) { showToast('Oportunidades reiniciadas correctamente.', 'success'); cargarLimitesSolicitudes(); }
-        else showToast('Error: '+(d.error||'No se pudo reiniciar.'), 'error');
-      }).catch(function(){ showToast('Error de conexion.', 'error'); });
-  });
-}
-
-function autorizarOportunidad(estudianteId, grupoId, nombreEst, nombreMat) {
-  showConfirm('¿Autorizar +1 oportunidad adicional para '+nombreEst+' en '+nombreMat+'?', function() {
-    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
-      body:'accion=autorizarOportunidad&estudianteId='+estudianteId+'&grupoId='+grupoId})
-      .then(function(r){ return r.json(); })
-      .then(function(d) {
-        if (d.ok) { showToast('+1 oportunidad autorizada correctamente.', 'success'); cargarLimitesSolicitudes(); }
-        else showToast('Error: '+(d.error||'No se pudo autorizar.'), 'error');
+        if (d.ok) { showToast('Materia desbloqueada correctamente.', 'success'); cargarLimitesSolicitudes(); }
+        else showToast('Error: '+(d.error||'No se pudo desbloquear.'), 'error');
       }).catch(function(){ showToast('Error de conexion.', 'error'); });
   });
 }
