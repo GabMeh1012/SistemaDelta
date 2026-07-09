@@ -25,11 +25,12 @@
   String est_semestre = "";
   String est_carrera  = "";
   int    est_estudianteId = -1;
+  Integer est_carreraId = null;
 
   if (est_hayBD) {
     try (Connection _con = ConexionDB.obtenerConexion();
          PreparedStatement _ps = _con.prepareStatement(
-           "SELECT e.id, e.nombre, e.apellido, e.cedula, e.semestre, e.carrera " +
+           "SELECT e.id, e.nombre, e.apellido, e.cedula, e.semestre, e.carrera, e.carrera_id " +
            "FROM estudiantes e WHERE e.usuario_id = ?")) {
       _ps.setInt(1, est_usuarioId);
       try (ResultSet _rs = _ps.executeQuery()) {
@@ -40,6 +41,8 @@
           est_cedula   = _rs.getString("cedula")   != null ? _rs.getString("cedula")   : "";
           est_semestre = _rs.getString("semestre") != null ? String.valueOf(_rs.getInt("semestre")) : "";
           est_carrera  = _rs.getString("carrera")  != null ? _rs.getString("carrera")  : "";
+          int _carreraIdTmp = _rs.getInt("carrera_id");
+          est_carreraId = _rs.wasNull() ? null : _carreraIdTmp;
           est_inicial  = est_nombre.length() > 0 ? est_nombre.substring(0,1).toUpperCase() : "E";
         }
       }
@@ -181,12 +184,18 @@
       }
 
       // FIX: agregado m.creditos al SELECT de disponibles
-      // EXCLUIR: IS-301 (Ingeniería de Software I) y PS-301 (Pruebas de Software)
+      // EXCLUIR: IS-301 (Ingeniería de Software I) y PS-301 (Pruebas de Software) siempre,
+      // cualquier materia con mas de 1 salon (el autoservicio no soporta elegir entre varios;
+      // esas se matriculan solo desde el admin al crear al estudiante), y cualquier materia
+      // que no pertenezca a la carrera del estudiante (si no tiene carrera asignada, no ve nada).
       try (PreparedStatement _ps3 = _con2.prepareStatement(
              "SELECT g.id AS grupo_id, m.codigo, m.nombre, m.creditos, g.aula, g.capacidad, " +
              "(SELECT COUNT(*) FROM inscripciones i2 WHERE i2.grupo_id = g.id AND i2.estado='activo') AS ocupados " +
              "FROM grupos g JOIN materias m ON m.id = g.materia_id " +
-             "WHERE m.codigo NOT IN ('IS-301', 'PS-301')")) {
+             "WHERE m.codigo NOT IN ('IS-301', 'PS-301') " +
+             "AND (SELECT COUNT(*) FROM grupos g3 WHERE g3.materia_id = m.id) = 1 " +
+             "AND m.carrera_id = ?")) {
+        _ps3.setObject(1, est_carreraId);
         try (ResultSet _rs3 = _ps3.executeQuery()) {
           boolean _firstD = true;
           while (_rs3.next()) {

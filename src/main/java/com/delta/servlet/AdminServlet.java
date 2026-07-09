@@ -1,5 +1,6 @@
 package com.delta.servlet;
 import com.delta.dao.AdminDAO;
+import com.delta.dao.CarreraDAO;
 import javax.servlet.ServletException;
 import javax.servlet.http.*;
 import java.io.IOException;
@@ -41,6 +42,7 @@ public class AdminServlet extends HttpServlet {
         String accion = req.getParameter("accion");
         PrintWriter out = resp.getWriter();
         AdminDAO dao = new AdminDAO();
+        CarreraDAO carreraDao = new CarreraDAO();
         try {
             switch (accion != null ? accion : "") {
                 case "dashboard":
@@ -110,6 +112,13 @@ public class AdminServlet extends HttpServlet {
                     }
                     break;
                 }
+                case "quitarProfesor": {
+                    HttpSession sQuitar = req.getSession(false);
+                    int adminIdQuitar = (Integer) sQuitar.getAttribute("usuarioId");
+                    dao.quitarProfesor(Integer.parseInt(req.getParameter("grupoId")), adminIdQuitar);
+                    out.print("{\"ok\":true}");
+                    break;
+                }
                 case "historialAsignaciones":
                     out.print(listToJson(dao.listarHistorialAsignaciones()));
                     break;
@@ -162,6 +171,73 @@ public class AdminServlet extends HttpServlet {
                         Integer.parseInt(req.getParameter("grupoId")));
                     out.print("{\"ok\":true}");
                     break;
+
+                // ---- CARRERAS, PERIODOS, SALONES Y HORARIOS ----
+                case "listarFacultades":
+                    out.print(listToJson(carreraDao.listarFacultades()));
+                    break;
+                case "listarCarreras":
+                    out.print(listToJson(carreraDao.listarCarreras()));
+                    break;
+                case "materiasSinCarrera":
+                    out.print(listToJson(carreraDao.listarMateriasSinCarrera()));
+                    break;
+                case "materiasPorCarrera":
+                    out.print(listToJson(carreraDao.listarMateriasPorCarrera(Integer.parseInt(req.getParameter("carreraId")))));
+                    break;
+                case "salonesPorCarrera":
+                    out.print(listToJson(carreraDao.listarSalonesPorCarrera(Integer.parseInt(req.getParameter("carreraId")))));
+                    break;
+                case "salonesDeMateria":
+                    out.print(listToJson(carreraDao.listarSalonesDeMateria(Integer.parseInt(req.getParameter("materiaId")))));
+                    break;
+                case "crearCarrera": {
+                    List<Integer> matExistentes = parseCsvInt(req.getParameter("materiaIdsExistentes"));
+                    List<Map<String,Object>> matNuevas = parseMateriasNuevas(
+                        req.getParameter("nuevasCodigos"), req.getParameter("nuevasNombres"),
+                        req.getParameter("nuevasCreditos"), req.getParameter("nuevasNiveles"));
+                    List<Map<String,Object>> salonesPorMateria = parseSalonesPorMateriaNueva(
+                        req.getParameter("nuevasAulas"), req.getParameter("nuevasHorarios"));
+                    int carreraId = carreraDao.crearCarrera(
+                        req.getParameter("nombre"), req.getParameter("codigo"),
+                        Integer.parseInt(req.getParameter("facultadId")),
+                        matExistentes, matNuevas, salonesPorMateria);
+                    out.print("{\"ok\":true,\"carreraId\":" + carreraId + "}");
+                    break;
+                }
+                case "listarPeriodos":
+                    out.print(listToJson(carreraDao.listarPeriodos()));
+                    break;
+                case "crearPeriodo":
+                    carreraDao.crearPeriodo(req.getParameter("codigo"), req.getParameter("nombre"),
+                        req.getParameter("fechaInicio"), req.getParameter("fechaFin"));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "activarPeriodo":
+                    carreraDao.activarPeriodo(req.getParameter("codigo"));
+                    out.print("{\"ok\":true}");
+                    break;
+                case "crearGrupo": {
+                    List<Map<String,Object>> bloques = parseHorarioBloques(
+                        req.getParameter("dias"), req.getParameter("horaInicios"), req.getParameter("horaFines"));
+                    int grupoId = carreraDao.crearGrupo(
+                        Integer.parseInt(req.getParameter("materiaId")),
+                        req.getParameter("codigoGrupo"), req.getParameter("aula"),
+                        Integer.parseInt(req.getParameter("capacidad")),
+                        req.getParameter("periodo"), bloques);
+                    out.print("{\"ok\":true,\"grupoId\":" + grupoId + "}");
+                    break;
+                }
+                case "listarHorarios":
+                    out.print(listToJson(carreraDao.listarHorarios(Integer.parseInt(req.getParameter("grupoId")))));
+                    break;
+                case "listarSalonesSinProfesor":
+                    out.print(listToJson(carreraDao.listarSalonesSinProfesor(req.getParameter("periodo"))));
+                    break;
+                case "listarProfesoresPorMateria":
+                    out.print(listToJson(carreraDao.listarProfesoresPorMateria(Integer.parseInt(req.getParameter("materiaId")))));
+                    break;
+
                 // ---- AVISOS ----
                 case "archivarAviso":
                     dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
@@ -191,9 +267,6 @@ public class AdminServlet extends HttpServlet {
                 case "listarUsuariosCreados":
                     out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarUsuariosCreados()));
                     break;
-                case "listarMaterias":
-                    out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarMaterias()));
-                    break;
                 case "listarGruposDisponibles":
                     out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarGruposDisponibles()));
                     break;
@@ -203,13 +276,15 @@ public class AdminServlet extends HttpServlet {
                     boolean extEst = nacEst != null && !nacEst.isEmpty()
                                      && !"panameño".equalsIgnoreCase(nacEst)
                                      && !"panameno".equalsIgnoreCase(nacEst);
-                    int semEst = 1;
-                    try { semEst = Integer.parseInt(req.getParameter("semestre")); } catch (Exception ignored) {}
+                    // Semestre fijo en 5 (3er año, 1er semestre) - no se lee del request.
+                    int semEst = 5;
+                    Integer carreraIdEst = parseIntOrNull(req.getParameter("carreraId"));
+                    List<Integer> grupoIdsIniciales = parseCsvInt(req.getParameter("grupoIdsIniciales"));
                     java.util.Map<String,Object> resEst = cudEst.crearEstudiante(
                         req.getParameter("nombre"),   req.getParameter("apellido"),
                         req.getParameter("cedula"),   req.getParameter("email"),
                         req.getParameter("telefono"), semEst,
-                        nacEst, extEst);
+                        nacEst, extEst, carreraIdEst, grupoIdsIniciales);
                     out.print(mapToJson(resEst));
                     break;
                 }
@@ -219,18 +294,11 @@ public class AdminServlet extends HttpServlet {
                     boolean extProf = nacProf != null && !nacProf.isEmpty()
                                       && !"panameño".equalsIgnoreCase(nacProf)
                                       && !"panameno".equalsIgnoreCase(nacProf);
-                    String matIdsStr = req.getParameter("materiaIds");
-                    java.util.List<Integer> mIds = new java.util.ArrayList<>();
-                    if (matIdsStr != null && !matIdsStr.isEmpty()) {
-                        for (String s : matIdsStr.split(",")) {
-                            try { mIds.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
-                        }
-                    }
                     java.util.Map<String,Object> resProf = cudProf.crearProfesor(
                         req.getParameter("nombre"),       req.getParameter("apellido"),
                         req.getParameter("cedula"),       req.getParameter("email"),
                         req.getParameter("telefono"),     req.getParameter("departamento"),
-                        nacProf, extProf, mIds);
+                        nacProf, extProf);
                     out.print(mapToJson(resProf));
                     break;
                 }
@@ -254,6 +322,84 @@ public class AdminServlet extends HttpServlet {
         if (s == null || s.trim().isEmpty()) return null;
         try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return null; }
     }
+    private List<Integer> parseCsvInt(String csv) {
+        List<Integer> lista = new java.util.ArrayList<>();
+        if (csv == null || csv.trim().isEmpty()) return lista;
+        for (String s : csv.split(",")) {
+            try { lista.add(Integer.parseInt(s.trim())); } catch (NumberFormatException ignored) {}
+        }
+        return lista;
+    }
+    /** Arma la lista de materias nuevas a partir de 4 listas paralelas separadas por coma. */
+    private List<Map<String,Object>> parseMateriasNuevas(String codigos, String nombres, String creditos, String niveles) {
+        List<Map<String,Object>> lista = new java.util.ArrayList<>();
+        if (codigos == null || codigos.trim().isEmpty()) return lista;
+        String[] aCodigos  = codigos.split(",", -1);
+        String[] aNombres  = nombres  != null ? nombres.split(",", -1)  : new String[0];
+        String[] aCreditos = creditos != null ? creditos.split(",", -1) : new String[0];
+        String[] aNiveles  = niveles  != null ? niveles.split(",", -1)  : new String[0];
+        for (int i = 0; i < aCodigos.length; i++) {
+            Map<String,Object> m = new java.util.LinkedHashMap<>();
+            m.put("codigo", aCodigos[i].trim());
+            m.put("nombre", i < aNombres.length ? aNombres[i].trim() : aCodigos[i].trim());
+            try { m.put("creditos", i < aCreditos.length ? Integer.parseInt(aCreditos[i].trim()) : 3); }
+            catch (NumberFormatException e) { m.put("creditos", 3); }
+            try { m.put("nivel", i < aNiveles.length ? Integer.parseInt(aNiveles[i].trim()) : null); }
+            catch (NumberFormatException e) { m.put("nivel", null); }
+            lista.add(m);
+        }
+        return lista;
+    }
+    /** Arma la lista de bloques de horario a partir de 3 listas paralelas separadas por coma. */
+    private List<Map<String,Object>> parseHorarioBloques(String dias, String horaInicios, String horaFines) {
+        List<Map<String,Object>> lista = new java.util.ArrayList<>();
+        if (dias == null || dias.trim().isEmpty()) return lista;
+        String[] aDias   = dias.split(",", -1);
+        String[] aInicio = horaInicios != null ? horaInicios.split(",", -1) : new String[0];
+        String[] aFin    = horaFines   != null ? horaFines.split(",", -1)   : new String[0];
+        for (int i = 0; i < aDias.length; i++) {
+            Map<String,Object> b = new java.util.LinkedHashMap<>();
+            b.put("dia", aDias[i].trim());
+            b.put("horaInicio", i < aInicio.length ? aInicio[i].trim() : "");
+            b.put("horaFin", i < aFin.length ? aFin[i].trim() : "");
+            lista.add(b);
+        }
+        return lista;
+    }
+    /**
+     * Arma la info de salones por cada materia nueva. Formato de wire:
+     * nuevasAulas: por materia, aulas separadas por '|'; materias separadas por ','.
+     * nuevasHorarios: por materia, bloques del salon 1 separados por ';' (cada bloque "dia@horaInicio@horaFin"); materias separadas por ','.
+     */
+    private List<Map<String,Object>> parseSalonesPorMateriaNueva(String aulasCsv, String horariosCsv) {
+        List<Map<String,Object>> lista = new java.util.ArrayList<>();
+        if (aulasCsv == null || aulasCsv.trim().isEmpty()) return lista;
+        String[] porMateriaAulas = aulasCsv.split(",", -1);
+        String[] porMateriaHorarios = horariosCsv != null ? horariosCsv.split(",", -1) : new String[0];
+        for (int i = 0; i < porMateriaAulas.length; i++) {
+            Map<String,Object> entrada = new java.util.LinkedHashMap<>();
+            List<String> aulas = new java.util.ArrayList<>();
+            for (String a : porMateriaAulas[i].split("\\|", -1)) aulas.add(a.trim());
+            entrada.put("aulas", aulas);
+
+            List<Map<String,Object>> bloques = new java.util.ArrayList<>();
+            if (i < porMateriaHorarios.length && !porMateriaHorarios[i].isEmpty()) {
+                for (String bloqueStr : porMateriaHorarios[i].split(";", -1)) {
+                    String[] partes = bloqueStr.split("@", -1);
+                    if (partes.length == 3) {
+                        Map<String,Object> b = new java.util.LinkedHashMap<>();
+                        b.put("dia", partes[0].trim());
+                        b.put("horaInicio", partes[1].trim());
+                        b.put("horaFin", partes[2].trim());
+                        bloques.add(b);
+                    }
+                }
+            }
+            entrada.put("horario", bloques);
+            lista.add(entrada);
+        }
+        return lista;
+    }
     private String mapToJson(Map<String, Object> map) {
         StringBuilder sb = new StringBuilder("{");
         boolean first = true;
@@ -276,9 +422,22 @@ public class AdminServlet extends HttpServlet {
         sb.append("]");
         return sb.toString();
     }
+    @SuppressWarnings("unchecked")
     private String val(Object v) {
         if (v == null) return "null";
         if (v instanceof Number || v instanceof Boolean) return v.toString();
+        if (v instanceof Map) return mapToJson((Map<String, Object>) v);
+        if (v instanceof List) {
+            StringBuilder sb = new StringBuilder("[");
+            boolean first = true;
+            for (Object item : (List<Object>) v) {
+                if (!first) sb.append(",");
+                first = false;
+                sb.append(val(item));
+            }
+            sb.append("]");
+            return sb.toString();
+        }
         return "\"" + esc(String.valueOf(v)) + "\"";
     }
     private String esc(String s) {

@@ -115,6 +115,17 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .stat-icon { font-size:28px; }
 .stat-label { font-size:12px; color:var(--text-soft); font-weight:700; }
 .stat-value { font-size:28px; font-weight:800; line-height:1.1; }
+.stat-card.clickable { cursor:pointer; transition:border-color .15s, transform .1s; }
+.stat-card.clickable:hover { border-color:var(--purple); transform:translateY(-2px); }
+.attn-strip { display:flex; flex-direction:column; gap:8px; margin-bottom:20px; }
+.attn-item { display:flex; align-items:center; gap:12px; width:100%; padding:12px 16px;
+  border:none; border-radius:var(--radius-sm); font-family:inherit; font-size:13px; text-align:left; cursor:pointer; }
+.attn-item.bad { background:var(--red-bg); color:#7f1d1d; }
+.attn-item.warn { background:#fef3c7; color:#78350f; }
+.attn-item.ok { background:#dcfce7; color:#14532d; cursor:default; }
+.attn-item .attn-n { font-weight:800; font-size:16px; width:28px; text-align:center; flex-shrink:0; }
+.attn-item .attn-txt { flex:1; }
+.attn-item .attn-go { font-size:11px; font-weight:700; color:var(--purple); white-space:nowrap; }
 .card { background:#fff; border:2px solid #e8edf5; border-radius:var(--radius); padding:22px; margin-bottom:20px; }
 .card-title { font-weight:800; font-size:16px; margin-bottom:16px; }
 .delta-table { width:100%; border-collapse:collapse; font-size:14px; }
@@ -155,6 +166,19 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;}
 .edit-input{width:70px;text-align:center;padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
 .edit-select{padding:6px 8px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:13px;}
+.salon-group{background:#fff;border:2px solid #e8edf5;border-radius:var(--radius-sm);margin-bottom:14px;overflow:hidden;}
+.salon-group summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--purple-light);}
+.salon-group summary::-webkit-details-marker{display:none;}
+.salon-group summary .chev{display:inline-block;color:var(--purple-dark);transition:transform .15s;}
+.salon-group[open] summary .chev{transform:rotate(90deg);}
+.salon-aula{font-family:Consolas,"SF Mono",monospace;font-weight:800;color:var(--purple-dark);background:#fff;border:1px solid #ddd0f7;padding:3px 10px;border-radius:8px;font-size:13px;}
+.salon-carrera{font-size:12.5px;font-weight:700;color:var(--purple-dark);}
+.salon-meta{font-size:12px;color:var(--text-soft);}
+.mat-row-grid{display:grid;grid-template-columns:90px 1.6fr 62px 150px 105px 55px 1.3fr 110px 90px;gap:10px;align-items:center;padding:10px 16px;border-top:1px solid #f0f4fa;font-size:13px;}
+.mat-row-grid:first-of-type{border-top:none;}
+.mat-row-head{font-size:11px;font-weight:800;color:var(--text-soft);text-transform:uppercase;background:#f8f9fc;}
+.mat-row-grid .mono-cell{font-family:Consolas,"SF Mono",monospace;font-size:12px;color:var(--text-soft);}
+@media (max-width:1100px){ .mat-row-grid{grid-template-columns:1fr;gap:4px;padding:12px 16px;} .mat-row-head{display:none;} }
 .aviso-field-label{display:block;font-size:13px;font-weight:700;color:var(--text-soft);margin-bottom:6px;}
 .aviso-field-input{width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-family:inherit;font-size:14px;}
 .aviso-field-input:focus{border-color:var(--purple);outline:none;}
@@ -249,19 +273,19 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     </div>
     <nav class="nav-section">
       <div class="nav-label">Administrativo</div>
-      <button class="nav-item active" onclick="irTab('dashboard',this)"><span class="nav-icon">&#128202;</span> Dashboard</button>
-      <button class="nav-item" onclick="irTab('estudiantes',this)"><span class="nav-icon">&#127891;</span> Gestion de Estudiantes</button>
-      <button class="nav-item" onclick="irTab('profesores',this)"><span class="nav-icon">&#128104;&#8205;&#127979;</span> Gestion de Profesores</button>
-      <button class="nav-item" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
-      <button class="nav-item" onclick="irTab('historial-prof',this)"><span class="nav-icon">&#128203;</span> Historial de Profesores</button>
-      <button class="nav-item" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
-      <button class="nav-item" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Materias Retiradas</button>
-      <button class="nav-item" onclick="irTab('crear-usuarios',this)"><span class="nav-icon">&#128101;</span> Gestion de Usuarios</button>
+      <button class="nav-item active" data-tab="dashboard" onclick="irTab('dashboard',this)"><span class="nav-icon">&#128202;</span> Dashboard</button>
+      <button class="nav-item" data-tab="estudiantes" onclick="irTab('estudiantes',this)"><span class="nav-icon">&#127891;</span> Gestion de Estudiantes</button>
+      <button class="nav-item" data-tab="profesores" onclick="irTab('profesores',this)"><span class="nav-icon">&#128104;&#8205;&#127979;</span> Gestion de Profesores</button>
+      <button class="nav-item" data-tab="materias" onclick="irTab('materias',this)"><span class="nav-icon">&#128218;</span> Gestion de Materias</button>
+      <button class="nav-item" data-tab="historial-prof" onclick="irTab('historial-prof',this)"><span class="nav-icon">&#128203;</span> Historial de Profesores</button>
+      <button class="nav-item" data-tab="matricula" onclick="irTab('matricula',this)"><span class="nav-icon">&#128203;</span> Gestion de Matriculas</button>
+      <button class="nav-item" data-tab="limites" onclick="irTab('limites',this)"><span class="nav-icon">&#128273;</span> Materias Retiradas</button>
+      <button class="nav-item" data-tab="crear-usuarios" onclick="irTab('crear-usuarios',this)"><span class="nav-icon">&#128101;</span> Gestion de Usuarios</button>
       <div class="nav-label">Supervision</div>
-      <button class="nav-item" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
+      <button class="nav-item" data-tab="sup-calificaciones" onclick="irTab('sup-calificaciones',this)"><span class="nav-icon">&#128221;</span> Calificaciones</button>
       <div class="nav-label">Comunicacion</div>
-      <button class="nav-item" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
-      <button class="nav-item" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
+      <button class="nav-item" data-tab="avisos" onclick="irTab('avisos',this)"><span class="nav-icon">&#128227;</span> Gestion de Avisos</button>
+      <button class="nav-item" data-tab="reportes" onclick="irTab('reportes',this)"><span class="nav-icon">&#128200;</span> Reportes</button>
     </nav>
     <div class="sidebar-footer">
       <button class="logout-btn" onclick="cerrarSesion()">&#128682; Cerrar Sesion</button>
@@ -276,6 +300,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
         <h2 class="page-title">Dashboard</h2>
         <div class="page-subtitle">Resumen general del sistema</div>
       </div>
+      <div class="attn-strip" id="dashAttn"></div>
       <div class="stats-row stats-4" id="dashStats"></div>
     </div>
 
@@ -307,7 +332,54 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- MATERIAS -->
     <div id="tab-materias" class="tab-panel">
       <div class="topbar"><h2 class="page-title">Gestion de Materias</h2></div>
-      <div class="card"><div style="overflow-x:auto;"><table class="delta-table" id="tblMaterias"></table></div></div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;" onclick="toggleCrearCarrera()">
+          <h3 style="margin:0;font-size:16px;color:var(--purple);">&#127891; Crear Carrera</h3>
+          <span id="crearCarreraToggleIcon">&#9656;</span>
+        </div>
+        <div id="crearCarreraBody" class="hidden" style="margin-top:14px;">
+          <div class="page-subtitle" style="margin-bottom:10px;">Toda carrera se crea con exactamente 6 materias: puedes vincular materias existentes que aún no tengan carrera, y/o crear materias nuevas, hasta sumar 6.</div>
+          <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;margin-bottom:12px;">
+            <div class="form-group"><label class="aviso-field-label">Nombre de la carrera</label>
+              <input type="text" id="ccNombre" class="aviso-field-input" placeholder="Ingeniería de Software" oninput="autoCodigoCarrera()"></div>
+            <div class="form-group"><label class="aviso-field-label">Código <span style="font-weight:400;color:var(--text-soft);">(auto, editable)</span></label>
+              <input type="text" id="ccCodigo" class="aviso-field-input" placeholder="IDS" oninput="ccCodigoManual=true"></div>
+            <div class="form-group"><label class="aviso-field-label">Facultad</label>
+              <select id="ccFacultad" class="aviso-field-input"></select></div>
+          </div>
+          <label class="aviso-field-label">Materias existentes sin carrera (marca las que quieras vincular)</label>
+          <div id="ccMateriasExistentes" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:10px;background:#f8f9fc;border:2px solid #e2e8f0;border-radius:8px;max-height:160px;overflow-y:auto;margin-bottom:12px;">
+            <span style="color:#6b7e96;font-size:13px;">Cargando...</span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+            <label class="aviso-field-label" style="margin:0;" title="Aplica a todas las materias NUEVAS que definas abajo. Las materias existentes que vincules no se tocan.">Número de salones por materia nueva</label>
+            <select id="ccNumSalonesGlobal" class="aviso-field-input" style="width:70px;" onchange="renderAulasGlobales()">
+              <option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            </select>
+          </div>
+          <div style="margin-bottom:12px;">
+            <label class="aviso-field-label" title="Cada salón (1, 2, 3...) es UN aula, la misma para todas las materias nuevas — no un aula distinta por materia. Ej: el 'salón 1' de todas las materias usa esta misma aula.">Aula de cada salón (compartida por todas las materias nuevas)</label>
+            <div id="ccAulasGlobales" style="display:flex;gap:10px;flex-wrap:wrap;"></div>
+          </div>
+          <label class="aviso-field-label">Materias nuevas (opcional, para completar 6)</label>
+          <div id="ccMateriasNuevas"></div>
+          <button type="button" class="btn btn-secondary btn-sm" style="margin:8px 0;" onclick="agregarFilaMateriaNueva()">+ Agregar materia nueva</button>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+            <button type="button" class="btn btn-primary" onclick="enviarCrearCarrera()">Crear Carrera</button>
+            <span id="ccContador" style="font-size:13px;color:var(--text-soft);"></span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap;">
+        <label class="aviso-field-label" style="margin:0;">Filtrar por carrera</label>
+        <select id="filtroCarreraMaterias" class="aviso-field-input" style="max-width:280px;" onchange="renderMateriasAgrupadas()">
+          <option value="">— Todas —</option>
+        </select>
+        <input type="text" id="buscarMateria" class="aviso-field-input" style="max-width:240px;" placeholder="Buscar por código, materia o profesor…" oninput="renderMateriasAgrupadas()">
+      </div>
+      <div id="materiasAgrupadas"></div>
     </div>
 
     <!-- HISTORIAL DE ASIGNACIÓN DE PROFESORES -->
@@ -493,7 +565,7 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
                 <input type="text" name="email" id="estEmail" class="aviso-field-input" readonly
                   style="background:#f8f9fc;color:var(--text-soft);cursor:default;" placeholder="Se genera automaticamente">
                 <span class="field-error" id="errEstEmail"></span>
-                <span style="font-size:11px;color:var(--text-soft);margin-top:3px;display:block;">&#128274; Generado automaticamente: nombre.apellido@delta.edu</span>
+                <span style="font-size:11px;color:var(--text-soft);margin-top:3px;display:block;">&#128274; Generado automaticamente: nombre.apellido@delta.edu (si ya existe un estudiante con ese mismo nombre, el sistema agrega un número al final, ej: nombre.apellido2@delta.edu)</span>
               </div>
               <div class="form-group">
                 <label class="aviso-field-label">Telefono *</label>
@@ -503,19 +575,8 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
-                <label class="aviso-field-label">Semestre</label>
-                <select name="semestre" class="aviso-field-input">
-                  <option value="1">1 Semestre</option>
-                  <option value="2">2 Semestre</option>
-                  <option value="3">3 Semestre</option>
-                  <option value="4">4 Semestre</option>
-                  <option value="5">5 Semestre</option>
-                  <option value="6">6 Semestre</option>
-                  <option value="7">7 Semestre</option>
-                  <option value="8">8 Semestre</option>
-                  <option value="9">9 Semestre</option>
-                  <option value="10">10 Semestre</option>
-                </select>
+                <label class="aviso-field-label">Semestre <span style="font-weight:400;color:var(--text-soft);">(fijo)</span></label>
+                <input type="text" class="aviso-field-input" value="5 Semestre — 3er año, 1er semestre" disabled style="background:#eef0f5;">
               </div>
               <div class="form-group">
                 <label class="aviso-field-label">Nacionalidad</label>
@@ -539,13 +600,20 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
             <div id="estExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
               &#128161; Se generara un ID institucional automatico: <strong>E-8-XXXX</strong>
             </div>
-            <div class="form-group" style="margin-bottom:18px;">
-              <label class="aviso-field-label">Carrera (asignada automaticamente)</label>
-              <div style="padding:10px 12px;background:#f8f9fc;border-radius:8px;font-size:14px;color:#6b7e96;border:2px solid #e2e8f0;">
-                &#127979; Ingenieria en Sistemas Computacionales — Facultad de Sistemas
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div class="form-group">
+                <label class="aviso-field-label">Carrera</label>
+                <select id="estCarrera" class="aviso-field-input" onchange="cargarSalonesParaEstudiante()"></select>
+              </div>
+              <div class="form-group">
+                <label class="aviso-field-label">Salón (opcional)</label>
+                <select id="estGrupoInicial" class="aviso-field-input">
+                  <option value="">— No matricular en ningún salón por ahora —</option>
+                </select>
+                <span style="font-size:11px;color:var(--text-soft);margin-top:3px;display:block;">Cada opción es un salón (aula) de la carrera; al elegirlo se matricula al estudiante en las materias que comparten esa aula.</span>
               </div>
             </div>
-            <div style="display:flex;gap:10px;align-items:center;">
+            <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
               <button type="submit" id="btnCrearEst" class="btn btn-primary" style="min-width:180px;">Crear Estudiante</button>
               <button type="button" class="btn btn-secondary" onclick="resetFormEstudiante()">Limpiar</button>
             </div>
@@ -559,20 +627,22 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
                 <label class="aviso-field-label">Nombre *</label>
-                <input type="text" name="nombre" id="profNombre" class="aviso-field-input" placeholder="Maria" oninput="limpiarError('errProfNombre',this)">
+                <input type="text" name="nombre" id="profNombre" class="aviso-field-input" placeholder="Maria" oninput="limpiarError('errProfNombre',this);autoEmailProfesor()">
                 <span class="field-error" id="errProfNombre"></span>
               </div>
               <div class="form-group">
                 <label class="aviso-field-label">Apellido *</label>
-                <input type="text" name="apellido" id="profApellido" class="aviso-field-input" placeholder="Gonzalez" oninput="limpiarError('errProfApellido',this)">
+                <input type="text" name="apellido" id="profApellido" class="aviso-field-input" placeholder="Gonzalez" oninput="limpiarError('errProfApellido',this);autoEmailProfesor()">
                 <span class="field-error" id="errProfApellido"></span>
               </div>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div class="form-group">
-                <label class="aviso-field-label">Email *</label>
-                <input type="email" name="email" id="profEmail" class="aviso-field-input" placeholder="mgonzalez@utp.ac.pa" oninput="limpiarError('errProfEmail',this)">
+                <label class="aviso-field-label">Correo institucional</label>
+                <input type="text" name="email" id="profEmail" class="aviso-field-input" readonly
+                  style="background:#f8f9fc;color:var(--text-soft);cursor:default;" placeholder="Se genera automaticamente">
                 <span class="field-error" id="errProfEmail"></span>
+                <span style="font-size:11px;color:var(--text-soft);margin-top:3px;display:block;">&#128274; Generado automaticamente: nombre.apellido@delta.edu (si ya existe un profesor con ese mismo nombre, el sistema agrega un número al final, ej: nombre.apellido2@delta.edu)</span>
               </div>
               <div class="form-group">
                 <label class="aviso-field-label">Telefono</label>
@@ -612,12 +682,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
             </div>
             <div id="profExtranjeroInfo" class="hidden" style="background:#ede9fe;border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:#4c1d95;">
               &#128161; Se generara un ID institucional automatico: <strong>E-8-XXXX</strong>
-            </div>
-            <div class="form-group">
-              <label class="aviso-field-label">Materias que imparte</label>
-              <div id="listaMaterias" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px;background:#f8f9fc;border:2px solid #e2e8f0;border-radius:8px;max-height:220px;overflow-y:auto;">
-                <span style="color:#6b7e96;font-size:13px;">Cargando materias...</span>
-              </div>
             </div>
             <div style="display:flex;gap:10px;align-items:center;margin-top:8px;">
               <button type="submit" id="btnCrearProf" class="btn btn-primary" style="min-width:180px;">Crear Profesor</button>
@@ -677,6 +741,10 @@ function doLogin() {
 document.getElementById('loginPass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
 
 function irTab(id, btn) {
+  // Si no llega el boton (navegacion programatica, ej. desde una tarjeta del
+  // dashboard), se busca el nav-item correspondiente por su data-tab para
+  // que el resaltado morado del sidebar siga la pantalla real.
+  if (!btn) btn = document.querySelector('.nav-item[data-tab="'+id+'"]');
   document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
   document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
   document.getElementById('tab-'+id).classList.add('active');
@@ -724,10 +792,10 @@ function switchCrearTab(tipo, btn) {
   if (tipo === 'estudiante') {
     document.getElementById('subCrearEstudiante').classList.remove('hidden');
     document.getElementById('subCrearProfesor').classList.add('hidden');
+    cargarCarrerasParaEstudiante();
   } else {
     document.getElementById('subCrearEstudiante').classList.add('hidden');
     document.getElementById('subCrearProfesor').classList.remove('hidden');
-    cargarMateriasCheckboxes();
   }
 }
 
@@ -745,27 +813,6 @@ function toggleCedulaProfesor() {
   document.getElementById('profExtranjeroInfo').classList.toggle('hidden', esPanameno);
 }
 
-var _materiasCache = null;
-function cargarMateriasCheckboxes() {
-  if (_materiasCache !== null) return;
-  fetch(CTX + '/admin?accion=listarMaterias')
-    .then(function(r){ return r.json(); })
-    .then(function(materias) {
-      _materiasCache = materias;
-      var cont = document.getElementById('listaMaterias');
-      if (!materias || materias.length === 0) {
-        cont.innerHTML = '<span style="color:#6b7e96;font-size:13px;">No hay materias registradas.</span>';
-        return;
-      }
-      cont.innerHTML = materias.map(function(m) {
-        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0;">'
-             + '<input type="checkbox" value="' + m.id + '" style="accent-color:var(--purple);width:16px;height:16px;">'
-             + '<span><strong>' + escHtml(m.codigo) + '</strong> — ' + escHtml(m.nombre) + '</span>'
-             + '</label>';
-      }).join('');
-    })
-    .catch(function(){ document.getElementById('listaMaterias').innerHTML = '<span style="color:#dc2626;font-size:13px;">Error al cargar materias.</span>'; });
-}
 
 function escHtml(s) {
   if (!s) return '';
@@ -782,7 +829,7 @@ function validarNombreApellido(v) {
 
 function validarTelefono(t) {
   if (!t || t.trim() === '') return false;
-  return /^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$/.test(t.trim());
+  return /^6[0-9]{3}-[0-9]{4}$|^6[0-9]{6,7}$/.test(t.trim());
 }
 
 function normalizarParaEmail(s) {
@@ -801,6 +848,16 @@ function autoEmailEstudiante() {
   var email = (n && a) ? n + '.' + a + '@delta.edu' : '';
   document.getElementById('estEmail').value = email;
   limpiarError('errEstEmail', null);
+}
+
+function autoEmailProfesor() {
+  var nombre   = document.getElementById('profNombre').value;
+  var apellido = document.getElementById('profApellido').value;
+  var n = normalizarParaEmail(nombre);
+  var a = normalizarParaEmail(apellido);
+  var email = (n && a) ? n + '.' + a + '@delta.edu' : '';
+  document.getElementById('profEmail').value = email;
+  limpiarError('errProfEmail', null);
 }
 
 function marcarError(inputId, errorId, msg) {
@@ -845,6 +902,40 @@ function resetFormEstudiante() {
     var el = document.getElementById(id); if(el) el.textContent = '';
   });
   document.querySelectorAll('#frmEstudiante .input-error').forEach(function(el){ el.classList.remove('input-error'); });
+  document.getElementById('estGrupoInicial').innerHTML = '<option value="">— No matricular en ningún salón por ahora —</option>';
+}
+
+// ── Carrera / salón inicial al crear estudiante ───────────────────────────
+function cargarCarrerasParaEstudiante() {
+  fetch(CTX+'/admin?accion=listarCarreras').then(function(r){return r.json();}).then(function(cs){
+    var sel = document.getElementById('estCarrera');
+    if (!Array.isArray(cs)) { sel.innerHTML = '<option value="">— Error al cargar carreras —</option>'; showToast('Error al cargar carreras: '+(cs.error||'respuesta inesperada'), 'error'); return; }
+    if (!cs.length) { sel.innerHTML = '<option value="">— No hay carreras registradas —</option>'; return; }
+    sel.innerHTML = cs.map(function(c, i){
+      var esIDS = /ingenier[ií]a de software/i.test(c.nombre);
+      return '<option value="'+c.id+'"'+(esIDS?' selected':'')+'>'+esc(c.nombre)+'</option>';
+    }).join('');
+    cargarSalonesParaEstudiante();
+  }).catch(function(){ showToast('Error de conexión al cargar carreras.', 'error'); });
+}
+// Trae los "salones" de la carrera elegida agrupados por aula: el aula de
+// cada numero de salon es compartida por TODAS las materias de la carrera,
+// asi que elegir un salon matricula al estudiante de una vez en las 6
+// materias que comparten esa aula (no hay paso intermedio de elegir materia).
+function cargarSalonesParaEstudiante() {
+  var carreraId = document.getElementById('estCarrera').value;
+  var sel = document.getElementById('estGrupoInicial');
+  sel.innerHTML = '<option value="">— No matricular en ningún salón por ahora —</option>';
+  if (!carreraId) return;
+  fetch(CTX+'/admin?accion=salonesPorCarrera&carreraId='+carreraId).then(function(r){return r.json();}).then(function(gs){
+    if (!Array.isArray(gs)) { showToast('Error al cargar salones: '+(gs.error||'respuesta inesperada'), 'error'); return; }
+    if (!gs.length) { sel.innerHTML += '<option value="" disabled>(esta carrera no tiene salones creados)</option>'; return; }
+    gs.forEach(function(g, i){
+      var ids = (g.grupoIds || []).join(',');
+      sel.innerHTML += '<option value="'+esc(ids)+'" title="'+esc((g.materias||[]).join(', '))+'">Salón '+(i+1)+' — '+esc(g.aula)+' — '
+        + g.totalMaterias+' materias — cupo disponible mínimo: '+g.cupoMinimo+'</option>';
+    });
+  }).catch(function(){ showToast('Error de conexión al cargar salones.', 'error'); });
 }
 
 function resetFormProfesor() {
@@ -854,8 +945,6 @@ function resetFormProfesor() {
     var el = document.getElementById(id); if(el) el.textContent = '';
   });
   document.querySelectorAll('#frmProfesor .input-error').forEach(function(el){ el.classList.remove('input-error'); });
-  if (document.getElementById('listaMaterias'))
-    document.getElementById('listaMaterias').querySelectorAll('input[type=checkbox]').forEach(function(cb){ cb.checked = false; });
 }
 
 function enviarCrearEstudiante(e) {
@@ -879,7 +968,7 @@ function enviarCrearEstudiante(e) {
     marcarError('estEmail','errEstEmail','Ingrese nombre y apellido para generar el correo automaticamente.'); ok=false;
   }
   if (!telefono)                            { marcarError('estTelefono','errEstTel','El telefono es obligatorio.'); ok=false; }
-  else if (!validarTelefono(telefono))      { marcarError('estTelefono','errEstTel','Formato invalido. Use: 6123-4567 (solo numeros y un guion).'); ok=false; }
+  else if (!validarTelefono(telefono))      { marcarError('estTelefono','errEstTel','Debe empezar con 6 y solo contener números (y un guión opcional). Ej: 6123-4567.'); ok=false; }
   if (!esExt) {
     if (!cedula)                     { marcarError('estCedula','errEstCedula','La cedula es obligatoria.'); ok=false; }
     else if (!validarCedulaPanamena(cedula)) { marcarError('estCedula','errEstCedula','Formato invalido. Use: 8-1042-245'); ok=false; }
@@ -892,6 +981,10 @@ function enviarCrearEstudiante(e) {
     var el = frm.querySelector('[name=' + k + ']');
     if (el) params.set(k, el.value);
   });
+  var carreraSel = document.getElementById('estCarrera').value;
+  if (carreraSel) params.set('carreraId', carreraSel);
+  var grupoSel = document.getElementById('estGrupoInicial').value;
+  if (grupoSel) params.set('grupoIdsIniciales', grupoSel);
 
   var btn = document.getElementById('btnCrearEst');
   btn.disabled = true; btn.textContent = 'Creando...';
@@ -937,16 +1030,12 @@ function enviarCrearProfesor(e) {
 
   if (!nombre)   { marcarError('profNombre','errProfNombre','El nombre es obligatorio.'); ok=false; }
   if (!apellido) { marcarError('profApellido','errProfApellido','El apellido es obligatorio.'); ok=false; }
-  if (!email)    { marcarError('profEmail','errProfEmail','El correo es obligatorio.'); ok=false; }
-  else if (!validarEmail(email)) { marcarError('profEmail','errProfEmail','Correo electronico invalido.'); ok=false; }
-  if (!validarTelefono(telefono)) { marcarError('profTelefono','errProfTel','Telefono invalido (solo numeros y guiones).'); ok=false; }
+  if (!email)    { marcarError('profEmail','errProfEmail','Ingrese nombre y apellido para generar el correo automaticamente.'); ok=false; }
+  if (!validarTelefono(telefono)) { marcarError('profTelefono','errProfTel','El teléfono debe empezar con 6 y solo contener números (y un guión opcional). Ej: 6123-4567.'); ok=false; }
   if (!esExt && cedula && !validarCedulaPanamena(cedula)) {
     marcarError('profCedula','errProfCedula','Formato invalido. Use: 8-1042-245'); ok=false;
   }
   if (!ok) return;
-
-  var mIds = [];
-  document.querySelectorAll('#listaMaterias input[type=checkbox]:checked').forEach(function(cb){ mIds.push(cb.value); });
 
   var params = new URLSearchParams();
   params.set('accion', 'crearProfesor');
@@ -954,7 +1043,6 @@ function enviarCrearProfesor(e) {
     var el = frm.querySelector('[name=' + k + ']');
     if (el) params.set(k, el.value);
   });
-  params.set('materiaIds', mIds.join(','));
 
   var btn = document.getElementById('btnCrearProf');
   btn.disabled = true; btn.textContent = 'Creando...';
@@ -1023,18 +1111,68 @@ function cerrarSesion() {
 function cargarDashboard() {
   if (!HAY_BD) return;
   fetch(CTX+'/admin?accion=dashboard').then(function(r){ return r.json(); }).then(function(d) {
+    document.getElementById('dashAttn').innerHTML =
+      attnItem(d.estudiantesRiesgo, 'bad',
+        (d.estudiantesRiesgo===1?'inscripción':'inscripciones')+' con promedio en riesgo (menos de 70) en materias del currículo activo',
+        'irReporteDashboard(\'reporteRiesgo\')') +
+      attnItem(d.materiasSinCarrera, 'warn',
+        (d.materiasSinCarrera===1?'materia sin':'materias sin')+' carrera asignada (candidatas para vincular o archivar)',
+        'irTab(\'materias\')') +
+      attnItem(d.gruposSinProfesor, 'warn',
+        (d.gruposSinProfesor===1?'salón sin':'salones sin')+' profesor asignado',
+        'irTab(\'materias\')');
     document.getElementById('dashStats').innerHTML =
-      statCard('&#127891;','Estudiantes',d.totalEstudiantes) +
-      statCard('&#128104;&#8205;&#127979;','Profesores',d.totalProfesores) +
-      statCard('&#128218;','Materias',d.totalMaterias) +
-      statCard('&#128227;','Avisos Activos',d.avisosActivos) +
-      statCard('&#128203;','Inscripciones Pendientes',d.pendInscripcion) +
-      statCard('&#128465;','Retiros Pendientes',d.pendRetiro);
+      statCard('&#127891;','Estudiantes',d.totalEstudiantes,'irTab(\'estudiantes\')') +
+      statCard('&#128104;&#8205;&#127979;','Profesores',d.totalProfesores,'irTab(\'profesores\')') +
+      statCard('&#128218;','Materias activas',d.materiasActivas,'irTab(\'materias\')') +
+      statCard('&#128227;','Avisos Activos',d.avisosActivos,'irTab(\'avisos\')') +
+      statCard('&#128203;','Inscripciones Pendientes',d.pendInscripcion,'irMatriculaDashboard(\'inscripcion\')') +
+      statCard('&#128465;','Retiros Pendientes',d.pendRetiro,'irMatriculaDashboard(\'retiro\')');
   });
 }
 
-function statCard(icon, label, val) {
-  return '<div class="stat-card"><div class="stat-icon">'+icon+'</div><div><div class="stat-label">'+label+'</div><div class="stat-value">'+(val||0)+'</div></div></div>';
+// Item de la franja "atencion requerida": en rojo/ambar si hay algo que
+// atender, en verde (no clickeable) si el conteo esta en cero.
+function attnItem(n, sev, texto, onclick) {
+  n = n || 0;
+  if (n === 0) {
+    return '<button type="button" class="attn-item ok" disabled>&#10003; 0 '+texto+'</button>';
+  }
+  return '<button type="button" class="attn-item '+sev+'" onclick="'+onclick+'">'
+       + '<span class="attn-n">'+n+'</span><span class="attn-txt">'+texto+'</span>'
+       + '<span class="attn-go">Ver &#8594;</span></button>';
+}
+
+function statCard(icon, label, val, onclick) {
+  var cls = onclick ? ' clickable' : '';
+  var attr = onclick ? ' onclick="'+onclick+'" role="button" tabindex="0"' : '';
+  return '<div class="stat-card'+cls+'"'+attr+'><div class="stat-icon">'+icon+'</div><div><div class="stat-label">'+label+'</div><div class="stat-value">'+(val||0)+'</div></div></div>';
+}
+
+// Navega a Reportes y carga el reporte indicado directamente (sin pasar por
+// el reporte por defecto de irTab, para evitar dos fetch pisandose entre si).
+function irReporteDashboard(accion) {
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.getElementById('tab-reportes').classList.add('active');
+  var navBtn = document.querySelector('.nav-item[data-tab="reportes"]');
+  if (navBtn) navBtn.classList.add('active');
+  var subBtn = Array.prototype.find.call(document.querySelectorAll('#tab-reportes .sub-nav button'), function(b) {
+    return b.getAttribute('onclick') && b.getAttribute('onclick').indexOf("'"+accion+"'") !== -1;
+  });
+  cargarReporte(accion, subBtn || null);
+}
+
+// Navega a Matriculas y selecciona el sub-filtro (inscripcion/retiro) pedido,
+// sin pasar por el filtro por defecto de irTab (mismo motivo que arriba).
+function irMatriculaDashboard(tipo) {
+  document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+  document.querySelectorAll('.nav-item').forEach(function(n){ n.classList.remove('active'); });
+  document.getElementById('tab-matricula').classList.add('active');
+  var navBtn = document.querySelector('.nav-item[data-tab="matricula"]');
+  if (navBtn) navBtn.classList.add('active');
+  var btn = document.getElementById(tipo === 'retiro' ? 'btnSolRet' : 'btnSolInsc');
+  cargarSolicitudes(tipo, btn);
 }
 
 function cargarEstudiantes() {
@@ -1061,47 +1199,345 @@ function cargarProfesores() {
 }
 
 var profesoresParaSelect = [];
+var materiasCacheados = [];
 
 function cargarMaterias() {
   fetch(CTX+'/admin?accion=profesoresSimple').then(function(r){ return r.json(); }).then(function(profs) {
     profesoresParaSelect = profs;
     return fetch(CTX+'/admin?accion=materias');
-  }).then(function(r){ return r.json(); }).then(function(rows) {
-    var tbl = document.getElementById('tblMaterias');
-    var html = '<thead><tr><th>Codigo</th><th>Materia</th><th>Creditos</th><th>Cupos</th><th>Inscritos</th><th>Profesor</th><th>Grupo</th><th>Acciones</th></tr></thead><tbody>';
-    rows.forEach(function(r, idx) {
-      // Creditos: ahora EDITABLE con input numerico
-      var creditosCell = '<input class="edit-input" type="number" min="1" max="20" style="width:60px;" id="mCred_'+idx+'" value="'+r.creditos+'">';
-      var capacidadCell, profesorCell, accionesCell;
-      if (r.grupoId != null) {
-        capacidadCell = '<input class="edit-input" type="number" min="0" id="mCap_'+idx+'" value="'+r.capacidad+'"> <span style="font-size:11px;color:var(--text-soft);">min:'+r.inscritos+'</span>';
-        var profOptions = '<option value="">— Sin asignar —</option>';
-        profesoresParaSelect.forEach(function(p) {
-          var sel = (r.profesorId != null && p.id === r.profesorId) ? ' selected' : '';
-          profOptions += '<option value="'+p.id+'"'+sel+'>'+esc(p.nombre)+'</option>';
-        });
-        profesorCell = '<select class="edit-select" id="mProf_'+idx+'">'+profOptions+'</select>';
-        accionesCell = '<button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.grupoId+','+r.id+','+r.inscritos+')">Guardar</button>';
-      } else {
-        capacidadCell = '<span style="color:var(--text-soft);">-</span>';
-        profesorCell  = '<span style="color:var(--text-soft);">Sin grupo</span>';
-        // Sin grupo: solo se pueden editar créditos
-        accionesCell  = '<button class="btn btn-secondary btn-sm" onclick="guardarSoloCreditos('+idx+','+r.id+')">Guardar Creditos</button>';
-      }
-      html += '<tr>'
-        +'<td>'+esc(r.codigo)+'</td>'
-        +'<td><strong>'+esc(r.nombre)+'</strong></td>'
-        +'<td>'+creditosCell+'</td>'
-        +'<td>'+capacidadCell+'</td>'
-        +'<td>'+r.inscritos+'</td>'
-        +'<td>'+profesorCell+'</td>'
-        +'<td>'+esc(r.grupo||'-')+'</td>'
-        +'<td>'+accionesCell+'</td>'
-        +'</tr>';
-    });
-    tbl.innerHTML = html + '</tbody>';
+  }).then(function(r){ return r.json(); }).then(function(todasLasFilas) {
+    materiasCacheados = todasLasFilas;
+    sincronizarFiltroCarrera(todasLasFilas);
+    renderMateriasAgrupadas();
   }).catch(function(){ showToast('Error al cargar materias.', 'error'); });
 }
+
+// Agrega al filtro cualquier carrera nueva que aparezca en los datos, sin
+// borrar las opciones ni la seleccion actual — antes solo se poblaba una vez
+// por carga de pagina, asi que una carrera creada en la misma sesion nunca
+// aparecia hasta cerrar sesion y volver a entrar.
+function sincronizarFiltroCarrera(todasLasFilas) {
+  var selFiltro = document.getElementById('filtroCarreraMaterias');
+  var yaPresentes = {};
+  Array.prototype.forEach.call(selFiltro.options, function(o){ yaPresentes[o.value] = true; });
+  var vistos = {};
+  todasLasFilas.forEach(function(r){
+    if (r.carreraId != null && !vistos[r.carreraId]) {
+      vistos[r.carreraId] = true;
+      if (!yaPresentes[String(r.carreraId)]) {
+        selFiltro.innerHTML += '<option value="'+r.carreraId+'">'+esc(r.carrera)+'</option>';
+      }
+    }
+  });
+}
+
+// Filtra (por carrera y por texto) y agrupa por salon (aula) los datos ya
+// cacheados — no vuelve a pedir nada al servidor, asi que responde al
+// instante mientras se escribe en el buscador o se cambia de carrera.
+function renderMateriasAgrupadas() {
+  var carreraFiltro = document.getElementById('filtroCarreraMaterias').value;
+  var q = (document.getElementById('buscarMateria').value || '').trim().toLowerCase();
+
+  var rows = materiasCacheados.filter(function(r){
+    if (carreraFiltro && String(r.carreraId) !== carreraFiltro) return false;
+    if (q) {
+      var haystack = (r.codigo+' '+r.nombre+' '+(r.profesor||'')).toLowerCase();
+      if (haystack.indexOf(q) === -1) return false;
+    }
+    return true;
+  });
+
+  var cont = document.getElementById('materiasAgrupadas');
+  if (!rows.length) {
+    cont.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:30px;">No se encontraron materias.</div>';
+    return;
+  }
+
+  // El aula ya es compartida por todas las materias de un mismo numero de
+  // salon (ver Crear Carrera), asi que agrupar por aula agrupa exactamente
+  // por salon. Las materias sin grupo (sin aula) van aparte, en una lista
+  // simple, porque no hay salon con el que agruparlas.
+  var grupos = {}, ordenAulas = [], sinSalon = [];
+  rows.forEach(function(r){
+    if (!r.aula) { sinSalon.push(r); return; }
+    if (!grupos[r.aula]) { grupos[r.aula] = []; ordenAulas.push(r.aula); }
+    grupos[r.aula].push(r);
+  });
+  ordenAulas.sort();
+
+  var idxGlobal = 0;
+  var html = '';
+  ordenAulas.forEach(function(aula){
+    var filas = grupos[aula];
+    var sinProfesor = filas.filter(function(r){ return r.profesorId == null; }).length;
+    var carrerasGrupo = [];
+    filas.forEach(function(r){ if (r.carrera && carrerasGrupo.indexOf(r.carrera) === -1) carrerasGrupo.push(r.carrera); });
+    var carreraTexto = carrerasGrupo.length ? carrerasGrupo.join(' / ') : 'Sin carrera';
+    html += '<details class="salon-group" open><summary>'
+      + '<div style="display:flex;align-items:center;gap:10px;"><span class="chev">&#9656;</span>'
+      + '<span class="salon-aula">'+esc(aula)+'</span>'
+      + '<span class="salon-carrera">'+esc(carreraTexto)+'</span></div>'
+      + '<span class="salon-meta">'+filas.length+' materia'+(filas.length===1?'':'s')
+      + (sinProfesor ? ' &middot; '+sinProfesor+' sin profesor' : '')+'</span>'
+      + '</summary>'
+      + '<div class="mat-row-grid mat-row-head"><span>Código</span><span>Materia</span><span>Créd.</span><span>Horario</span><span>Cupos</span><span>Inscr.</span><span>Profesor</span><span>Grupo</span><span>Acciones</span></div>';
+    filas.forEach(function(r){ html += renderFilaMateria(r, idxGlobal++); });
+    html += '</details>';
+  });
+
+  if (sinSalon.length) {
+    html += '<div class="card"><div class="card-title" style="font-size:14px;">Materias sin salón asignado</div>'
+      + '<div style="overflow-x:auto;"><table class="delta-table"><thead><tr><th>Código</th><th>Materia</th><th>Créditos</th><th>Acciones</th></tr></thead><tbody>';
+    sinSalon.forEach(function(r){
+      var i = idxGlobal++;
+      html += '<tr><td>'+esc(r.codigo)+'</td><td><strong>'+esc(r.nombre)+'</strong></td>'
+        + '<td><input class="edit-input" type="number" min="1" max="20" style="width:60px;" id="mCred_'+i+'" value="'+r.creditos+'"></td>'
+        + '<td><button class="btn btn-secondary btn-sm" onclick="guardarSoloCreditos('+i+','+r.id+')">Guardar Créditos</button></td></tr>';
+    });
+    html += '</tbody></table></div></div>';
+  }
+
+  cont.innerHTML = html;
+}
+
+// Una fila de materia dentro de una tarjeta de salon (aula ya conocida por
+// el grupo, no se repite por fila).
+function renderFilaMateria(r, idx) {
+  var creditosCell = '<input class="edit-input" type="number" min="1" max="20" style="width:56px;" id="mCred_'+idx+'" value="'+r.creditos+'">';
+  var capacidadCell = '<input class="edit-input" type="number" min="0" style="width:56px;" id="mCap_'+idx+'" value="'+r.capacidad+'"> <span style="font-size:10px;color:var(--text-soft);">min:'+r.inscritos+'</span>';
+  var profesorCell;
+  if (r.profesorId != null) {
+    // Mientras el salon tenga profesor, no se edita el select directamente:
+    // hay que liberarlo primero con "Cambiar profesor" (evita reemplazos accidentales).
+    profesorCell = '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+      + '<span class="tag tag-green">&#128100; '+esc(r.profesor)+'</span>'
+      + '<button type="button" class="btn btn-secondary btn-sm" title="Libera el salón para poder elegir otro profesor" onclick="quitarProfesorSalon('+r.grupoId+')">&#128260;</button>'
+      + '</div>';
+  } else {
+    var profOptions = '<option value="">— Sin asignar —</option>';
+    profesoresParaSelect.forEach(function(p) {
+      profOptions += '<option value="'+p.id+'">'+esc(p.nombre)+'</option>';
+    });
+    profesorCell = '<select class="edit-select" id="mProf_'+idx+'" style="width:100%;">'+profOptions+'</select>';
+  }
+  var horarioCell;
+  if (r.horario) {
+    var bloquesHtml = r.horario.split(' / ').map(function(b){ return '<div>'+esc(b)+'</div>'; }).join('');
+    horarioCell = '<details><summary style="cursor:pointer;color:var(--purple);font-size:12px;font-weight:700;">Ver horario</summary>'
+                + '<div style="margin-top:6px;font-size:12px;color:var(--text-soft);white-space:nowrap;">'+bloquesHtml+'</div></details>';
+  } else {
+    horarioCell = '<span style="color:var(--text-soft);font-size:12px;">-</span>';
+  }
+  return '<div class="mat-row-grid">'
+    + '<span class="mono-cell">'+esc(r.codigo)+'</span>'
+    + '<span><strong>'+esc(r.nombre)+'</strong></span>'
+    + '<span>'+creditosCell+'</span>'
+    + '<span>'+horarioCell+'</span>'
+    + '<span>'+capacidadCell+'</span>'
+    + '<span>'+r.inscritos+'</span>'
+    + '<span>'+profesorCell+'</span>'
+    + '<span class="mono-cell">'+esc(r.grupo||'-')+'</span>'
+    + '<span><button class="btn btn-primary btn-sm" onclick="guardarMateria('+idx+','+r.grupoId+','+r.id+','+r.inscritos+')">Guardar</button></span>'
+    + '</div>';
+}
+
+// ── Codigo de carrera auto-generado a partir de las iniciales del nombre ──
+var ccCodigoManual = false;
+function autoCodigoCarrera() {
+  if (ccCodigoManual) return;
+  var nombre = document.getElementById('ccNombre').value;
+  var iniciales = nombre.split(/\s+/).filter(function(w){ return w.length > 0; })
+    .map(function(w){ return w.charAt(0).toUpperCase(); }).join('');
+  document.getElementById('ccCodigo').value = iniciales;
+}
+
+// ── Quitar profesor de un salón ──────────────────────────────────────────
+function quitarProfesorSalon(grupoId) {
+  showConfirm('¿Quitar el profesor asignado a este salón? Quedará vacante hasta que asignes uno nuevo.', function() {
+    fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+      body:'accion=quitarProfesor&grupoId='+grupoId})
+      .then(function(r){ return r.json(); })
+      .then(function(d) {
+        if (d.ok) { showToast('Profesor removido. El salón quedó vacante.', 'success'); cargarMaterias(); }
+        else showToast('Error: '+(d.error||'No se pudo quitar el profesor.'), 'error');
+      }).catch(function(){ showToast('Error de conexión.', 'error'); });
+  });
+}
+
+// ── Crear Carrera ─────────────────────────────────────────────────────────
+var ccCargado = false;
+function toggleCrearCarrera() {
+  var body = document.getElementById('crearCarreraBody');
+  var icon = document.getElementById('crearCarreraToggleIcon');
+  var abrir = body.classList.contains('hidden');
+  body.classList.toggle('hidden');
+  icon.innerHTML = abrir ? '&#9662;' : '&#9656;';
+  if (abrir && !ccCargado) {
+    ccCargado = true;
+    fetch(CTX+'/admin?accion=listarFacultades').then(function(r){return r.json();}).then(function(fs){
+      document.getElementById('ccFacultad').innerHTML = fs.map(function(f){ return '<option value="'+f.id+'">'+esc(f.nombre)+'</option>'; }).join('');
+    });
+    fetch(CTX+'/admin?accion=materiasSinCarrera').then(function(r){return r.json();}).then(function(ms){
+      var cont = document.getElementById('ccMateriasExistentes');
+      if (!ms.length) { cont.innerHTML = '<span style="color:#6b7e96;font-size:13px;">No hay materias sin carrera disponibles.</span>'; return; }
+      cont.innerHTML = ms.map(function(m){
+        return '<label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;padding:4px 0;">'
+             + '<input type="checkbox" class="ccMatExistente" value="'+m.id+'" onchange="actualizarContadorCC()" style="accent-color:var(--purple);width:16px;height:16px;">'
+             + '<span><strong>'+esc(m.codigo)+'</strong> — '+esc(m.nombre)+'</span></label>';
+      }).join('');
+    });
+    renderAulasGlobales();
+  }
+}
+// Un aula por CADA numero de salon (1, 2, 3...), compartida por TODAS las
+// materias nuevas — no una aula distinta por materia. Auto-generadas, editables.
+function renderAulasGlobales() {
+  var n = parseInt(document.getElementById('ccNumSalonesGlobal').value, 10);
+  var box = document.getElementById('ccAulasGlobales');
+  var html = '';
+  for (var i = 0; i < n; i++) {
+    html += '<div><label style="font-size:11px;color:var(--text-soft);display:block;">Salón '+(i+1)+'</label>'
+      + '<input type="text" class="ccAulaGlobal'+i+' aviso-field-input" value="Aula N'+(i+1)+'" style="max-width:140px;"></div>';
+  }
+  box.innerHTML = html;
+}
+// Asignacion de horario automatico para cada materia nueva, segun su orden.
+// Como el aula de cada numero de salon es COMPARTIDA por todas las materias
+// de la carrera, dos materias nunca pueden usar la misma combinacion de
+// dia+bloque-horario (chocarian en la misma aula). Por eso, en vez de dos
+// rotaciones independientes (que podian repetir una celda dia+hora), cada
+// materia recibe una celda dia+hora exclusiva: se avanza de bloque horario
+// cada 2 materias, alternando entre el par de dias lunes/martes y el par
+// miercoles/jueves.
+var CC_SLOTS_HORA = [['07:00','09:00'], ['09:00','11:00'], ['11:00','13:00'], ['13:00','15:00']];
+var CC_PARES_DIAS = [['lunes','martes'], ['miercoles','jueves']];
+var ccOrdenContador = 0;
+
+function diaCapitalizado(d) { return d.charAt(0).toUpperCase() + d.slice(1); }
+function horaAmPm(hhmm) {
+  var p = hhmm.split(':'); var h = parseInt(p[0], 10);
+  var ampm = h >= 12 ? 'pm' : 'am'; var h12 = h % 12; if (h12 === 0) h12 = 12;
+  return h12 + ':' + p[1] + ampm;
+}
+
+function agregarFilaMateriaNueva() {
+  var cont = document.getElementById('ccMateriasNuevas');
+  var orden = ccOrdenContador++;
+  var slot = CC_SLOTS_HORA[Math.floor(orden / 2) % CC_SLOTS_HORA.length];
+  var dias = CC_PARES_DIAS[orden % CC_PARES_DIAS.length];
+
+  var fila = document.createElement('div');
+  fila.className = 'cc-fila-materia';
+  fila.dataset.orden = orden;
+  fila.dataset.horario = dias[0]+'@'+slot[0]+'@'+slot[1]+';'+dias[1]+'@'+slot[0]+'@'+slot[1];
+  fila.style.cssText = 'border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:10px;background:#fbfbfd;';
+
+  var horarioTexto = diaCapitalizado(dias[0]) + ' y ' + diaCapitalizado(dias[1]) + ', ' + horaAmPm(slot[0]) + '–' + horaAmPm(slot[1]);
+
+  fila.innerHTML =
+      '<div style="display:grid;grid-template-columns:2fr 1fr 70px 70px 32px;gap:8px;align-items:end;margin-bottom:8px;">'
+    +   '<div><label style="font-size:11px;color:var(--text-soft);display:block;">Nombre</label>'
+    +     '<input type="text" class="ccnNombre aviso-field-input" placeholder="Ej: Arquitectura de Software" oninput="autoCodigoMateriaNueva(this)"></div>'
+    +   '<div><label style="font-size:11px;color:var(--text-soft);display:block;">Código <span style="font-weight:400;">(auto)</span></label>'
+    +     '<input type="text" class="ccnCodigo aviso-field-input" placeholder="AS-501" oninput="this.closest(\'.cc-fila-materia\').dataset.codigoManual=\'1\'"></div>'
+    +   '<div><label style="font-size:11px;color:var(--text-soft);display:block;" title="Créditos académicos de la materia">Créditos</label>'
+    +     '<input type="number" class="ccnCreditos aviso-field-input" value="3" min="1"></div>'
+    +   '<div><label style="font-size:11px;color:var(--text-soft);display:block;" title="Fijo: 3er año, 1er semestre">Nivel</label>'
+    +     '<input type="number" class="ccnNivel aviso-field-input" value="5" disabled style="background:#eef0f5;"></div>'
+    +   '<button type="button" class="btn btn-danger btn-sm" onclick="this.closest(\'.cc-fila-materia\').remove();actualizarContadorCC();" style="padding:6px;">&#10005;</button>'
+    + '</div>'
+    + '<div style="font-size:12px;color:var(--text-soft);">&#128197; Horario automático (según el orden): <strong>'+horarioTexto+'</strong></div>';
+  cont.appendChild(fila);
+  actualizarContadorCC();
+}
+// Auto-genera el código de la materia a partir de las iniciales del nombre,
+// mientras el admin no lo haya editado a mano.
+function autoCodigoMateriaNueva(nombreInput) {
+  var fila = nombreInput.closest('.cc-fila-materia');
+  if (fila.dataset.codigoManual === '1') return;
+  var iniciales = nombreInput.value.split(/\s+/).filter(function(w){ return w.length > 0; })
+    .map(function(w){ return w.charAt(0).toUpperCase(); }).join('');
+  var num = String(parseInt(fila.dataset.orden, 10) + 1).padStart(2, '0');
+  fila.querySelector('.ccnCodigo').value = iniciales + '-5' + num;
+}
+function actualizarContadorCC() {
+  var marcadas = document.querySelectorAll('.ccMatExistente:checked').length;
+  var nuevas = document.querySelectorAll('.cc-fila-materia').length;
+  var total = marcadas + nuevas;
+  var el = document.getElementById('ccContador');
+  el.textContent = total + ' / 6 materias';
+  el.style.color = total === 6 ? 'var(--green)' : 'var(--red)';
+}
+function enviarCrearCarrera() {
+  actualizarContadorCC();
+  var nombre = document.getElementById('ccNombre').value.trim();
+  var codigo = document.getElementById('ccCodigo').value.trim();
+  var facultadId = document.getElementById('ccFacultad').value;
+  if (!nombre || !codigo) { showToast('Nombre y código de la carrera son obligatorios.', 'error'); return; }
+
+  var idsExistentes = Array.prototype.map.call(document.querySelectorAll('.ccMatExistente:checked'), function(cb){ return cb.value; });
+
+  // Las aulas son UNA por numero de salon, compartidas por TODAS las materias
+  // nuevas (salon 1 de cualquier materia usa la misma aula, salon 2 usa otra, etc.).
+  var n = parseInt(document.getElementById('ccNumSalonesGlobal').value, 10);
+  var aulasGlobales = [];
+  var errorSalones = null;
+  for (var i = 0; i < n; i++) {
+    var aulaInput = document.querySelector('.ccAulaGlobal'+i);
+    var aula = aulaInput ? aulaInput.value.trim() : '';
+    if (!aula) errorSalones = 'Falta el aula del salón ' + (i+1) + '.';
+    aulasGlobales.push(aula);
+  }
+  if (errorSalones) { showToast(errorSalones, 'error'); return; }
+  var aulasGlobalesStr = aulasGlobales.join('|');
+
+  var nuevasCodigos = [], nuevasNombres = [], nuevasCreditos = [], nuevasNiveles = [];
+  var nuevasNumSalones = [], nuevasAulas = [], nuevasHorarios = [];
+  document.querySelectorAll('.cc-fila-materia').forEach(function(fila){
+    nuevasCodigos.push(fila.querySelector('.ccnCodigo').value.trim());
+    nuevasNombres.push(fila.querySelector('.ccnNombre').value.trim());
+    nuevasCreditos.push(fila.querySelector('.ccnCreditos').value.trim());
+    nuevasNiveles.push(fila.querySelector('.ccnNivel').value.trim());
+    nuevasNumSalones.push(n);
+    nuevasAulas.push(aulasGlobalesStr);
+    nuevasHorarios.push(fila.dataset.horario);
+  });
+
+  var total = idsExistentes.length + nuevasCodigos.length;
+  if (total !== 6) { showToast('Debes completar exactamente 6 materias (llevas ' + total + ').', 'error'); return; }
+
+  var params = new URLSearchParams();
+  params.set('accion', 'crearCarrera');
+  params.set('nombre', nombre);
+  params.set('codigo', codigo);
+  params.set('facultadId', facultadId);
+  params.set('materiaIdsExistentes', idsExistentes.join(','));
+  params.set('nuevasNumSalones', nuevasNumSalones.join(','));
+  params.set('nuevasAulas', nuevasAulas.join(','));
+  params.set('nuevasHorarios', nuevasHorarios.join(','));
+  params.set('nuevasCodigos', nuevasCodigos.join(','));
+  params.set('nuevasNombres', nuevasNombres.join(','));
+  params.set('nuevasCreditos', nuevasCreditos.join(','));
+  params.set('nuevasNiveles', nuevasNiveles.join(','));
+
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params})
+    .then(function(r){ return r.json(); })
+    .then(function(d) {
+      if (d.ok) {
+        showToast('Carrera creada correctamente.', 'success');
+        document.getElementById('crearCarreraBody').classList.add('hidden');
+        document.getElementById('crearCarreraToggleIcon').innerHTML = '&#9656;';
+        ccCargado = false;
+        ccCodigoManual = false;
+        ccOrdenContador = 0;
+        document.getElementById('ccNumSalonesGlobal').value = '1';
+        renderAulasGlobales();
+        document.getElementById('ccMateriasNuevas').innerHTML = '';
+        cargarMaterias();
+      } else showToast('Error: '+(d.error||'No se pudo crear la carrera.'), 'error');
+    }).catch(function(){ showToast('Error de conexión.', 'error'); });
+}
+
 
 // Guarda créditos únicamente (para materias sin grupo asignado)
 function guardarSoloCreditos(idx, materiaId) {
@@ -1143,7 +1579,10 @@ function guardarMateria(idx, grupoId, materiaId, inscritosActuales) {
       body:'accion=actualizarCapacidad&grupoId='+grupoId+'&capacidad='+capacidad})
   ];
 
-  var profesorId = document.getElementById('mProf_'+idx).value;
+  // El select de profesor solo existe si el salon esta vacante (si ya tiene
+  // profesor, se muestra como texto y se cambia con el boton "Cambiar profesor").
+  var profSelect = document.getElementById('mProf_'+idx);
+  var profesorId = profSelect ? profSelect.value : '';
   if (profesorId) {
     peticiones.push(fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
       body:'accion=reasignarProfesor&grupoId='+grupoId+'&profesorId='+profesorId}));

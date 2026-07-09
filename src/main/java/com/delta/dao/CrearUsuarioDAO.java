@@ -85,16 +85,10 @@ public class CrearUsuarioDAO {
         return valor.trim().matches("^[\\p{L} ]+$");
     }
 
-    /** Solo acepta dominio @delta.edu */
-    public boolean validarEmailInstitucional(String email) {
-        if (email == null || email.trim().isEmpty()) return false;
-        return email.trim().toLowerCase().matches("^[a-z0-9._%+\\-]+@delta\\.edu$");
-    }
-
-    /** Teléfono panameño: 4 dígitos, guion, 4 dígitos (ej. 6123-4567) o 7-8 dígitos seguidos. */
+    /** Teléfono panameño: debe empezar con 6, sin letras ni caracteres especiales (guion opcional). */
     public boolean validarTelefono(String telefono) {
         if (telefono == null || telefono.trim().isEmpty()) return false;
-        return telefono.trim().matches("^[0-9]{4}-[0-9]{4}$|^[0-9]{7,8}$");
+        return telefono.trim().matches("^6[0-9]{3}-[0-9]{4}$|^6[0-9]{6,7}$");
     }
 
     /** Formato cédula panameña: X-XXXX-XXXX (sólo dígitos y guiones). */
@@ -108,23 +102,6 @@ public class CrearUsuarioDAO {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT COUNT(*) FROM estudiantes WHERE cedula = ?")) {
             ps.setString(1, cedula);
-            try (ResultSet rs = ps.executeQuery()) {
-                rs.next();
-                return rs.getInt(1) > 0;
-            }
-        }
-    }
-
-    /** true si el email ya existe en estudiantes o profesores. */
-    public boolean existeEmail(Connection con, String email) throws SQLException {
-        String sql = "SELECT COUNT(*) FROM ("
-                   + "  SELECT email FROM estudiantes WHERE email = ?"
-                   + "  UNION ALL"
-                   + "  SELECT email FROM profesores   WHERE email = ?"
-                   + ") t";
-        try (PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, email);
-            ps.setString(2, email);
             try (ResultSet rs = ps.executeQuery()) {
                 rs.next();
                 return rs.getInt(1) > 0;
@@ -152,6 +129,17 @@ public class CrearUsuarioDAO {
                 if (rs.next()) return rs.getInt(1);
                 throw new SQLException(
                     "Carrera ISC no encontrada. Ejecute crear_usuarios_schema.sql");
+            }
+        }
+    }
+
+    private String obtenerNombreCarrera(Connection con, int carreraId) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT nombre FROM carreras WHERE id = ?")) {
+            ps.setInt(1, carreraId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return rs.getString("nombre");
+                throw new SQLException("Carrera con id " + carreraId + " no encontrada.");
             }
         }
     }
@@ -185,25 +173,6 @@ public class CrearUsuarioDAO {
         return lista;
     }
 
-    /** Retorna todas las materias ordenadas por nombre. */
-    public List<Map<String, Object>> listarMaterias() throws SQLException {
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             Statement st  = con.createStatement();
-             ResultSet rs  = st.executeQuery(
-                     "SELECT id, codigo, nombre, creditos FROM materias ORDER BY nombre")) {
-            while (rs.next()) {
-                Map<String, Object> m = new LinkedHashMap<>();
-                m.put("id",       rs.getInt("id"));
-                m.put("codigo",   rs.getString("codigo"));
-                m.put("nombre",   rs.getString("nombre"));
-                m.put("creditos", rs.getInt("creditos"));
-                lista.add(m);
-            }
-        }
-        return lista;
-    }
-
     /** Retorna todos los grupos con el nombre y código de su materia. */
     public List<Map<String, Object>> listarGruposDisponibles() throws SQLException {
         List<Map<String, Object>> lista = new ArrayList<>();
@@ -231,8 +200,11 @@ public class CrearUsuarioDAO {
 
     /**
      * Inserta un estudiante en una transacción atómica.
-     * Pasos: validación → generar ID → INSERT usuarios → INSERT estudiantes → commit.
+     * Pasos: validación → generar ID → INSERT usuarios → INSERT estudiantes
+     *        → (opcional) matricular en un salón inicial → commit.
      *
+     * @param carreraId          Carrera a la que pertenece; si es null, se usa la carrera por defecto (ISC).
+     * @param grupoIdsIniciales  Grupos (uno por materia del salón elegido) donde matricularlo de una vez (opcional); valida cupo en cada uno.
      * @return Mapa con ok, username, passwordInicial, idDocumento, tipoId.
      * @throws IllegalArgumentException Si alguna validación falla (capturado como 400 en el servlet).
      * @throws SQLException             Si ocurre error de BD.
@@ -240,7 +212,8 @@ public class CrearUsuarioDAO {
     public Map<String, Object> crearEstudiante(
             String nombre,      String apellido, String cedula,
             String email,       String telefono, int    semestre,
-            String nacionalidad, boolean esExtranjero) throws SQLException {
+            String nacionalidad, boolean esExtranjero,
+            Integer carreraId,  List<Integer> grupoIdsIniciales) throws SQLException {
 
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
@@ -250,14 +223,10 @@ public class CrearUsuarioDAO {
                     throw new IllegalArgumentException("El nombre solo puede contener letras.");
                 if (!validarNombreApellido(apellido))
                     throw new IllegalArgumentException("El apellido solo puede contener letras.");
-                if (!validarEmailInstitucional(email))
-                    throw new IllegalArgumentException("Debe ingresar un correo institucional @delta.edu.");
                 if (!validarTelefono(telefono))
                     throw new IllegalArgumentException("El teléfono es obligatorio. Formato: 6123-4567.");
                 if (!esExtranjero && !validarCedulaPanamena(cedula))
                     throw new IllegalArgumentException("Formato de cédula panameña inválido. Use: 8-1042-245");
-                if (existeEmail(con, email))
-                    throw new IllegalArgumentException("El correo ya está registrado en el sistema.");
 
                 String idDocumento;
                 if (esExtranjero) {
@@ -268,11 +237,16 @@ public class CrearUsuarioDAO {
                     idDocumento = cedula;
                 }
 
-                int    facultadId = obtenerFacultadId(con);
-                int    carreraId  = obtenerCarreraId(con);
-                String username   = generarUsername(con, nombre, apellido);
-                String passHash   = UsuarioDAO.sha256("estudiante123");
-                String tipoId     = esExtranjero ? "extranjero" : "cedula";
+                int    facultadId    = obtenerFacultadId(con);
+                int    carreraIdReal = (carreraId != null) ? carreraId : obtenerCarreraId(con);
+                String carreraNombre = obtenerNombreCarrera(con, carreraIdReal);
+                String username      = generarUsername(con, nombre, apellido);
+                // El correo se deriva del username ya-unico (no del valor enviado por el
+                // formulario) para que dos personas con el mismo nombre nunca choquen: el
+                // campo del formulario es de solo lectura y solo sirve de vista previa.
+                String emailReal     = username + "@delta.edu";
+                String passHash      = UsuarioDAO.sha256("estudiante123");
+                String tipoId        = esExtranjero ? "extranjero" : "cedula";
 
                 // INSERT usuarios
                 int usuarioId;
@@ -286,24 +260,58 @@ public class CrearUsuarioDAO {
                 }
 
                 // INSERT estudiantes
+                int estudianteId;
                 try (PreparedStatement ps = con.prepareStatement(
                         "INSERT INTO estudiantes "
                       + "(usuario_id, cedula, nombre, apellido, email, telefono, semestre,"
                       + " carrera, carrera_id, facultad_id, nacionalidad, tipo_identificacion)"
-                      + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)")) {
+                      + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                        Statement.RETURN_GENERATED_KEYS)) {
                     ps.setInt(1, usuarioId);
                     ps.setString(2, idDocumento);
                     ps.setString(3, nombre);
                     ps.setString(4, apellido);
-                    ps.setString(5, email);
+                    ps.setString(5, emailReal);
                     ps.setString(6, (telefono != null && !telefono.isEmpty()) ? telefono : null);
                     ps.setInt(7, semestre);
-                    ps.setString(8, "Ingeniería en Sistemas Computacionales");
-                    ps.setInt(9, carreraId);
+                    ps.setString(8, carreraNombre);
+                    ps.setInt(9, carreraIdReal);
                     ps.setInt(10, facultadId);
                     ps.setString(11, (nacionalidad != null) ? nacionalidad : "panameño");
                     ps.setString(12, tipoId);
                     ps.executeUpdate();
+                    try (ResultSet rs = ps.getGeneratedKeys()) { rs.next(); estudianteId = rs.getInt(1); }
+                }
+
+                // Matricula inicial opcional en un salon (numero de aula): como el
+                // aula es compartida por todas las materias de la carrera, se
+                // matricula al estudiante de una vez en el grupo correspondiente
+                // de CADA una de esas materias (accion administrativa, no pasa
+                // por solicitudes_matricula).
+                if (grupoIdsIniciales != null && !grupoIdsIniciales.isEmpty()) {
+                    for (int grupoId : grupoIdsIniciales) {
+                        int capacidad = 0, ocupados = 0;
+                        try (PreparedStatement ps = con.prepareStatement(
+                                "SELECT capacidad, (SELECT COUNT(*) FROM inscripciones i "
+                              + "WHERE i.grupo_id = g.id AND i.estado='activo') AS ocupados "
+                              + "FROM grupos g WHERE g.id = ?")) {
+                            ps.setInt(1, grupoId);
+                            try (ResultSet rs = ps.executeQuery()) {
+                                if (!rs.next()) throw new IllegalArgumentException("Uno de los salones elegidos no fue encontrado.");
+                                capacidad = rs.getInt("capacidad");
+                                ocupados  = rs.getInt("ocupados");
+                            }
+                        }
+                        if (ocupados >= capacidad)
+                            throw new IllegalArgumentException("Ya no hay cupo disponible en uno de los salones elegidos.");
+
+                        try (PreparedStatement ps = con.prepareStatement(
+                                "INSERT INTO inscripciones (estudiante_id, grupo_id, estado) VALUES (?,?,'activo')")) {
+                            ps.setInt(1, estudianteId);
+                            ps.setInt(2, grupoId);
+                            ps.executeUpdate();
+                        }
+                    }
                 }
 
                 con.commit();
@@ -338,20 +346,21 @@ public class CrearUsuarioDAO {
     public Map<String, Object> crearProfesor(
             String nombre,       String apellido,   String cedula,
             String email,        String telefono,   String departamento,
-            String nacionalidad, boolean esExtranjero,
-            List<Integer> materiaIds) throws SQLException {
+            String nacionalidad, boolean esExtranjero) throws SQLException {
 
         try (Connection con = ConexionDB.obtenerConexion()) {
             con.setAutoCommit(false);
             try {
                 // Validaciones
+                if (!validarNombreApellido(nombre))
+                    throw new IllegalArgumentException("El nombre solo puede contener letras.");
+                if (!validarNombreApellido(apellido))
+                    throw new IllegalArgumentException("El apellido solo puede contener letras.");
+                if (!validarTelefono(telefono))
+                    throw new IllegalArgumentException("El teléfono debe empezar con 6 y contener solo números. Formato: 6123-4567.");
                 if (!esExtranjero && cedula != null && !cedula.isEmpty()
                         && !validarCedulaPanamena(cedula)) {
                     throw new IllegalArgumentException("Formato de cédula panameña inválido.");
-                }
-                if (existeEmail(con, email)) {
-                    throw new IllegalArgumentException(
-                        "El email ya está registrado en el sistema.");
                 }
                 if (!esExtranjero && cedula != null && !cedula.isEmpty()) {
                     try (PreparedStatement ps = con.prepareStatement(
@@ -368,6 +377,10 @@ public class CrearUsuarioDAO {
                 int    facultadId = obtenerFacultadId(con);
                 String codigo     = generarCodigoProfesor(con);
                 String username   = generarUsername(con, nombre, apellido);
+                // El correo se deriva del username ya-unico (no del valor enviado por el
+                // formulario) para que dos profesores con el mismo nombre nunca choquen: el
+                // campo del formulario es de solo lectura y solo sirve de vista previa.
+                String emailReal  = username + "@delta.edu";
                 String passHash   = UsuarioDAO.sha256("profesor123");
                 String idDoc      = esExtranjero ? generarIdExtranjero(con)
                                                  : (cedula != null ? cedula : "");
@@ -385,38 +398,22 @@ public class CrearUsuarioDAO {
                 }
 
                 // INSERT profesores
-                int profesorId;
                 try (PreparedStatement ps = con.prepareStatement(
                         "INSERT INTO profesores "
                       + "(usuario_id, codigo, nombre, apellido, email, telefono,"
                       + " departamento, facultad_id, nacionalidad, tipo_identificacion)"
-                      + " VALUES (?,?,?,?,?,?,?,?,?,?)",
-                        Statement.RETURN_GENERATED_KEYS)) {
+                      + " VALUES (?,?,?,?,?,?,?,?,?,?)")) {
                     ps.setInt(1, usuarioId);
                     ps.setString(2, codigo);
                     ps.setString(3, nombre);
                     ps.setString(4, apellido);
-                    ps.setString(5, email);
+                    ps.setString(5, emailReal);
                     ps.setString(6, (telefono != null && !telefono.isEmpty()) ? telefono : null);
                     ps.setString(7, (departamento != null) ? departamento : "Sistemas");
                     ps.setInt(8, facultadId);
                     ps.setString(9, (nacionalidad != null) ? nacionalidad : "panameño");
                     ps.setString(10, tipoId);
                     ps.executeUpdate();
-                    try (ResultSet rs = ps.getGeneratedKeys()) { rs.next(); profesorId = rs.getInt(1); }
-                }
-
-                // INSERT profesor_materias (batch)
-                if (materiaIds != null && !materiaIds.isEmpty()) {
-                    try (PreparedStatement ps = con.prepareStatement(
-                            "INSERT IGNORE INTO profesor_materias (profesor_id, materia_id) VALUES (?,?)")) {
-                        for (int matId : materiaIds) {
-                            ps.setInt(1, profesorId);
-                            ps.setInt(2, matId);
-                            ps.addBatch();
-                        }
-                        ps.executeBatch();
-                    }
                 }
 
                 con.commit();

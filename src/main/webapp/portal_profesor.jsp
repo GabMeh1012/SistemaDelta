@@ -449,6 +449,9 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
     </div>
     <div class="login-error" id="loginError"<% if (!loginError) { %> style="display:none;"<% } %>>Usuario o contraseña incorrecto.</div>
+    <% if (loginError) { %>
+    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto.','error'); });</script>
+    <% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Ingrese con su usuario y contraseña institucional</div>
     <div class="login-switch">¿Es estudiante? <a href="index.jsp">Ir al Portal Estudiantil →</a></div>
