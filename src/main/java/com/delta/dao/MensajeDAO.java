@@ -132,6 +132,46 @@ public class MensajeDAO {
         }
     }
 
+    /**
+     * Valida si un remitente puede escribirle a un destinatario. La unica
+     * restriccion real es estudiante -> profesor: un estudiante solo puede
+     * escribirle a profesores que dicten alguna materia de su propia carrera
+     * (no necesariamente una en la que ya este inscrito). Mensajes hacia
+     * administracion o entre estudiantes no tienen restriccion, y tampoco los
+     * que envia un profesor.
+     * @return null si esta permitido, o un mensaje de error si no lo esta.
+     */
+    public String validarDestinatario(int remitenteUsuarioId, int destinatarioUsuarioId) throws SQLException {
+        try (Connection con = ConexionDB.obtenerConexion()) {
+            String rolRemitente = null;
+            try (PreparedStatement ps = con.prepareStatement("SELECT rol FROM usuarios WHERE id = ?")) {
+                ps.setInt(1, remitenteUsuarioId);
+                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) rolRemitente = rs.getString(1); }
+            }
+            if (!"estudiante".equals(rolRemitente)) return null;
+
+            String rolDestinatario = null;
+            try (PreparedStatement ps = con.prepareStatement("SELECT rol FROM usuarios WHERE id = ?")) {
+                ps.setInt(1, destinatarioUsuarioId);
+                try (ResultSet rs = ps.executeQuery()) { if (rs.next()) rolDestinatario = rs.getString(1); }
+            }
+            if (!"profesor".equals(rolDestinatario)) return null;
+
+            String sql = "SELECT COUNT(*) FROM grupos g "
+                       + "JOIN materias m ON m.id = g.materia_id "
+                       + "JOIN profesores p ON p.usuario_id = ? AND p.id = g.profesor_id "
+                       + "JOIN estudiantes e ON e.usuario_id = ? AND e.carrera_id = m.carrera_id";
+            try (PreparedStatement ps = con.prepareStatement(sql)) {
+                ps.setInt(1, destinatarioUsuarioId);
+                ps.setInt(2, remitenteUsuarioId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) return null;
+                }
+            }
+            return "Solo puede enviar mensajes a profesores de su propia carrera.";
+        }
+    }
+
     /** Envía un mensaje nuevo. Devuelve el id generado. */
     public int enviar(int remitenteId, int destinatarioId, String asunto, String cuerpo)
             throws SQLException {

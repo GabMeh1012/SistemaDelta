@@ -565,7 +565,10 @@ public class AdminDAO {
 
     public List<Map<String, Object>> reporteInscritosMateria(String orden) throws SQLException {
         String orderBy = "asc".equalsIgnoreCase(orden) ? "inscritos ASC" : "inscritos DESC";
-        String sql = "SELECT m.nombre, m.codigo, COUNT(i.id) AS inscritos, g.capacidad "
+        // Se incluye g.codigo_grupo para distinguir las secciones de una misma
+        // materia (antes salian dos filas identicas en nombre y codigo cuando
+        // la materia tenia mas de un salon, sin forma de saber cual era cual).
+        String sql = "SELECT m.nombre, m.codigo, g.codigo_grupo, COUNT(i.id) AS inscritos, g.capacidad "
                    + "FROM materias m "
                    + "JOIN grupos g ON g.materia_id = m.id "
                    + "LEFT JOIN inscripciones i ON i.grupo_id = g.id AND i.estado='activo' "

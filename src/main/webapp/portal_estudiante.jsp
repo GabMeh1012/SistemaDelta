@@ -566,7 +566,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
         <div class="stat-card"><div class="stat-icon-box icon-blue">&#128218;</div><div><div class="stat-label">Materias</div><div class="stat-value" id="statMaterias">0</div><div class="stat-sub">I Semestre 2026</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-green">&#11088;</div><div><div class="stat-label">Promedio</div><div class="stat-value" id="statPromedio">-</div><div class="stat-sub" id="statPromedioSub">Sin notas</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-amber">&#127885;</div><div><div class="stat-label">Creditos</div><div class="stat-value" id="statCreditos">0</div><div class="stat-sub">de 180 requeridos</div></div></div>
-        <div class="stat-card"><div class="stat-icon-box icon-red">&#128197;</div><div><div class="stat-label">Prox. Examen</div><div class="stat-value" style="font-size:22px">Jun 3</div><div class="stat-sub">Calidad del SW</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box icon-red">&#128197;</div><div><div class="stat-label">Semana de Semestral</div><div class="stat-value" style="font-size:18px">13 de julio</div><div class="stat-sub" id="statMateriaSemestral">-</div></div></div>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -617,7 +617,7 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
     <div id="tab-calificaciones" class="tab-panel">
       <div class="topbar">
         <div><h2 class="page-title">Mis Calificaciones</h2><div class="page-subtitle">I Semestre 2026 &middot; Historial academico</div></div>
-        <button class="btn btn-secondary" onclick="showToast('Descargando reporte PDF...', 'info')">Descargar PDF</button>
+        <button class="btn btn-secondary" onclick="showToast('Descargar en PDF aun no esta disponible.', 'info')">Descargar PDF</button>
       </div>
       <div class="stats-row stats-3">
         <div class="stat-card"><div class="stat-icon-box icon-green">&#11088;</div><div><div class="stat-label">Promedio General</div><div class="stat-value" id="calProm">-</div><div class="stat-sub">-</div></div></div>
@@ -654,12 +654,13 @@ h1, h2, h3 { font-family: 'Merriweather', serif; }
         <div class="card">
           <div class="card-title">Nuevo Mensaje</div>
           <div class="compose-wrap">
-            <datalist id="docentesOpciones"><option value="María Mosquera"></datalist>
-            <input class="compose-input" id="msgPara" type="text" list="docentesOpciones" placeholder="Para: María Mosquera..." value="María Mosquera">
+            <select class="compose-input" id="msgPara" style="cursor:pointer;">
+              <option value="">— Selecciona un destinatario —</option>
+            </select>
             <input class="compose-input" id="msgAsunto" type="text" placeholder="Asunto...">
             <textarea class="compose-textarea" id="msgCuerpo" placeholder="Escribe tu mensaje aqui..."></textarea>
             <div class="compose-footer">
-              <button class="btn btn-secondary btn-sm">Adjuntar</button>
+              <button class="btn btn-secondary btn-sm" onclick="showToast('Adjuntar archivos aun no esta disponible.', 'info')">Adjuntar</button>
               <button class="btn btn-primary btn-sm" onclick="enviarMsg()">Enviar</button>
             </div>
           </div>
@@ -814,6 +815,40 @@ function iniciarPortal() {
   renderHorario(); renderHorarioHoy(); renderFechaHoy(); renderBandeja();
   renderMensajesResumen(); actualizarBadges(); actualizarBadgeAvisos();
   actualizarContadoresInscripcion(); cargarAvisos(); cargarSolicitudesPendientes();
+  poblarDestinatariosMensaje();
+  renderMateriaSemestral();
+}
+
+// Muestra una materia real del estudiante (al azar, no importa cual) junto a
+// la fecha fija de semana de examenes semestrales -- antes decia siempre
+// "Calidad del SW", sin relacion con las materias reales del estudiante.
+function renderMateriaSemestral() {
+  var el = document.getElementById('statMateriaSemestral');
+  if (!el) return;
+  if (!materiasInscritas.length) { el.textContent = 'Sin materias inscritas'; return; }
+  var idx = Math.floor(Math.random() * materiasInscritas.length);
+  el.textContent = materiasInscritas[idx].nombre;
+}
+
+// Llena el selector de destinatario en Mensajes solo con los profesores
+// reales de las materias en las que el estudiante esta inscrito (antes
+// siempre sugeria "Maria Mosquera", sin importar si le daba clase o no).
+// Es un <select> -- igual que en el portal del profesor -- para que no se
+// pueda ni escribir un destinatario invalido, en vez de dejarlo escribir
+// cualquier nombre y rechazarlo despues de intentar enviarlo.
+function poblarDestinatariosMensaje() {
+  var sel = document.getElementById('msgPara');
+  if (!sel) return;
+  var nombres = [];
+  materiasInscritas.forEach(function(m) {
+    var doc = (m.docente || '').trim();
+    if (doc && doc !== 'Por asignar' && nombres.indexOf(doc) === -1) nombres.push(doc);
+  });
+  nombres.sort().forEach(function(n) {
+    var opt = document.createElement('option');
+    opt.value = n; opt.textContent = n;
+    sel.appendChild(opt);
+  });
 }
 
 function abrirNotifPanel() { document.getElementById('notifOverlay').classList.remove('hidden'); document.getElementById('notifPanel').classList.remove('notif-cerrado'); renderNotifPanel(); }
@@ -993,7 +1028,7 @@ function enviarMsg() {
   fetch(ctx+'/mensajes', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'accion=enviar&destinatario='+encodeURIComponent(para)+'&asunto='+encodeURIComponent(asunto)+'&cuerpo='+encodeURIComponent(cuerpo)})
     .then(function(r){ return r.json(); })
     .then(function(d){
-      if (d.ok) { showToast('Mensaje enviado a: '+para, 'success'); document.getElementById('msgPara').value='María Mosquera'; document.getElementById('msgAsunto').value=''; document.getElementById('msgCuerpo').value=''; renderBandeja(); actualizarBadges(); }
+      if (d.ok) { showToast('Mensaje enviado a: '+para, 'success'); document.getElementById('msgPara').value=''; document.getElementById('msgAsunto').value=''; document.getElementById('msgCuerpo').value=''; renderBandeja(); actualizarBadges(); }
       else { showToast('Error: '+(d.error||'No se pudo enviar.'), 'error'); }
     }).catch(function(){ showToast('Error de conexion.', 'error'); });
 }

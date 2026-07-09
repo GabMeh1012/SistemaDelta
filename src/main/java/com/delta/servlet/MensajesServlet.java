@@ -149,6 +149,12 @@ public class MensajesServlet extends HttpServlet {
                         out.print("{\"error\":\"Destinatario no encontrado\"}");
                         break;
                     }
+                    String errorValidacion = dao.validarDestinatario(usuarioId, destId);
+                    if (errorValidacion != null) {
+                        resp.setStatus(403);
+                        out.print("{\"error\":\"" + errorValidacion + "\"}");
+                        break;
+                    }
                     int msgId = dao.enviar(usuarioId, destId, asunto, cuerpo);
                     out.print("{\"ok\":true,\"msgId\":" + msgId + "}");
                     break;

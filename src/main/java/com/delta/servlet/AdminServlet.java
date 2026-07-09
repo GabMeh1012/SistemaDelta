@@ -182,14 +182,8 @@ public class AdminServlet extends HttpServlet {
                 case "materiasSinCarrera":
                     out.print(listToJson(carreraDao.listarMateriasSinCarrera()));
                     break;
-                case "materiasPorCarrera":
-                    out.print(listToJson(carreraDao.listarMateriasPorCarrera(Integer.parseInt(req.getParameter("carreraId")))));
-                    break;
                 case "salonesPorCarrera":
                     out.print(listToJson(carreraDao.listarSalonesPorCarrera(Integer.parseInt(req.getParameter("carreraId")))));
-                    break;
-                case "salonesDeMateria":
-                    out.print(listToJson(carreraDao.listarSalonesDeMateria(Integer.parseInt(req.getParameter("materiaId")))));
                     break;
                 case "crearCarrera": {
                     List<Integer> matExistentes = parseCsvInt(req.getParameter("materiaIdsExistentes"));
@@ -216,26 +210,6 @@ public class AdminServlet extends HttpServlet {
                 case "activarPeriodo":
                     carreraDao.activarPeriodo(req.getParameter("codigo"));
                     out.print("{\"ok\":true}");
-                    break;
-                case "crearGrupo": {
-                    List<Map<String,Object>> bloques = parseHorarioBloques(
-                        req.getParameter("dias"), req.getParameter("horaInicios"), req.getParameter("horaFines"));
-                    int grupoId = carreraDao.crearGrupo(
-                        Integer.parseInt(req.getParameter("materiaId")),
-                        req.getParameter("codigoGrupo"), req.getParameter("aula"),
-                        Integer.parseInt(req.getParameter("capacidad")),
-                        req.getParameter("periodo"), bloques);
-                    out.print("{\"ok\":true,\"grupoId\":" + grupoId + "}");
-                    break;
-                }
-                case "listarHorarios":
-                    out.print(listToJson(carreraDao.listarHorarios(Integer.parseInt(req.getParameter("grupoId")))));
-                    break;
-                case "listarSalonesSinProfesor":
-                    out.print(listToJson(carreraDao.listarSalonesSinProfesor(req.getParameter("periodo"))));
-                    break;
-                case "listarProfesoresPorMateria":
-                    out.print(listToJson(carreraDao.listarProfesoresPorMateria(Integer.parseInt(req.getParameter("materiaId")))));
                     break;
 
                 // ---- AVISOS ----
@@ -269,20 +243,8 @@ public class AdminServlet extends HttpServlet {
                         req.getParameter("estado"));
                     out.print("{\"ok\":true}");
                     break;
-                // Mantener compatibilidad con codigo anterior
-                case "desactivarAviso":
-                    dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
-                    out.print("{\"ok\":true}");
-                    break;
-                case "eliminarAviso":
-                    dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
-                    out.print("{\"ok\":true}");
-                    break;
                 case "listarUsuariosCreados":
                     out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarUsuariosCreados()));
-                    break;
-                case "listarGruposDisponibles":
-                    out.print(listToJson(new com.delta.dao.CrearUsuarioDAO().listarGruposDisponibles()));
                     break;
                 case "crearEstudiante": {
                     com.delta.dao.CrearUsuarioDAO cudEst = new com.delta.dao.CrearUsuarioDAO();

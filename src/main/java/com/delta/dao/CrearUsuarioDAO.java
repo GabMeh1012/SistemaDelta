@@ -173,29 +173,6 @@ public class CrearUsuarioDAO {
         return lista;
     }
 
-    /** Retorna todos los grupos con el nombre y código de su materia. */
-    public List<Map<String, Object>> listarGruposDisponibles() throws SQLException {
-        List<Map<String, Object>> lista = new ArrayList<>();
-        String sql = "SELECT g.id, g.codigo_grupo, m.nombre AS materia, m.codigo AS mat_codigo,"
-                   + "       g.semestre, g.aula "
-                   + "FROM grupos g JOIN materias m ON m.id = g.materia_id ORDER BY m.nombre";
-        try (Connection con = ConexionDB.obtenerConexion();
-             Statement st  = con.createStatement();
-             ResultSet rs  = st.executeQuery(sql)) {
-            while (rs.next()) {
-                Map<String, Object> g = new LinkedHashMap<>();
-                g.put("id",          rs.getInt("id"));
-                g.put("codigoGrupo", rs.getString("codigo_grupo"));
-                g.put("materia",     rs.getString("materia"));
-                g.put("matCodigo",   rs.getString("mat_codigo"));
-                g.put("semestre",    rs.getString("semestre"));
-                g.put("aula",        rs.getString("aula"));
-                lista.add(g);
-            }
-        }
-        return lista;
-    }
-
     // ── Crear Estudiante ──────────────────────────────────────────────────
 
     /**

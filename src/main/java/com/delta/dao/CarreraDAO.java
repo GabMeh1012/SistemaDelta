@@ -61,60 +61,6 @@ public class CarreraDAO {
         return lista;
     }
 
-    public List<Map<String, Object>> listarMateriasPorCarrera(int carreraId) throws SQLException {
-        String sql = "SELECT id, codigo, nombre FROM materias WHERE carrera_id = ? ORDER BY nombre";
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, carreraId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("id", rs.getInt("id"));
-                    row.put("codigo", rs.getString("codigo"));
-                    row.put("nombre", rs.getString("nombre"));
-                    lista.add(row);
-                }
-            }
-        }
-        return lista;
-    }
-
-    /** Salones de una materia con su ocupacion, para elegir a cual matricular a un estudiante nuevo. */
-    public List<Map<String, Object>> listarSalonesDeMateria(int materiaId) throws SQLException {
-        String sql = "SELECT g.id AS grupo_id, g.codigo_grupo, g.aula, g.capacidad, "
-                   + "CONCAT(p.nombre,' ',p.apellido) AS profesor, "
-                   + "(SELECT COUNT(*) FROM inscripciones i WHERE i.grupo_id = g.id AND i.estado='activo') AS ocupados, "
-                   + "(SELECT GROUP_CONCAT(CONCAT(h.dia_semana,' ',TIME_FORMAT(h.hora_inicio,'%h:%i%p'),'-',TIME_FORMAT(h.hora_fin,'%h:%i%p')) SEPARATOR ' / ') "
-                   + " FROM horarios h WHERE h.grupo_id = g.id) AS horario "
-                   + "FROM grupos g LEFT JOIN profesores p ON p.id = g.profesor_id "
-                   + "WHERE g.materia_id = ? ORDER BY g.codigo_grupo";
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, materiaId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("grupoId", rs.getInt("grupo_id"));
-                    row.put("codigoGrupo", rs.getString("codigo_grupo"));
-                    row.put("aula", rs.getString("aula"));
-                    row.put("capacidad", rs.getInt("capacidad"));
-                    row.put("profesor", rs.getString("profesor"));
-                    row.put("ocupados", rs.getInt("ocupados"));
-                    row.put("horario", rs.getString("horario"));
-                    lista.add(row);
-                }
-            }
-        }
-        return lista;
-    }
-
-    /**
-     * Todos los salones de TODAS las materias de una carrera, en un solo listado
-     * (para elegir directamente el salón al crear un estudiante, sin tener que
-     * elegir primero la materia).
-     */
     /**
      * Lista los "salones" de una carrera agrupados por aula: como el aula de
      * cada numero de salon es compartida por TODAS las materias de la
@@ -373,32 +319,6 @@ public class CarreraDAO {
     // ============================================================
 
     /**
-     * Crea un salon nuevo para una materia. Si es el primer salon de esa
-     * materia, exige horarioBloques (cada bloque: dia, horaInicio, horaFin)
-     * y valida que caiga entre 7:00am y 3:00pm. Si la materia ya tiene al
-     * menos un salon, ignora horarioBloques y clona el horario del primero.
-     * En ambos casos valida que ningun otro salon (cualquier materia, mismo
-     * periodo) ocupe la misma aula en un horario que se cruce.
-     */
-    public int crearGrupo(int materiaId, String codigoGrupo, String aula, int capacidad,
-                           String periodoCodigo, List<Map<String, Object>> horarioBloques) throws SQLException {
-        try (Connection con = ConexionDB.obtenerConexion()) {
-            con.setAutoCommit(false);
-            try {
-                int grupoId = crearGrupoTx(con, materiaId, codigoGrupo, aula, capacidad, periodoCodigo, horarioBloques);
-                con.commit();
-                return grupoId;
-            } catch (Exception ex) {
-                con.rollback();
-                if (ex instanceof SQLException) throw (SQLException) ex;
-                throw new SQLException(ex.getMessage(), ex);
-            } finally {
-                con.setAutoCommit(true);
-            }
-        }
-    }
-
-    /**
      * Version interna de crearGrupo que reutiliza una conexion/transaccion ya
      * abierta por el llamador (usada por crearCarrera para crear carrera +
      * materias + salones de forma atomica).
@@ -512,71 +432,6 @@ public class CarreraDAO {
             ps.executeBatch();
         }
         return grupoId;
-    }
-
-    public List<Map<String, Object>> listarHorarios(int grupoId) throws SQLException {
-        String sql = "SELECT dia_semana, hora_inicio, hora_fin FROM horarios WHERE grupo_id = ? "
-                   + "ORDER BY FIELD(dia_semana,'lunes','martes','miercoles','jueves','viernes','sabado'), hora_inicio";
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, grupoId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("dia", rs.getString("dia_semana"));
-                    row.put("horaInicio", rs.getTime("hora_inicio").toLocalTime().toString());
-                    row.put("horaFin", rs.getTime("hora_fin").toLocalTime().toString());
-                    lista.add(row);
-                }
-            }
-        }
-        return lista;
-    }
-
-    public List<Map<String, Object>> listarSalonesSinProfesor(String periodoCodigo) throws SQLException {
-        String sql = "SELECT g.id AS grupo_id, g.codigo_grupo, m.codigo AS materia_codigo, m.nombre AS materia_nombre, g.aula "
-                   + "FROM grupos g JOIN materias m ON m.id = g.materia_id "
-                   + "WHERE g.profesor_id IS NULL AND g.semestre = ? "
-                   + "ORDER BY m.codigo, g.codigo_grupo";
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setString(1, periodoCodigo);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("grupoId", rs.getInt("grupo_id"));
-                    row.put("codigoGrupo", rs.getString("codigo_grupo"));
-                    row.put("materiaCodigo", rs.getString("materia_codigo"));
-                    row.put("materiaNombre", rs.getString("materia_nombre"));
-                    row.put("aula", rs.getString("aula"));
-                    lista.add(row);
-                }
-            }
-        }
-        return lista;
-    }
-
-    /** Profesores que ya tienen esta materia marcada en profesor_materias. */
-    public List<Map<String, Object>> listarProfesoresPorMateria(int materiaId) throws SQLException {
-        String sql = "SELECT p.id, CONCAT(p.nombre,' ',p.apellido) AS nombre "
-                   + "FROM profesor_materias pm JOIN profesores p ON p.id = pm.profesor_id "
-                   + "WHERE pm.materia_id = ? ORDER BY p.apellido, p.nombre";
-        List<Map<String, Object>> lista = new ArrayList<>();
-        try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql)) {
-            ps.setInt(1, materiaId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    Map<String, Object> row = new LinkedHashMap<>();
-                    row.put("id", rs.getInt("id"));
-                    row.put("nombre", rs.getString("nombre"));
-                    lista.add(row);
-                }
-            }
-        }
-        return lista;
     }
 
 }

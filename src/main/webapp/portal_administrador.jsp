@@ -276,7 +276,6 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <div class="login-error" id="loginError">Usuario o contrasena incorrecto.</div>
     <% if (adm_loginError) { %><script>document.getElementById('loginError').style.display='block';</script><% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
-    <div class="login-hint">Demo: usuario <strong>admin</strong> &middot; clave <strong>1234</strong></div>
     <div class="login-switch"><a href="index.jsp">&#8592; Volver a seleccion de portal</a></div>
   </div>
 </div>

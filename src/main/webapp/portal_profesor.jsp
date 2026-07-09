@@ -819,7 +819,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
             <input class="compose-input" id="profMsgSubj" type="text" placeholder="Asunto...">
             <textarea class="compose-textarea" id="profMsgBody" placeholder="Escribe tu mensaje aquí..."></textarea>
             <div class="compose-footer">
-              <button class="btn btn-secondary btn-sm">📎 Adjuntar</button>
+              <button class="btn btn-secondary btn-sm" onclick="showToast('Adjuntar archivos aun no esta disponible.', 'info')">📎 Adjuntar</button>
               <button class="btn btn-primary btn-sm" onclick="sendProfMsg()">✉ Enviar Mensaje</button>
             </div>
           </div>
