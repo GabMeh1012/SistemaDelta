@@ -45,6 +45,30 @@ public final class MatriculaHelper {
             }
         }
 
+        // Si el estudiante ya tuvo una inscripcion retirada en este mismo grupo
+        // (que ahora se conserva como registro en vez de borrarse), se reactiva
+        // esa misma fila en vez de insertar una nueva: la restriccion unica de
+        // (estudiante_id, grupo_id) no permite dos filas para el mismo par, y
+        // ademas mantiene el historial de notas/asistencia como una sola linea
+        // continua (inscrito -> retirado -> vuelto a inscribir).
+        Integer inscripcionRetiradaId = null;
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT id FROM inscripciones WHERE estudiante_id = ? AND grupo_id = ? AND estado = 'retirado'")) {
+            ps.setInt(1, estudianteId);
+            ps.setInt(2, grupoId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) inscripcionRetiradaId = rs.getInt(1);
+            }
+        }
+        if (inscripcionRetiradaId != null) {
+            try (PreparedStatement ps = con.prepareStatement(
+                    "UPDATE inscripciones SET estado = 'activo' WHERE id = ?")) {
+                ps.setInt(1, inscripcionRetiradaId);
+                ps.executeUpdate();
+            }
+            return inscripcionRetiradaId;
+        }
+
         try (PreparedStatement ps = con.prepareStatement(
                 "INSERT INTO inscripciones (estudiante_id, grupo_id, estado) VALUES (?,?,'activo')",
                 Statement.RETURN_GENERATED_KEYS)) {
@@ -77,15 +101,13 @@ public final class MatriculaHelper {
         }
         if (inscripcionId == null) throw new SQLException("inscripcion no encontrada");
 
-        try (PreparedStatement ps = con.prepareStatement("DELETE FROM notas WHERE inscripcion_id = ?")) {
-            ps.setInt(1, inscripcionId);
-            ps.executeUpdate();
-        }
-        try (PreparedStatement ps = con.prepareStatement("DELETE FROM asistencia WHERE inscripcion_id = ?")) {
-            ps.setInt(1, inscripcionId);
-            ps.executeUpdate();
-        }
-        try (PreparedStatement ps = con.prepareStatement("DELETE FROM inscripciones WHERE id = ?")) {
+        // Se conserva la inscripcion (y sus notas/asistencia) como registro en
+        // vez de borrarla: solo cambia su estado a 'retirado'. Todo lo que lee
+        // inscripciones para reportes, cupos, riesgo academico, etc. ya filtra
+        // por estado='activo', asi que un retiro sigue dejando de contar en
+        // esos lugares exactamente igual que antes.
+        try (PreparedStatement ps = con.prepareStatement(
+                "UPDATE inscripciones SET estado = 'retirado' WHERE id = ?")) {
             ps.setInt(1, inscripcionId);
             ps.executeUpdate();
         }

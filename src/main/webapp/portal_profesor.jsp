@@ -575,10 +575,10 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         </div>
       </div>
       <div class="stats-row stats-4">
-        <div class="stat-card"><div class="stat-icon-box icon-blue">👥</div><div><div class="stat-label">Grupos Activos</div><div class="stat-value">3</div><div class="stat-sub"><span id="inicioTotalEst">12</span> estudiantes total</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box icon-blue">👥</div><div><div class="stat-label">Grupos Activos</div><div class="stat-value" id="statGruposActivos">--</div><div class="stat-sub"><span id="inicioTotalEst">0</span> estudiantes total</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-green">✅</div><div><div class="stat-label">Asistencia Hoy</div><div class="stat-value" id="statAsistenciaHoy">--</div><div class="stat-sub" id="statAsistenciaHoySub">Cargando...</div></div></div>
         <div class="stat-card"><div class="stat-icon-box icon-amber">⚠️</div><div><div class="stat-label">En Riesgo</div><div class="stat-value" id="statEnRiesgo"><%= enRiesgo %></div><div class="stat-sub">Nota menor a 70</div></div></div>
-        <div class="stat-card"><div class="stat-icon-box icon-red">📝</div><div><div class="stat-label">Por Calificar</div><div class="stat-value">12</div><div class="stat-sub">Parciales pendientes</div></div></div>
+        <div class="stat-card"><div class="stat-icon-box icon-red">📝</div><div><div class="stat-label">Por Calificar</div><div class="stat-value" id="statPorCalificar">--</div><div class="stat-sub">Parciales pendientes</div></div></div>
       </div>
       <div class="grid-2">
         <div class="card">
@@ -593,7 +593,6 @@ h1,h2,h3{font-family:'Merriweather',serif;}
         <div class="card">
           <div class="card-title">Notificaciones Recientes</div>
           <div class="notif-item"><div class="notif-icon-box" style="background:var(--amber-bg);">⚠️</div><div><div class="notif-title" id="riesgoNotifTitle"><%= enRiesgo %> estudiantes en riesgo académico</div><div class="notif-body">Estudiantes con promedio menor a 70.</div><div class="notif-time">Actualizado</div></div></div>
-          <div class="notif-item"><div class="notif-icon-box" style="background:var(--green-bg);">✅</div><div><div class="notif-title">Sistema Delta</div><div class="notif-body">Versión 1.2 implementada. Nuevas funciones disponibles.</div><div class="notif-time">Ayer, 3:00 PM</div></div></div>
           <div id="inicioMsgList"></div>
         </div>
       </div>
@@ -2436,6 +2435,9 @@ var GRUPO_COLORES = [
 
 // Poblar todos los selectores de grupo (calificaciones, asistencia) desde misGruposBD
 function poblarSelectores() {
+  var statGrupos = document.getElementById('statGruposActivos');
+  if (statGrupos) statGrupos.textContent = misGruposBD.length;
+
   var selCal = document.getElementById('calGrupoSelect');
   var selAtt = document.getElementById('attGrupoSelect');
   if (!selCal || !selAtt) return;
@@ -2751,6 +2753,7 @@ window.addEventListener('DOMContentLoaded', function() {
 
   // 2. Cargar notas de TODOS los grupos del profesor desde BD
   if (typeof CTX !== 'undefined' && misGruposBD.length > 0) {
+    var porCalificar = 0;
     var promesas = misGruposBD.map(function(g) {
       return fetch(CTX+'/notas?grupoId=' + g.grupoId)
         .then(function(r){ return r.json(); })
@@ -2769,6 +2772,9 @@ window.addEventListener('DOMContentLoaded', function() {
               est.modP2   = row.modP2   || 0;
               est.modProy = row.modProy || 0;
               est.modEf   = row.modEf   || 0;
+              // Cuenta componentes todavia sin calificar (nota real, no en 0
+              // por defecto) para la tarjeta "Por Calificar" del Inicio.
+              [row.p1, row.p2, row.proy, row.ef].forEach(function(v){ if (v === null) porCalificar++; });
             }
           });
         }).catch(function(){});
@@ -2776,10 +2782,14 @@ window.addEventListener('DOMContentLoaded', function() {
     Promise.all(promesas).then(function() {
       updateGroupCounts();
       renderCalificaciones();
+      var statPorCal = document.getElementById('statPorCalificar');
+      if (statPorCal) statPorCal.textContent = porCalificar;
     });
   } else {
     updateGroupCounts();
     renderCalificaciones();
+    var statPorCal0 = document.getElementById('statPorCalificar');
+    if (statPorCal0) statPorCal0.textContent = 0;
   }
 
   renderHorario();

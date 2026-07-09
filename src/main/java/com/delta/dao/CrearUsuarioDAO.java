@@ -364,7 +364,7 @@ public class CrearUsuarioDAO {
                 }
                 if (!esExtranjero && cedula != null && !cedula.isEmpty()) {
                     try (PreparedStatement ps = con.prepareStatement(
-                            "SELECT COUNT(*) FROM profesores WHERE codigo = ?")) {
+                            "SELECT COUNT(*) FROM profesores WHERE cedula = ?")) {
                         ps.setString(1, cedula);
                         try (ResultSet rs = ps.executeQuery()) {
                             rs.next();
@@ -400,19 +400,20 @@ public class CrearUsuarioDAO {
                 // INSERT profesores
                 try (PreparedStatement ps = con.prepareStatement(
                         "INSERT INTO profesores "
-                      + "(usuario_id, codigo, nombre, apellido, email, telefono,"
+                      + "(usuario_id, codigo, cedula, nombre, apellido, email, telefono,"
                       + " departamento, facultad_id, nacionalidad, tipo_identificacion)"
-                      + " VALUES (?,?,?,?,?,?,?,?,?,?)")) {
+                      + " VALUES (?,?,?,?,?,?,?,?,?,?,?)")) {
                     ps.setInt(1, usuarioId);
                     ps.setString(2, codigo);
-                    ps.setString(3, nombre);
-                    ps.setString(4, apellido);
-                    ps.setString(5, emailReal);
-                    ps.setString(6, (telefono != null && !telefono.isEmpty()) ? telefono : null);
-                    ps.setString(7, (departamento != null) ? departamento : "Sistemas");
-                    ps.setInt(8, facultadId);
-                    ps.setString(9, (nacionalidad != null) ? nacionalidad : "panameño");
-                    ps.setString(10, tipoId);
+                    ps.setString(3, idDoc);
+                    ps.setString(4, nombre);
+                    ps.setString(5, apellido);
+                    ps.setString(6, emailReal);
+                    ps.setString(7, (telefono != null && !telefono.isEmpty()) ? telefono : null);
+                    ps.setString(8, (departamento != null) ? departamento : "Sistemas");
+                    ps.setInt(9, facultadId);
+                    ps.setString(10, (nacionalidad != null) ? nacionalidad : "panameño");
+                    ps.setString(11, tipoId);
                     ps.executeUpdate();
                 }
 
