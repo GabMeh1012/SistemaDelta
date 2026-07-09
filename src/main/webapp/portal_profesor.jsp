@@ -986,26 +986,6 @@ function showInfoModal(titulo, mensaje) {
 // ============================================================
 const CTX = '<%= request.getContextPath() %>';
 const ATT_HAY_BD = '<%= hayBD %>' === 'true';
-// ID del grupo IS-401 desde BD para cargar notas reales
-window._grupoIS401Id = (function(){
-  try {
-    var ids = <%
-      // Ya no se usa un grupo fijo - misGruposBD tiene todos los grupoIds
-      // Este valor se mantiene por compatibilidad pero no se usa activamente
-      int _gid = 0;
-      if (hayBD && profesorId_pg > 0) {
-        try (Connection _gc = ConexionDB.obtenerConexion();
-             PreparedStatement _gp = _gc.prepareStatement(
-               "SELECT g.id FROM grupos g WHERE g.profesor_id=? LIMIT 1")) {
-          _gp.setInt(1, profesorId_pg);
-          ResultSet _gr = _gp.executeQuery();
-          if (_gr.next()) _gid = _gr.getInt(1);
-        } catch(Exception _ge){}
-      }
-    %><%= _gid %>;
-    return ids;
-  } catch(e){ return 0; }
-})();
 const MODO_BD = <%= hayBD %>;
 
 // ─────────────────────────────────────────────────────────────
@@ -1628,10 +1608,10 @@ function guardarNotasEnBD(tbodyId, grupo) {
           if (errores===0) {
             showToast('Calificaciones guardadas correctamente.', 'success');
             // Re-fetch para actualizar conteos de modificaciones y re-renderizar
-            recargarNotasBD();
+            recargarNotasBD(grupo);
           } else {
             showToast((primerError ? primerError : 'Algunas notas no se pudieron guardar.') + (errores > 1 ? ' (' + errores + ' notas afectadas)' : ''), 'error');
-            recargarNotasBD(); // Recargar igual para reflejar qué sí se guardó
+            recargarNotasBD(grupo); // Recargar igual para reflejar qué sí se guardó (incluye el bloqueo por límite)
           }
         }}).catch(()=>{ pendientes--; errores++; });
     });
@@ -1647,14 +1627,15 @@ function renderCalificaciones() {
 }
 
 /** Re-fetch notas desde BD para actualizar conteos de modificaciones y re-renderizar. */
-function recargarNotasBD() {
-  if (!window._grupoIS401Id) return;
-  fetch(CTX + '/notas?grupoId=' + window._grupoIS401Id)
+function recargarNotasBD(grupo) {
+  var meta = misGruposBD.find(function(g){ return g.codigo === grupo; });
+  if (!meta) return;
+  fetch(CTX + '/notas?grupoId=' + meta.grupoId)
     .then(r => r.json())
     .then(function(lista) {
       if (!Array.isArray(lista)) return;
       lista.forEach(function(row) {
-        var est = (gruposData[_gCodigo]||{estudiantes:[]}).estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
+        var est = (gruposData[grupo]||{estudiantes:[]}).estudiantes.find(function(e){ return e.inscripcionId === row.inscripcionId; });
         if (est) {
           if (row.p1   !== null) est.p1    = row.p1;
           if (row.p2   !== null) est.p2    = row.p2;

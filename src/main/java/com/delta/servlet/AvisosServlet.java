@@ -116,7 +116,7 @@ public class AvisosServlet extends HttpServlet {
         if (a.getProfesorNombre() != null) {
             origen = a.getProfesorNombre() + (a.getCodigoGrupo() != null ? " - " + a.getCodigoGrupo() : " - Todos los grupos");
         } else {
-            origen = "Administracion UTP";
+            origen = "Administración Delta";
         }
         return "{"
             + "\"id\":"      + a.getId()

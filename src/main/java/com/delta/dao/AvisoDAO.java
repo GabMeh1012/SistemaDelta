@@ -49,12 +49,15 @@ public class AvisoDAO {
      */
     public List<Aviso> listarPorProfesor(int profesorId) throws SQLException {
         List<Aviso> lista = new ArrayList<>();
+        // Incluye tambien los avisos institucionales (profesor_id NULL,
+        // creados por el admin) para que el profesor los vea en su propio
+        // panel, ademas de los que el mismo publico.
         String sql = "SELECT a.id, a.profesor_id, a.grupo_id, a.titulo, a.cuerpo, a.tipo, a.created_at, "
                    + "CONCAT(p.nombre,' ',p.apellido) AS profesor_nombre, g.codigo_grupo "
                    + "FROM avisos a "
                    + "LEFT JOIN profesores p ON p.id = a.profesor_id "
                    + "LEFT JOIN grupos g ON g.id = a.grupo_id "
-                   + "WHERE a.profesor_id = ? "
+                   + "WHERE (a.profesor_id = ? OR a.profesor_id IS NULL) "
                    + "  AND COALESCE(a.estado,'activo') = 'activo' "
                    + "ORDER BY a.created_at DESC";
         try (Connection con = ConexionDB.obtenerConexion();
@@ -68,20 +71,23 @@ public class AvisoDAO {
     }
 
     /**
-     * Crea un nuevo aviso publicado por un profesor, y genera una notificación
-     * (tabla notificaciones, tipo='aviso') para cada estudiante afectado:
-     *  - grupoId == null  -> todos los estudiantes con inscripción activa
-     *                        en alguno de los grupos del profesor
-     *  - grupoId != null  -> estudiantes con inscripción activa en ese grupo
+     * Crea un nuevo aviso y genera una notificación (tabla notificaciones,
+     * tipo='aviso') para cada usuario afectado:
+     *  - profesorId == null -> aviso institucional (creado por el admin):
+     *                          llega a TODOS los estudiantes y profesores.
+     *  - profesorId != null, grupoId == null -> todos los estudiantes con
+     *                          inscripción activa en algún grupo del profesor.
+     *  - profesorId != null, grupoId != null -> estudiantes con inscripción
+     *                          activa en ese grupo.
      * @return el id del aviso generado
      */
-    public int crear(int profesorId, Integer grupoId, String titulo, String cuerpo, String tipo) throws SQLException {
+    public int crear(Integer profesorId, Integer grupoId, String titulo, String cuerpo, String tipo) throws SQLException {
         String tipoFinal = (tipo == null || tipo.isEmpty()) ? "info" : tipo;
         String sql = "INSERT INTO avisos (profesor_id, grupo_id, titulo, cuerpo, tipo) VALUES (?,?,?,?,?)";
         int avisoId = -1;
         try (Connection con = ConexionDB.obtenerConexion();
              PreparedStatement ps = con.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setInt(1, profesorId);
+            if (profesorId == null) ps.setNull(1, Types.INTEGER); else ps.setInt(1, profesorId);
             if (grupoId == null) ps.setNull(2, Types.INTEGER); else ps.setInt(2, grupoId);
             ps.setString(3, titulo);
             ps.setString(4, cuerpo);
@@ -92,19 +98,21 @@ public class AvisoDAO {
             }
         }
         if (avisoId != -1) {
-            notificarEstudiantes(profesorId, grupoId, avisoId, titulo, cuerpo);
+            notificarUsuarios(profesorId, grupoId, titulo, cuerpo);
         }
         return avisoId;
     }
 
     /**
-     * Inserta una notificación (tipo='aviso') para cada estudiante con
-     * inscripción activa en el/los grupo(s) afectados por el aviso.
+     * Inserta una notificación (tipo='aviso') para cada usuario afectado por
+     * el aviso: estudiantes del grupo/profesor, o TODOS los estudiantes y
+     * profesores cuando es institucional (profesorId == null).
      */
-    private void notificarEstudiantes(int profesorId, Integer grupoId, int avisoId,
-                                       String titulo, String cuerpo) throws SQLException {
+    private void notificarUsuarios(Integer profesorId, Integer grupoId, String titulo, String cuerpo) throws SQLException {
         String sqlUsuarios;
-        if (grupoId != null) {
+        if (profesorId == null) {
+            sqlUsuarios = "SELECT usuario_id FROM estudiantes UNION SELECT usuario_id FROM profesores";
+        } else if (grupoId != null) {
             sqlUsuarios = "SELECT DISTINCT e.usuario_id FROM inscripciones i "
                         + "JOIN estudiantes e ON e.id = i.estudiante_id "
                         + "WHERE i.grupo_id = ? AND i.estado = 'activo'";
@@ -122,7 +130,7 @@ public class AvisoDAO {
             try {
                 java.util.List<Integer> usuarioIds = new ArrayList<>();
                 try (PreparedStatement psU = con.prepareStatement(sqlUsuarios)) {
-                    psU.setInt(1, grupoId != null ? grupoId : profesorId);
+                    if (profesorId != null) psU.setInt(1, grupoId != null ? grupoId : profesorId);
                     try (ResultSet rs = psU.executeQuery()) {
                         while (rs.next()) usuarioIds.add(rs.getInt("usuario_id"));
                     }

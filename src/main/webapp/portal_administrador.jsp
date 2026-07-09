@@ -227,6 +227,35 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
   </div>
 </div>
 
+<!-- MODAL CREAR AVISO (institucional, visible para todos los estudiantes y profesores) -->
+<div class="modal-overlay hidden" id="crearAvisoOverlay">
+  <div class="modal-box" style="max-width:500px;">
+    <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;">Crear Aviso</h3>
+    <p style="font-size:12.5px;color:var(--text-soft);margin:-10px 0 16px;">Se publica como "Administración Delta" y llega a todos los estudiantes y profesores.</p>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Titulo</label>
+      <input type="text" id="crearAvisoTitulo" class="aviso-field-input">
+      <span class="field-error" id="errCrearAvisoTitulo"></span>
+    </div>
+    <div style="margin-bottom:14px;">
+      <label class="aviso-field-label">Contenido</label>
+      <textarea id="crearAvisoCuerpo" rows="4" class="aviso-field-input" style="resize:vertical;"></textarea>
+      <span class="field-error" id="errCrearAvisoCuerpo"></span>
+    </div>
+    <div style="margin-bottom:20px;">
+      <label class="aviso-field-label">Tipo</label>
+      <select id="crearAvisoTipo" class="aviso-field-input" style="width:auto;">
+        <option value="info">&#128216; Informativo</option>
+        <option value="urgente">&#9888;&#65039; Urgente</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cerrarCrearAviso()">Cancelar</button>
+      <button class="btn btn-primary" id="btnCrearAviso" onclick="enviarCrearAviso()">Publicar</button>
+    </div>
+  </div>
+</div>
+
 <!-- LOGIN -->
 <div id="page-login" class="<%= adm_hayBD ? "hidden" : "" %>">
   <div class="login-box">
@@ -428,7 +457,10 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
 
     <!-- AVISOS -->
     <div id="tab-avisos" class="tab-panel">
-      <div class="topbar"><h2 class="page-title">Gestion de Avisos</h2></div>
+      <div class="topbar" style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+        <h2 class="page-title">Gestion de Avisos</h2>
+        <button class="btn btn-primary btn-sm" onclick="abrirCrearAviso()">+ Crear Aviso</button>
+      </div>
       <div class="sub-nav" id="filtrosAvisos">
         <button class="active" data-estado="todos" onclick="cargarAvisos('todos',this)">Todos</button>
         <button data-estado="activo" onclick="cargarAvisos('activo',this)">Activos</button>
@@ -1812,6 +1844,44 @@ function guardarAviso() {
       if (d.ok) { cerrarEditarAviso(); cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active')); showToast('Aviso actualizado.','success'); }
       else showToast('Error: '+(d.error||'No se pudo guardar.'),'error');
     }).catch(function(){ showToast('Error de conexion.','error'); });
+}
+
+// ── Crear aviso institucional (visible para todos los estudiantes y profesores) ──
+function abrirCrearAviso() {
+  document.getElementById('crearAvisoTitulo').value = '';
+  document.getElementById('crearAvisoCuerpo').value = '';
+  document.getElementById('crearAvisoTipo').value = 'info';
+  document.getElementById('errCrearAvisoTitulo').textContent = '';
+  document.getElementById('errCrearAvisoCuerpo').textContent = '';
+  document.getElementById('crearAvisoOverlay').classList.remove('hidden');
+}
+
+function cerrarCrearAviso() { document.getElementById('crearAvisoOverlay').classList.add('hidden'); }
+
+function enviarCrearAviso() {
+  var titulo = document.getElementById('crearAvisoTitulo').value.trim();
+  var cuerpo = document.getElementById('crearAvisoCuerpo').value.trim();
+  var tipo   = document.getElementById('crearAvisoTipo').value;
+  var ok = true;
+  document.getElementById('errCrearAvisoTitulo').textContent = '';
+  document.getElementById('errCrearAvisoCuerpo').textContent = '';
+  if (!titulo) { document.getElementById('errCrearAvisoTitulo').textContent = 'El titulo es obligatorio.'; ok = false; }
+  if (!cuerpo) { document.getElementById('errCrearAvisoCuerpo').textContent = 'El contenido es obligatorio.'; ok = false; }
+  if (!ok) return;
+
+  var btn = document.getElementById('btnCrearAviso');
+  btn.disabled = true; btn.textContent = 'Publicando...';
+  fetch(CTX+'/admin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body:'accion=crearAviso&titulo='+encodeURIComponent(titulo)+'&cuerpo='+encodeURIComponent(cuerpo)+'&tipo='+encodeURIComponent(tipo)})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      btn.disabled = false; btn.textContent = 'Publicar';
+      if (d.ok) {
+        cerrarCrearAviso();
+        cargarAvisos(filtroAvisosActual(), document.querySelector('#filtrosAvisos button.active'));
+        showToast('Aviso publicado. Ya es visible para todos los estudiantes y profesores.','success');
+      } else showToast('Error: '+(d.error||'No se pudo publicar el aviso.'),'error');
+    }).catch(function(){ btn.disabled = false; btn.textContent = 'Publicar'; showToast('Error de conexion.','error'); });
 }
 
 var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Proyecto', examen_final:'Examen Final'};

@@ -239,6 +239,20 @@ public class AdminServlet extends HttpServlet {
                     break;
 
                 // ---- AVISOS ----
+                case "crearAviso": {
+                    String tituloAv = req.getParameter("titulo");
+                    String cuerpoAv = req.getParameter("cuerpo");
+                    String tipoAv   = req.getParameter("tipo");
+                    if (tituloAv == null || tituloAv.trim().isEmpty() || cuerpoAv == null || cuerpoAv.trim().isEmpty()) {
+                        out.print("{\"ok\":false,\"error\":\"Titulo y contenido son requeridos.\"}");
+                        break;
+                    }
+                    // profesorId y grupoId en null = aviso institucional, visible
+                    // para todos los estudiantes y profesores.
+                    int avisoId = new com.delta.dao.AvisoDAO().crear(null, null, tituloAv.trim(), cuerpoAv.trim(), tipoAv);
+                    out.print("{\"ok\":true,\"id\":" + avisoId + "}");
+                    break;
+                }
                 case "archivarAviso":
                     dao.archivarAviso(Integer.parseInt(req.getParameter("id")));
                     out.print("{\"ok\":true}");
