@@ -441,8 +441,18 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
     <!-- SUPERVISION CALIFICACIONES -->
     <div id="tab-sup-calificaciones" class="tab-panel">
       <div class="topbar">
-        <h2 class="page-title">Calificaciones — Calidad de Software</h2>
+        <h2 class="page-title">Calificaciones</h2>
         <div class="page-subtitle">Notas por componente con historial de modificaciones y autorizaciones</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <label class="aviso-field-label" for="filtroCarreraCalificaciones" style="margin:0;">Carrera</label>
+        <select id="filtroCarreraCalificaciones" class="aviso-field-input" style="max-width:280px;" onchange="cargarSupervisionCalificaciones()">
+          <option value="">— Selecciona una carrera —</option>
+        </select>
+        <label class="aviso-field-label" for="filtroMateriaCalificaciones" style="margin:0;">Materia</label>
+        <select id="filtroMateriaCalificaciones" class="aviso-field-input" style="max-width:280px;" onchange="renderCalificacionesFiltradas()">
+          <option value="">— Selecciona una materia —</option>
+        </select>
       </div>
       <div id="contenedorCalificaciones" style="display:flex;flex-direction:column;gap:0;"></div>
       <div class="card" id="historialCard" style="display:none;margin-top:20px;">
@@ -787,7 +797,7 @@ function irTab(id, btn) {
   if (id==='historial-prof') cargarHistorialAsignaciones();
   if (id==='matricula') cargarSolicitudes('inscripcion', document.getElementById('btnSolInsc'));
   if (id==='limites') cargarLimitesSolicitudes();
-  if (id==='sup-calificaciones') cargarSupervisionCalificaciones();
+  if (id==='sup-calificaciones') { cargarCarrerasParaCalificaciones(); cargarSupervisionCalificaciones(); }
   if (id==='avisos') cargarAvisos('todos', document.querySelector('#filtrosAvisos button'));
   if (id==='reportes') cargarReporte('reportePromedioMateria', document.querySelector('#tab-reportes .sub-nav button'));
   if (id==='crear-usuarios') inicializarCrearUsuarios();
@@ -1885,31 +1895,85 @@ function enviarCrearAviso() {
 
 var COMPONENTE_LABEL = {parcial1:'Parcial 1', parcial2:'Parcial 2', proyecto:'Proyecto', examen_final:'Examen Final'};
 
+function cargarCarrerasParaCalificaciones() {
+  var sel = document.getElementById('filtroCarreraCalificaciones');
+  fetch(CTX+'/admin?accion=listarCarreras').then(function(r){return r.json();}).then(function(cs){
+    if (!Array.isArray(cs)) { showToast('Error al cargar carreras: '+(cs.error||'respuesta inesperada'), 'error'); return; }
+    var valorPrevio = sel.value;
+    sel.innerHTML = '<option value="">— Selecciona una carrera —</option>'
+      + cs.map(function(c){ return '<option value="'+c.id+'">'+esc(c.nombre)+'</option>'; }).join('');
+    if (valorPrevio) sel.value = valorPrevio;
+  }).catch(function(){ showToast('Error de conexión al cargar carreras.', 'error'); });
+}
+
+var calificacionesCacheadas = [];
+
 function cargarSupervisionCalificaciones() {
-  fetch(CTX+'/admin?accion=supervisionCalificaciones').then(function(r){ return r.json(); }).then(function(rows) {
-    var container = document.getElementById('contenedorCalificaciones');
-    if (!rows.length) {
-      container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay notas registradas para Calidad de Software.</div>';
-      return;
-    }
+  var carreraId = document.getElementById('filtroCarreraCalificaciones').value;
+  var selMateria = document.getElementById('filtroMateriaCalificaciones');
+  var materiaPrevia = selMateria.value;
+  selMateria.innerHTML = '<option value="">— Selecciona una materia —</option>';
+  calificacionesCacheadas = [];
+  if (!carreraId) { renderCalificacionesFiltradas(); return; }
 
-    // Agrupar por inscripcionId (un estudiante = un grupo de componentes)
-    var porInscripcion = {};
+  fetch(CTX+'/admin?accion=supervisionCalificaciones&carreraId='+carreraId).then(function(r){ return r.json(); }).then(function(rows) {
+    if (!Array.isArray(rows)) { showToast('Error al cargar calificaciones: '+(rows.error||'respuesta inesperada'), 'error'); return; }
+    calificacionesCacheadas = rows;
+
+    // Una materia por opcion, sin repetir, en el orden en que aparecen
+    var vistas = {};
     rows.forEach(function(r) {
-      if (!porInscripcion[r.inscripcionId]) {
-        porInscripcion[r.inscripcionId] = {
-          inscripcionId: r.inscripcionId,
-          estudiante: r.estudiante,
-          materia: r.materia,
-          materiaCodigo: r.materiaCodigo,
-          grupo: r.grupo,
-          componentes: []
-        };
+      if (!vistas[r.materiaCodigo]) {
+        vistas[r.materiaCodigo] = true;
+        selMateria.innerHTML += '<option value="'+esc(r.materiaCodigo)+'">'+esc(r.materia)+' ('+esc(r.materiaCodigo)+')</option>';
       }
-      porInscripcion[r.inscripcionId].componentes.push(r);
     });
+    if (materiaPrevia && vistas[materiaPrevia]) selMateria.value = materiaPrevia;
+    renderCalificacionesFiltradas();
+  }).catch(function(){ showToast('Error al cargar supervision de calificaciones.', 'error'); });
+}
 
-    var html = '';
+// Filtra (por materia) los datos ya cacheados de la carrera elegida y arma la
+// tabla — no vuelve a pedir nada al servidor al cambiar de materia, y evita
+// que un mismo estudiante aparezca repetido si cursa mas de una materia de
+// la carrera seleccionada.
+function renderCalificacionesFiltradas() {
+  var container = document.getElementById('contenedorCalificaciones');
+  var carreraId = document.getElementById('filtroCarreraCalificaciones').value;
+  var materiaCodigo = document.getElementById('filtroMateriaCalificaciones').value;
+
+  if (!carreraId) {
+    container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">Selecciona una carrera arriba para ver sus calificaciones.</div>';
+    return;
+  }
+  if (!materiaCodigo) {
+    container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">Selecciona una materia para ver el detalle de sus estudiantes.</div>';
+    return;
+  }
+
+  var rows = calificacionesCacheadas.filter(function(r) { return r.materiaCodigo === materiaCodigo; });
+  if (!rows.length) {
+    container.innerHTML = '<div class="card" style="text-align:center;color:var(--text-soft);padding:32px;">No hay notas registradas para esta materia.</div>';
+    return;
+  }
+
+  // Agrupar por inscripcionId (un estudiante = un grupo de componentes)
+  var porInscripcion = {};
+  rows.forEach(function(r) {
+    if (!porInscripcion[r.inscripcionId]) {
+      porInscripcion[r.inscripcionId] = {
+        inscripcionId: r.inscripcionId,
+        estudiante: r.estudiante,
+        materia: r.materia,
+        materiaCodigo: r.materiaCodigo,
+        grupo: r.grupo,
+        componentes: []
+      };
+    }
+    porInscripcion[r.inscripcionId].componentes.push(r);
+  });
+
+  var html = '';
     Object.keys(porInscripcion).forEach(function(inscId) {
       var est = porInscripcion[inscId];
       var inicial = esc(est.estudiante.charAt(0).toUpperCase());
@@ -1931,7 +1995,7 @@ function cargarSupervisionCalificaciones() {
             + inicial + '</div>'
             + '<div style="flex:1;">'
             + '<div style="font-weight:800;font-size:16px;color:var(--purple);">'+esc(est.estudiante)+'</div>'
-            + '<div style="font-size:12px;color:var(--text-soft);">'+esc(est.materia)+' ('+esc(est.materiaCodigo)+') &bull; Grupo: '+esc(est.grupo||'-')+'</div>'
+            + '<div style="font-size:14px;font-weight:700;color:var(--text);">'+esc(est.materia)+' ('+esc(est.materiaCodigo)+') &bull; Grupo: '+esc(est.grupo||'-')+'</div>'
             + '</div>'
             + '<div style="text-align:right;">'
             + '<div style="font-size:11px;color:var(--text-soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Promedio</div>'
@@ -1968,11 +2032,10 @@ function cargarSupervisionCalificaciones() {
         html += '</td></tr>';
       });
 
-      html += '</tbody></table></div></div>';
-    });
+    html += '</tbody></table></div></div>';
+  });
 
-    container.innerHTML = html;
-  }).catch(function(){ showToast('Error al cargar supervision de calificaciones.', 'error'); });
+  container.innerHTML = html;
 }
 
 function verHistorialNota(inscripcionId, componente) {

@@ -670,7 +670,10 @@ public class AdminDAO {
 
     private static final int LIMITE_MODIFICACIONES_NOTAS = 3;
 
-    public List<Map<String, Object>> listarSupervisionCalificaciones() throws SQLException {
+    public List<Map<String, Object>> listarSupervisionCalificaciones(Integer carreraId) throws SQLException {
+        List<Map<String, Object>> lista = new ArrayList<>();
+        if (carreraId == null) return lista;
+
         String sql = "SELECT i.id AS inscripcion_id, CONCAT(e.nombre,' ',e.apellido) AS estudiante, "
                    + "m.nombre AS materia, m.codigo AS materia_codigo, g.codigo_grupo, "
                    + "n.componente, n.nota AS nota_actual, "
@@ -683,30 +686,31 @@ public class AdminDAO {
                    + "JOIN estudiantes e ON e.id = i.estudiante_id "
                    + "JOIN grupos g ON g.id = i.grupo_id "
                    + "JOIN materias m ON m.id = g.materia_id "
-                   + "WHERE i.estado = 'activo' AND m.nombre = 'Calidad del Software' "
-                   + "ORDER BY e.apellido, e.nombre, n.componente";
-        List<Map<String, Object>> lista = new ArrayList<>();
+                   + "WHERE i.estado = 'activo' AND m.carrera_id = ? "
+                   + "ORDER BY e.apellido, e.nombre, m.nombre, n.componente";
         try (Connection con = ConexionDB.obtenerConexion();
-             PreparedStatement ps = con.prepareStatement(sql);
-             ResultSet rs = ps.executeQuery()) {
-            while (rs.next()) {
-                Map<String, Object> row = new HashMap<>();
-                row.put("inscripcionId", rs.getInt("inscripcion_id"));
-                row.put("estudiante", rs.getString("estudiante"));
-                row.put("materia", rs.getString("materia"));
-                row.put("materiaCodigo", rs.getString("materia_codigo"));
-                row.put("grupo", rs.getString("codigo_grupo"));
-                row.put("componente", rs.getString("componente"));
-                double notaActual = rs.getDouble("nota_actual");
-                row.put("notaActual", rs.wasNull() ? null : notaActual);
-                int modificaciones = rs.getInt("modificaciones");
-                int autorizaciones = rs.getInt("autorizaciones");
-                int limite = LIMITE_MODIFICACIONES_NOTAS + autorizaciones;
-                row.put("modificaciones", modificaciones);
-                row.put("limite", limite);
-                row.put("autorizaciones", autorizaciones);
-                row.put("enLimite", modificaciones >= limite);
-                lista.add(row);
+             PreparedStatement ps = con.prepareStatement(sql)) {
+            ps.setInt(1, carreraId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Map<String, Object> row = new HashMap<>();
+                    row.put("inscripcionId", rs.getInt("inscripcion_id"));
+                    row.put("estudiante", rs.getString("estudiante"));
+                    row.put("materia", rs.getString("materia"));
+                    row.put("materiaCodigo", rs.getString("materia_codigo"));
+                    row.put("grupo", rs.getString("codigo_grupo"));
+                    row.put("componente", rs.getString("componente"));
+                    double notaActual = rs.getDouble("nota_actual");
+                    row.put("notaActual", rs.wasNull() ? null : notaActual);
+                    int modificaciones = rs.getInt("modificaciones");
+                    int autorizaciones = rs.getInt("autorizaciones");
+                    int limite = LIMITE_MODIFICACIONES_NOTAS + autorizaciones;
+                    row.put("modificaciones", modificaciones);
+                    row.put("limite", limite);
+                    row.put("autorizaciones", autorizaciones);
+                    row.put("enLimite", modificaciones >= limite);
+                    lista.add(row);
+                }
             }
         }
         return lista;

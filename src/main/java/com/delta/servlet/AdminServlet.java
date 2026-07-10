@@ -122,9 +122,13 @@ public class AdminServlet extends HttpServlet {
                 case "historialAsignaciones":
                     out.print(listToJson(dao.listarHistorialAsignaciones()));
                     break;
-                case "supervisionCalificaciones":
-                    out.print(listToJson(dao.listarSupervisionCalificaciones()));
+                case "supervisionCalificaciones": {
+                    String carreraIdStr = req.getParameter("carreraId");
+                    Integer carreraId = (carreraIdStr != null && !carreraIdStr.trim().isEmpty())
+                            ? Integer.parseInt(carreraIdStr.trim()) : null;
+                    out.print(listToJson(dao.listarSupervisionCalificaciones(carreraId)));
                     break;
+                }
                 case "historialNota":
                     out.print(listToJson(dao.historialNota(
                             Integer.parseInt(req.getParameter("inscripcionId")),
