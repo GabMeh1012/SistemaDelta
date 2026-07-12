@@ -102,6 +102,20 @@
         }
       }
 
+      // Grupos con una inscripcion propia en estado 'retirado' (el retiro ya no borra la
+      // fila, solo cambia su estado — ver correccion de retiro-conserva-historial). A
+      // diferencia de _gruposBloqueados, este set NO se vacia cuando el admin desbloquea la
+      // materia, asi que sirve para reconocer "este salon es mio" incluso despues del
+      // desbloqueo, cuando materias_bloqueadas ya no tiene el registro.
+      java.util.Set<Integer> _gruposConHistorialRetiro = new java.util.HashSet<>();
+      try (PreparedStatement _psR = _con2.prepareStatement(
+             "SELECT grupo_id FROM inscripciones WHERE estudiante_id = ? AND estado = 'retirado'")) {
+        _psR.setInt(1, est_estudianteId);
+        try (ResultSet _rsR = _psR.executeQuery()) {
+          while (_rsR.next()) _gruposConHistorialRetiro.add(_rsR.getInt("grupo_id"));
+        }
+      }
+
       // FIX: agregado m.creditos al SELECT
       try (PreparedStatement _ps2 = _con2.prepareStatement(
              "SELECT g.id AS grupo_id, m.codigo, m.nombre, m.creditos, " +
@@ -185,15 +199,20 @@
 
       // FIX: agregado m.creditos al SELECT de disponibles
       // EXCLUIR: IS-301 (Ingeniería de Software I) y PS-301 (Pruebas de Software) siempre,
-      // cualquier materia con mas de 1 salon (el autoservicio no soporta elegir entre varios;
-      // esas se matriculan solo desde el admin al crear al estudiante), y cualquier materia
-      // que no pertenezca a la carrera del estudiante (si no tiene carrera asignada, no ve nada).
+      // y cualquier materia que no pertenezca a la carrera del estudiante (si no tiene
+      // carrera asignada, no ve nada).
+      // Materias con mas de 1 salon: el autoservicio no soporta ELEGIR entre varios (esas
+      // se matriculan solo desde el admin al crear al estudiante) — pero si el estudiante ya
+      // tenia una inscripcion retirada en uno de esos salones (esta en materias_bloqueadas),
+      // ese salon puntual si debe aparecer, para poder solicitar la re-inscripcion al mismo
+      // salon del que salio. El filtro de "un solo salon" se aplica en Java, no en el SQL,
+      // para poder combinarlo con _gruposBloqueados (ver abajo).
       try (PreparedStatement _ps3 = _con2.prepareStatement(
              "SELECT g.id AS grupo_id, m.codigo, m.nombre, m.creditos, g.aula, g.capacidad, " +
-             "(SELECT COUNT(*) FROM inscripciones i2 WHERE i2.grupo_id = g.id AND i2.estado='activo') AS ocupados " +
+             "(SELECT COUNT(*) FROM inscripciones i2 WHERE i2.grupo_id = g.id AND i2.estado='activo') AS ocupados, " +
+             "(SELECT COUNT(*) FROM grupos g3 WHERE g3.materia_id = m.id) AS num_salones " +
              "FROM grupos g JOIN materias m ON m.id = g.materia_id " +
              "WHERE m.codigo NOT IN ('IS-301', 'PS-301') " +
-             "AND (SELECT COUNT(*) FROM grupos g3 WHERE g3.materia_id = m.id) = 1 " +
              "AND m.carrera_id = ?")) {
         _ps3.setObject(1, est_carreraId);
         try (ResultSet _rs3 = _ps3.executeQuery()) {
@@ -203,6 +222,9 @@
             if (_codigosInscritos.contains(_codigo)) continue;
 
             int _grupoId    = _rs3.getInt("grupo_id");
+            int _numSalones = _rs3.getInt("num_salones");
+            boolean _esSalonPropio = _gruposBloqueados.contains(_grupoId) || _gruposConHistorialRetiro.contains(_grupoId);
+            if (_numSalones > 1 && !_esSalonPropio) continue;
             String _mnombre = _rs3.getString("nombre")  != null ? _rs3.getString("nombre").replace('"', ' ')  : "";
             String _aula    = _rs3.getString("aula")    != null ? _rs3.getString("aula").replace('"', ' ')    : "";
             int _capacidad  = _rs3.getInt("capacidad");
@@ -858,18 +880,19 @@ function renderNotifPanel() {
   var body = document.getElementById('notifPanelBody');
   body.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Cargando...</div>';
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  fetch(ctx+'/mensajes?accion=bandeja')
+  fetch(ctx+'/mensajes?accion=notificaciones')
     .then(function(r){ return r.json(); })
-    .then(function(msgs){
+    .then(function(notifs){
       body.innerHTML = '';
-      var noLeidos = msgs.filter(function(m){ return !m.leido; }).length;
-      if (msgs.length === 0) { body.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Sin notificaciones.</div>'; }
+      var noLeidas = notifs.filter(function(n){ return !n.leida; }).length;
+      if (notifs.length === 0) { body.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Sin notificaciones.</div>'; }
       else {
-        msgs.forEach(function(msg) {
-          var initials = msg.remitente ? msg.remitente.split(' ').map(function(p){return p[0];}).join('').substring(0,2).toUpperCase() : '??';
+        var iconos = {matricula:'📋', aviso:'📣', calificacion:'📝'};
+        notifs.forEach(function(n) {
+          var icon = iconos[n.tipo] || '🔔';
           var div = document.createElement('div');
-          div.className = 'notif-card ' + (msg.leido ? 'ncard-read' : 'ncard-unread');
-          div.innerHTML = '<div class="notif-card-icon" style="background:#dbeafe;">' + initials + '</div><div style="flex:1;"><div class="notif-card-titulo">' + (msg.remitente||'Desconocido') + '</div><div class="notif-card-cuerpo">' + (msg.asunto||'') + '</div><div class="notif-card-hora">' + (msg.fecha||'') + '</div>' + (msg.leido ? '<button class="btn-visto visto-ok" disabled>Visto</button>' : '<button class="btn-visto" onclick="marcarVistoMsg('+msg.id+')">Marcar como visto</button>') + '</div>';
+          div.className = 'notif-card ' + (n.leida ? 'ncard-read' : 'ncard-unread');
+          div.innerHTML = '<div class="notif-card-icon" style="background:#dbeafe;">' + icon + '</div><div style="flex:1;"><div class="notif-card-titulo">' + (n.titulo||'') + '</div><div class="notif-card-cuerpo">' + (n.cuerpo||'') + '</div><div class="notif-card-hora">' + (n.fecha||'') + '</div>' + (n.leida ? '<button class="btn-visto visto-ok" disabled>Visto</button>' : '<button class="btn-visto" onclick="marcarVistoNotif('+n.id+')">Marcar como visto</button>') + '</div>';
           body.appendChild(div);
         });
       }
@@ -877,38 +900,45 @@ function renderNotifPanel() {
       footer.style.cssText = 'margin-top:14px;text-align:center;';
       footer.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="marcarTodosVistoMsg()">Marcar todas como vistas</button>';
       body.appendChild(footer);
-      actualizarContadoresBadge(noLeidos);
+      actualizarContadorNotif(noLeidas);
     }).catch(function(){ body.innerHTML = '<div style="text-align:center;padding:20px;color:#6b7e96;">Error al cargar.</div>'; });
 }
 
+function marcarVistoNotif(notifId) {
+  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
+  fetch(ctx+'/mensajes?accion=marcarNotifLeida', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'id='+notifId})
+    .then(function(r){ return r.json(); })
+    .then(function(d){ renderNotifPanel(); actualizarContadorNotif(d.noLeidas || 0); });
+}
+
 function actualizarContadoresBadge(noLeidos) {
-  var dot = document.getElementById('notifDot');
-  var campanaNum = document.getElementById('campanaCount');
   var badgeNav = document.getElementById('badgeMsgNav');
   var badgeInbox = document.getElementById('badgeInbox');
-  if (dot)        { dot.style.display = noLeidos > 0 ? '' : 'none'; }
-  if (campanaNum) { campanaNum.textContent = noLeidos; campanaNum.style.display = noLeidos > 0 ? 'flex' : 'none'; }
   if (badgeNav)   { badgeNav.textContent = noLeidos;  badgeNav.style.display   = noLeidos > 0 ? '' : 'none'; }
   if (badgeInbox) { badgeInbox.textContent = noLeidos; badgeInbox.style.display = noLeidos > 0 ? '' : 'none'; }
 }
 
-function marcarVistoMsg(msgId) {
-  var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  fetch(ctx+'/mensajes?accion=marcarLeido', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:'id='+msgId})
-    .then(function(r){ return r.json(); })
-    .then(function(d){ renderNotifPanel(); renderBandeja(); actualizarContadoresBadge(d.noLeidos || 0); });
+// Badge de la campanita (bell): refleja NOTIFICACIONES no leidas (matricula,
+// avisos, etc.), separado de los badges de MENSAJES de arriba — antes ambos
+// usaban el mismo contador y la campanita terminaba mostrando el numero de
+// mensajes en vez de notificaciones.
+function actualizarContadorNotif(noLeidas) {
+  var dot = document.getElementById('notifDot');
+  var campanaNum = document.getElementById('campanaCount');
+  if (dot)        { dot.style.display = noLeidas > 0 ? '' : 'none'; }
+  if (campanaNum) { campanaNum.textContent = noLeidas; campanaNum.style.display = noLeidas > 0 ? 'flex' : 'none'; }
 }
 
 function marcarTodosVistoMsg() {
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
-  fetch(ctx+'/mensajes?accion=marcarTodasLeidas', {method:'POST'}).then(function(){ renderNotifPanel(); actualizarBadges(); renderBandeja(); });
+  fetch(ctx+'/mensajes?accion=marcarTodasLeidas', {method:'POST'}).then(function(){ renderNotifPanel(); actualizarBadges(); });
 }
 
 function actualizarBadges() {
   var ctx = document.querySelector('meta[name="ctx"]') ? document.querySelector('meta[name="ctx"]').content : '';
   fetch(ctx+'/mensajes?accion=noLeidos')
     .then(function(r){ return r.json(); })
-    .then(function(d){ actualizarContadoresBadge(d.mensajes || 0); }).catch(function(){});
+    .then(function(d){ actualizarContadoresBadge(d.mensajes || 0); actualizarContadorNotif(d.notificaciones || 0); }).catch(function(){});
 }
 
 function actualizarBadgeAvisos() {

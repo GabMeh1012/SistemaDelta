@@ -112,7 +112,7 @@ public class SolicitudMatriculaDAO {
                     MatriculaHelper.ejecutarRetiro(con, sol.getEstudianteId(), sol.getMateriaCodigo(), adminUsuarioId);
                 }
                 resolver(con, solicitudId, adminUsuarioId, "aprobada");
-                notificarEstudiante(con, sol, true);
+                notificarEstudiante(con, sol, true, null);
                 con.commit();
             } catch (SQLException ex) {
                 con.rollback();
@@ -132,7 +132,7 @@ public class SolicitudMatriculaDAO {
             con.setAutoCommit(false);
             try {
                 resolver(con, solicitudId, adminUsuarioId, "rechazada", motivo);
-                notificarEstudiante(con, sol, false);
+                notificarEstudiante(con, sol, false, motivo);
                 con.commit();
             } catch (SQLException ex) {
                 con.rollback();
@@ -159,7 +159,7 @@ public class SolicitudMatriculaDAO {
         }
     }
 
-    private void notificarEstudiante(Connection con, SolicitudMatricula sol, boolean aprobada) throws SQLException {
+    private void notificarEstudiante(Connection con, SolicitudMatricula sol, boolean aprobada, String motivo) throws SQLException {
         int usuarioId;
         try (PreparedStatement ps = con.prepareStatement("SELECT usuario_id FROM estudiantes WHERE id = ?")) {
             ps.setInt(1, sol.getEstudianteId());
@@ -172,9 +172,13 @@ public class SolicitudMatriculaDAO {
         String titulo = aprobada
                 ? "Solicitud de " + accion + " aprobada"
                 : "Solicitud de " + accion + " rechazada";
+        String sufijoMotivo = "";
+        if (!aprobada && motivo != null && !motivo.trim().isEmpty()) {
+            sufijoMotivo = " Motivo: " + motivo.trim();
+        }
         String cuerpo = aprobada
                 ? "Su solicitud para " + accion + " en " + sol.getMateriaNombre() + " fue aprobada."
-                : "Su solicitud para " + accion + " en " + sol.getMateriaNombre() + " fue rechazada.";
+                : "Su solicitud para " + accion + " en " + sol.getMateriaNombre() + " fue rechazada." + sufijoMotivo;
         try (PreparedStatement ps = con.prepareStatement(
                 "INSERT INTO notificaciones (usuario_id, tipo, titulo, cuerpo, enlace) VALUES (?,?,?,?,?)")) {
             ps.setInt(1, usuarioId);

@@ -173,6 +173,11 @@ public class NotasServlet extends HttpServlet {
             String componente    = req.getParameter("componente");
             double nota          = Double.parseDouble(req.getParameter("nota"));
 
+            if (nota < 0 || nota > 100) {
+                out.print("{\"error\":\"La nota debe estar entre 0 y 100.\"}");
+                return;
+            }
+
             guardarNota(inscripcionId, componente, nota, out);
         } catch (Exception e) {
             resp.setStatus(500);

@@ -362,7 +362,7 @@ h1,h2,h3{font-family:'Merriweather',serif;}
 .sem-day-cell.future{background:var(--bg);color:var(--border);border:1.5px dashed var(--border);}
 
 /* ===== TOASTS Y MODAL DE CONFIRMACION ===== */
-.toast-container{position:fixed;top:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:12px;max-width:380px;pointer-events:none;}
+.toast-container{position:fixed;top:24px;right:24px;z-index:10000;display:flex;flex-direction:column;gap:12px;max-width:380px;pointer-events:none;}
 .toast{display:flex;align-items:flex-start;gap:12px;padding:16px 18px;border-radius:12px;background:#fff;box-shadow:0 8px 32px rgba(0,0,0,.15),0 2px 8px rgba(0,0,0,.08);border-left:5px solid var(--blue);font-size:14px;color:var(--text);animation:toast-in 0.3s cubic-bezier(.34,1.56,.64,1);line-height:1.5;pointer-events:all;position:relative;overflow:hidden;min-width:280px;}
 .toast.toast-success{border-left-color:var(--green);}
 .toast.toast-error{border-left-color:var(--red);}
@@ -449,9 +449,6 @@ h1,h2,h3{font-family:'Merriweather',serif;}
       </div>
     </div>
     <div class="login-error" id="loginError"<% if (!loginError) { %> style="display:none;"<% } %>>Usuario o contraseña incorrecto.</div>
-    <% if (loginError) { %>
-    <script>window.addEventListener('DOMContentLoaded',function(){ showToast('Usuario o contraseña incorrecto.','error'); });</script>
-    <% } %>
     <button class="btn btn-primary btn-full" onclick="doLogin()">Ingresar al Portal</button>
     <div class="login-hint">Ingrese con su usuario y contraseña institucional</div>
     <div class="login-switch">¿Es estudiante? <a href="index.jsp">Ir al Portal Estudiantil →</a></div>
@@ -1760,6 +1757,18 @@ const attSemStates = {};
 const cycle = ['present','late','absent'];
 const symbols = {present:'✓', late:'⏱', absent:'✗'};
 
+// Clave "yyyy-MM-dd" del dia calendario LOCAL de una fecha. No usar
+// date.toISOString().slice(0,10) directo sobre "new Date()": eso convierte
+// a UTC primero, y en zonas con offset negativo (ej. Panama, UTC-5) cualquier
+// hora local despues de las 7pm ya cae en el dia UTC siguiente, desincronizando
+// la clave del dia de hoy respecto a las claves de buildWeekDates (que si usan
+// medianoche local antes de convertir).
+function localDateKey(date) {
+  const d = new Date(date);
+  d.setHours(0,0,0,0);
+  return d.toISOString().slice(0,10);
+}
+
 // Build this week's class dates (Mon-Sun) for a group, based on real "today"
 function buildWeekDates(grupo) {
   const cfg = gruposAttConfig[grupo];
@@ -1965,7 +1974,7 @@ function cycleAttDay(grupo, i) {
   attDayStates[grupo][i] = cycle[idx];
   const newState = attDayStates[grupo][i];
   // Reflejar el cambio del dia de hoy en la tabla semanal
-  const todayKey = new Date().toISOString().slice(0,10);
+  const todayKey = localDateKey(new Date());
   if (attSemStates[grupo] && attSemStates[grupo][todayKey] !== undefined) {
     attSemStates[grupo][todayKey][i] = newState;
     renderSemesterList(grupo);
@@ -2106,7 +2115,7 @@ function renderSemesterList(grupo) {
 
 function saveAttendance() {
   const grupo = document.getElementById('attGrupoSelect')?.value || (misGruposBD.length ? misGruposBD[0].codigo : '');
-  const todayKey = new Date().toISOString().slice(0,10);
+  const todayKey = localDateKey(new Date());
   const g = gruposData[grupo];
 
   if (attSemStates[grupo] && attSemStates[grupo][todayKey]) {

@@ -85,6 +85,7 @@ public class MensajesServlet extends HttpServlet {
                             + ",\"cuerpo\":"  + jsonStr(n.getCuerpo())
                             + ",\"leida\":"   + n.isLeida()
                             + ",\"enlace\":"  + jsonStr(n.getEnlace())
+                            + ",\"fecha\":"   + jsonStr(n.getCreatedAt() != null ? n.getCreatedAt().toString() : "")
                             + "}");
                     }
                     out.print("]");

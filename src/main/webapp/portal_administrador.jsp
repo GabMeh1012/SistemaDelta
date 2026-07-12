@@ -227,6 +227,23 @@ body { font-family:'Nunito',sans-serif; background:var(--bg); color:var(--text);
   </div>
 </div>
 
+<!-- MODAL MOTIVO DE RECHAZO (solicitudes de matricula) -->
+<div class="modal-overlay hidden" id="rechazoMotivoOverlay">
+  <div class="modal-box" style="max-width:460px;">
+    <h3 style="margin-bottom:8px;font-size:16px;font-weight:800;">Rechazar solicitud</h3>
+    <p style="font-size:12.5px;color:var(--text-soft);margin:0 0 14px;">El motivo quedará guardado en la solicitud y el estudiante lo verá en su notificación.</p>
+    <div style="margin-bottom:20px;">
+      <label class="aviso-field-label">Motivo</label>
+      <textarea id="rechazoMotivoTexto" rows="3" class="aviso-field-input" style="resize:vertical;" placeholder="Ej: Cupo agotado en el grupo"></textarea>
+      <span class="field-error" id="errRechazoMotivo"></span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="cerrarRechazoMotivo()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarRechazoMotivo()">Rechazar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL CREAR AVISO (institucional, visible para todos los estudiantes y profesores) -->
 <div class="modal-overlay hidden" id="crearAvisoOverlay">
   <div class="modal-box" style="max-width:500px;">
@@ -1752,18 +1769,41 @@ function cargarSolicitudes(tipo, btn) {
 }
 
 function resolverSolicitud(id, accion) {
-  var msg = accion === 'aprobar' ? '¿Aprobar esta solicitud?' : '¿Rechazar esta solicitud?';
-  showConfirm(msg, function() {
-    var body = 'accion='+accion+'&id='+id;
-    if (accion === 'rechazar') body += '&motivo='+encodeURIComponent('Rechazada por administracion');
-    fetch(CTX+'/matricula', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
-      .then(function(r){ return r.json(); })
-      .then(function(d){
-        if (d.ok) { cargarSolicitudes(tipoSolicitudActual, null); cargarDashboard(); showToast(accion==='aprobar'?'Solicitud aprobada.':'Solicitud rechazada.','success'); }
-        else showToast('Error: '+(d.error||'No se pudo procesar'),'error');
-      })
-      .catch(function(){ showToast('Error de conexion al procesar la solicitud.', 'error'); });
+  if (accion === 'rechazar') { abrirRechazoMotivo(id); return; }
+  showConfirm('¿Aprobar esta solicitud?', function() {
+    enviarResolucion(id, 'aprobar', null);
   });
+}
+
+function abrirRechazoMotivo(id) {
+  document.getElementById('rechazoMotivoTexto').value = '';
+  document.getElementById('errRechazoMotivo').textContent = '';
+  document.getElementById('rechazoMotivoOverlay').dataset.solicitudId = id;
+  document.getElementById('rechazoMotivoOverlay').classList.remove('hidden');
+}
+
+function cerrarRechazoMotivo() {
+  document.getElementById('rechazoMotivoOverlay').classList.add('hidden');
+}
+
+function confirmarRechazoMotivo() {
+  var id = document.getElementById('rechazoMotivoOverlay').dataset.solicitudId;
+  var motivo = document.getElementById('rechazoMotivoTexto').value.trim();
+  if (!motivo) { document.getElementById('errRechazoMotivo').textContent = 'Escriba el motivo del rechazo.'; return; }
+  cerrarRechazoMotivo();
+  enviarResolucion(id, 'rechazar', motivo);
+}
+
+function enviarResolucion(id, accion, motivo) {
+  var body = 'accion='+accion+'&id='+id;
+  if (motivo) body += '&motivo='+encodeURIComponent(motivo);
+  fetch(CTX+'/matricula', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body:body})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if (d.ok) { cargarSolicitudes(tipoSolicitudActual, null); cargarDashboard(); showToast(accion==='aprobar'?'Solicitud aprobada.':'Solicitud rechazada.','success'); }
+      else showToast('Error: '+(d.error||'No se pudo procesar'),'error');
+    })
+    .catch(function(){ showToast('Error de conexion al procesar la solicitud.', 'error'); });
 }
 
 var avisosData = {};
